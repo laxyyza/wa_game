@@ -1,0 +1,6 @@
+[submodule "lib/wa"]
+	path = lib/wa
+	url = git@github.com:laxyyza/wa.git
+[submodule "lib/ght"]
+	path = lib/ght
+	url = git@github.com:laxyyza/ght.git
