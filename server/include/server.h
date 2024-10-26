@@ -12,6 +12,7 @@ typedef struct
 	i32 fd;
 	i32 epfd;
 	ght_t clients;
+	bool running;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, const char** argv);
