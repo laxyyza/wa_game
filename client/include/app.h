@@ -18,6 +18,9 @@ typedef struct waapp
     vec4f_t color;
     ren_t ren;
 
+	texture_t* tank_bottom_tex;
+	texture_t* tank_top_tex;
+
 	coregame_t game;
 	player_t* player;
 

@@ -18,6 +18,19 @@ coregame_norm(vec2f_t* vec)
 	}
 }
 
+static void
+coregame_get_delta_time(coregame_t* coregame)
+{
+	struct timespec current_time;
+	clock_gettime(CLOCK_MONOTONIC, &current_time);
+
+	coregame->delta =	(current_time.tv_sec - coregame->last_time.tv_sec) + 
+						(current_time.tv_nsec - coregame->last_time.tv_nsec) / 1e9;
+
+	memcpy(&coregame->last_time, &current_time, sizeof(struct timespec));
+}
+
+
 void 
 coregame_init(coregame_t* coregame)
 {
@@ -28,6 +41,7 @@ coregame_init(coregame_t* coregame)
 		vec2f(-100, -100),
 		vec2f(1000, 1000)
 	);
+	coregame_get_delta_time(coregame);
 }
 
 static void 
@@ -49,23 +63,10 @@ coregame_update_players(coregame_t* coregame)
 //
 // }
 
-static f64
-get_delta_time(coregame_t* coregame)
-{
-	struct timespec current_time;
-	clock_gettime(CLOCK_MONOTONIC, &current_time);
-	f64 delta = (current_time.tv_sec - coregame->last_time.tv_sec) + 
-				(current_time.tv_nsec - coregame->last_time.tv_nsec) / 1e9;
-
-	memcpy(&coregame->last_time, &current_time, sizeof(struct timespec));
-	coregame->delta = delta;
-	return delta;
-}
-
 void 
 coregame_update(coregame_t* coregame)
 {
-	get_delta_time(coregame);
+	coregame_get_delta_time(coregame);
 
 	coregame_update_players(coregame);
 }

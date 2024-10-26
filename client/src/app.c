@@ -9,10 +9,23 @@ static void
 waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 {
 	waapp_t* app = data;
+	player_t* player = app->player;
 
-	coregame_set_player_dir(app->player->core, app->player->movement_dir);
+	coregame_set_player_dir(player->core, player->movement_dir);
+
+	if (player->movement_dir)
+		player->rect.rotation = atan2(player->core->dir.y, player->core->dir.x) + M_PI / 2;
 
 	coregame_update(&app->game);
+
+    const vec2f_t mpos = vec2f(
+        (app->mouse.x - app->cam.x),
+        (app->mouse.y - app->cam.y)
+    );
+	const vec2f_t origin = rect_origin(&player->rect);
+
+	player->top.rotation = angle(&origin, 
+								   &mpos);
 
     waapp_opengl_draw(app);
 }
@@ -167,6 +180,9 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     }
 
 	coregame_init(&app->game);
+
+	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
+	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
 
 	app->player = player_new(app, "test");
 

@@ -3,6 +3,12 @@
 
 #include "int.h"
 
+enum filter 
+{	
+	TEXTURE_LINEAR,
+	TEXTURE_NEAREST,
+};
+
 typedef struct 
 {
     u32 id;
@@ -12,8 +18,8 @@ typedef struct
     i32 bpp;    // Bits Per Pixel
 } texture_t;
 
-texture_t* texture_load(const char* filename);
-void texture_init(texture_t* text, const char* filename);
+texture_t* texture_load(const char* filename, enum filter);
+void texture_init(texture_t* text, const char* filename, enum filter);
 void texture_del(texture_t* text);
 
 void texture_bind(const texture_t* text, u32 slot);

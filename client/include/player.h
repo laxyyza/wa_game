@@ -10,6 +10,7 @@ typedef struct
 {
 	cg_player_t* core;
 	rect_t rect;
+	rect_t top;
 	u8 movement_dir;
 } player_t;
 

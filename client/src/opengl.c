@@ -184,6 +184,16 @@ rect_in_frustum(waapp_t* app, rect_t* rect)
 	return true;
 }
 
+static void 
+render_player(waapp_t* app, player_t* player)
+{
+	player->rect.pos = player->core->rect.pos;
+	player->top.pos = player->core->rect.pos;
+
+	ren_draw_rect(&app->ren, &player->rect);
+	ren_draw_rect(&app->ren, &player->top);
+}
+
 void
 waapp_opengl_draw(waapp_t* app)
 {
@@ -215,8 +225,7 @@ waapp_opengl_draw(waapp_t* app)
         app->mouse_prev = app->mouse;
     }
 
-	app->player->rect.pos = app->player->core->rect.pos;
-	ren_draw_rect(ren, &app->player->rect);
+	render_player(app, app->player);
 
     ren_draw_batch(ren);
 

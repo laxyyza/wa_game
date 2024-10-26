@@ -49,7 +49,7 @@ th_load_texture(struct loading* data)
     while (still_loading(data, &idx))
     {
         char* filepath = *(char**)array_idx(data->files, idx);
-        if ((data->textures[idx] = texture_load(filepath)))
+        if ((data->textures[idx] = texture_load(filepath, 0)))
         {
             printf("Texture loaded (%u/%u): '%s'\n", 
                    idx + 1, data->files->count, filepath);
