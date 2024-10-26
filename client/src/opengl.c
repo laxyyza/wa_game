@@ -229,6 +229,10 @@ waapp_opengl_draw(waapp_t* app)
 
     ren_draw_batch(ren);
 
+	ren_bind_bro(ren, app->line_bro);
+	ren_draw_rect(ren, &app->world_border);
+	ren_draw_batch(ren);
+
     waapp_gui(app);
 }
 

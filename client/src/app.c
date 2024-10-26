@@ -184,7 +184,12 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
 	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
 
+	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
+
 	app->player = player_new(app, "test");
+
+	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
+	// memcpy(&app->line_bro->shader, &app->ren.default_bro->shader, sizeof(bro_t));
 
     return 0;
 }

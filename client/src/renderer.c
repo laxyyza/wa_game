@@ -48,7 +48,7 @@ ren_def_bro(ren_t* ren)
     ren->default_bro = ren_new_bro(DRAW_TRIANGLES,
                                     MAX_VERTICES,
                                     "client/src/shaders/vert.glsl",
-                                    "client/src/shaders/frag.glsl");
+                                    "client/src/shaders/frag.glsl", NULL);
 }
 
 void
@@ -68,7 +68,7 @@ bro_bind_submit(ren_t* ren, bro_t* bro)
 }
 
 bro_t*
-ren_new_bro(enum draw_mode draw_mode, u32 max_vb_count, const char* vert_shader, const char* frag_shader)
+ren_new_bro(enum draw_mode draw_mode, u32 max_vb_count, const char* vert_shader, const char* frag_shader, const shader_t* shared_shader)
 {
     vertarray_t* vao;
     vertbuf_t* vbo;
@@ -99,7 +99,16 @@ ren_new_bro(enum draw_mode draw_mode, u32 max_vb_count, const char* vert_shader,
 
     idxbuf_init(ibo, IDXBUF_UINT16, NULL, INITIAL_IBO);
 
-    shader_init(shader, vert_shader, frag_shader);
+	if (shared_shader)
+	{
+		memcpy(shader, shared_shader, sizeof(shader_t));
+		bro->shared_shader = true;
+	}
+	else
+	{
+		shader_init(shader, vert_shader, frag_shader);
+		bro->shared_shader = false;
+	}
 
     ght_init(&bro->textures, 8, (ght_free_t)texture_del);
 
@@ -113,7 +122,8 @@ ren_delete_bro(bro_t* bro)
         return;
 
     ght_destroy(&bro->textures);
-    shader_del(&bro->shader);
+	if (bro->shared_shader == false)
+		shader_del(&bro->shader);
     idxbuf_del(&bro->ibo);
     vertlayout_del(&bro->layout);
     vertbuf_del(&bro->vbo);

@@ -39,7 +39,7 @@ coregame_init(coregame_t* coregame)
 
 	coregame->world_border = cg_rect(
 		vec2f(-100, -100),
-		vec2f(1000, 1000)
+		vec2f(10000, 10000)
 	);
 	coregame_get_delta_time(coregame);
 }

@@ -21,8 +21,10 @@ typedef struct waapp
 	texture_t* tank_bottom_tex;
 	texture_t* tank_top_tex;
 
+	rect_t world_border;
 	coregame_t game;
 	player_t* player;
+	bro_t* line_bro;
 
     vec2f_t mouse;
     vec2f_t mouse_prev;
