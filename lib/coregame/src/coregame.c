@@ -2,6 +2,20 @@
 #include <stdlib.h>
 #include <sys/random.h>
 #include <string.h>
+#include <math.h>
+
+void
+coregame_norm(vec2f_t* vec)
+{
+	const f32 manitude = sqrtf(vec->x * vec->x + vec->y * vec->y);
+
+
+	if (manitude != 0)
+	{
+		vec->x /= manitude;
+		vec->y /= manitude;
+	}
+}
 
 void 
 coregame_init(coregame_t* coregame)
@@ -15,9 +29,29 @@ coregame_init(coregame_t* coregame)
 	);
 }
 
-void 
-coregame_update(UNUSED coregame_t* coregame)
+static void 
+coregame_update_players(coregame_t* coregame)
 {
+	const ght_t* players = &coregame->players;
+	GHT_FOREACH(cg_player_t* player, players, {
+		if (player->dir.x || player->dir.y)
+		{
+			player->rect.pos.x += player->dir.x * PLAYER_SPEED;
+			player->rect.pos.y += player->dir.y * PLAYER_SPEED;
+		}
+	});
+}
+
+// static void 
+// coregame_update_projectiles(coregame_t* coregame)
+// {
+//
+// }
+
+void 
+coregame_update(coregame_t* coregame)
+{
+	coregame_update_players(coregame);
 }
 
 void 
@@ -48,6 +82,25 @@ void
 coregame_free_player(coregame_t* coregame, cg_player_t* player)
 {
 	ght_del(&coregame->players, player->id);
+}
+
+void 
+coregame_set_player_dir(cg_player_t* player, u8 dir)
+{
+	vec2f_t dir_vec = {0.0, 0.0};
+	
+	if (dir & PLAYER_DIR_UP)
+		dir_vec.y -= 1.0;
+	if (dir & PLAYER_DIR_DOWN)
+		dir_vec.y += 1.0;
+	if (dir & PLAYER_DIR_LEFT)
+		dir_vec.x -= 1.0;
+	if (dir & PLAYER_DIR_RIGHT)
+		dir_vec.x += 1.0;
+
+	player->dir = dir_vec;
+
+	coregame_norm(&player->dir);
 }
 
 cg_projectile_t* 

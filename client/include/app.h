@@ -6,28 +6,27 @@
 #include "renderer.h"
 #include "vec.h"
 #include "util.h"
+#include "player.h"
 
 struct nk_wa;
 struct nk_conext;
 
-typedef struct 
+typedef struct waapp
 {
     wa_window_t* window;
     vec4f_t bg_color;
     vec4f_t color;
     ren_t ren;
 
-    array_t rects;
+	coregame_t game;
+	player_t* player;
+
     vec2f_t mouse;
     vec2f_t mouse_prev;
     vec3f_t cam;
 
-    vec2f_t dir;
-
     struct nk_wa* nk_wa;
     struct nk_context* nk_ctx;
-
-    bool do_rotation;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, const char** argv);

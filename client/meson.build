@@ -23,6 +23,7 @@ src = files(
     'src/gui/gui.c',
     'src/util.c',
     'src/loading.c',
+    'src/player.c',
 )
 
 executable('wa_game', src, 

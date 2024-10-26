@@ -162,7 +162,7 @@ waapp_gui(waapp_t* app)
     gui_render(app);
 }
 
-static bool 
+UNUSED static bool 
 rect_in_frustum(waapp_t* app, rect_t* rect)
 {
 	const wa_state_t* state = wa_window_get_state(app->window);
@@ -214,36 +214,9 @@ waapp_opengl_draw(waapp_t* app)
 
         app->mouse_prev = app->mouse;
     }
-    static f32 degress = 0.0;
 
-    rect_t* rect;
-    const vec2f_t mpos = vec2f(
-        (app->mouse.x - app->cam.x),
-        (app->mouse.y - app->cam.y)
-    );
-
-    // print_vec2f("scale", &ren->scale);
-    // print_vec2f("mouse-to-world", &mpos);
-    // print_vec3f("cam", &app->cam);
-    // print_vec2f("mouse", &app->mouse);
-
-    for (u32 i = 0; i < app->rects.count; i++)
-    {
-        rect = array_idx(&app->rects, i);
-		if (rect_in_frustum(app, rect))
-		{
-			const vec2f_t rect_pos = rect_origin(rect);
-			if (app->do_rotation)
-				rect->rotation = angle(&rect_pos, &mpos);
-			else
-				rect->rotation = 0;
-			ren_draw_rect(&app->ren, rect);
-		}
-    }
-
-    degress += 1;
-    if (degress > 360)
-        degress = 0;
+	app->player->rect.pos = app->player->core->rect.pos;
+	ren_draw_rect(ren, &app->player->rect);
 
     ren_draw_batch(ren);
 

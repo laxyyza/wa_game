@@ -4,12 +4,17 @@
 #include <wa_cursor.h>
 #include <string.h>
 #include "gui/gui.h"
-#include "loading.h"
 
 static void
 waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 {
-    waapp_opengl_draw(data);
+	waapp_t* app = data;
+
+	coregame_set_player_dir(app->player->core, app->player->movement_dir);
+
+	coregame_update(&app->game);
+
+    waapp_opengl_draw(app);
 }
 
 static void
@@ -17,6 +22,7 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 {
     waapp_t* app = data;
     wa_state_t* state = wa_window_get_state(window);
+	player_t* player = app->player;
 
     if (ev->type == WA_EVENT_KEYBOARD)
     {
@@ -30,28 +36,42 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
             {
                 wa_window_vsync(window, !state->window.vsync);
             }
-            else if (ev->keyboard.key == WA_KEY_D)
-                app->dir.x += 1.0;
-            else if (ev->keyboard.key == WA_KEY_A)
-                app->dir.x -= 1.0;
-            else if (ev->keyboard.key == WA_KEY_W)
-                app->dir.y -= 1.0;
-            else if (ev->keyboard.key == WA_KEY_S)
-                app->dir.y += 1.0;
-            else if (ev->keyboard.key == WA_KEY_Q)
-            {
-                array_pop(&app->rects);
-            }
-            else if (ev->keyboard.key == WA_KEY_R)
-                app->do_rotation = !app->do_rotation;
+			else if (ev->keyboard.key == WA_KEY_W)
+			{
+				player->movement_dir |= PLAYER_DIR_UP;
+			}
+			else if (ev->keyboard.key == WA_KEY_S)
+			{
+				player->movement_dir |= PLAYER_DIR_DOWN;
+			}
+			else if (ev->keyboard.key == WA_KEY_A)
+			{
+				player->movement_dir |= PLAYER_DIR_LEFT;
+			}
+			else if (ev->keyboard.key == WA_KEY_D)
+			{
+				player->movement_dir |= PLAYER_DIR_RIGHT;
+			}
         }
-        else 
-        {
-            if (ev->keyboard.key == WA_KEY_D || ev->keyboard.key == WA_KEY_A)
-                app->dir.x = 0.0;
-            if (ev->keyboard.key == WA_KEY_W || ev->keyboard.key == WA_KEY_S)
-                app->dir.y = 0.0;
-        }
+		else
+		{
+			if (ev->keyboard.key == WA_KEY_W)
+			{
+				player->movement_dir ^= PLAYER_DIR_UP;
+			}
+			else if (ev->keyboard.key == WA_KEY_S)
+			{
+				player->movement_dir ^= PLAYER_DIR_DOWN;
+			}
+			else if (ev->keyboard.key == WA_KEY_A)
+			{
+				player->movement_dir ^= PLAYER_DIR_LEFT;
+			}
+			else if (ev->keyboard.key == WA_KEY_D)
+			{
+				player->movement_dir ^= PLAYER_DIR_RIGHT;
+			}
+		}
     }
     else if (ev->type == WA_EVENT_RESIZE)
     {
@@ -146,58 +166,9 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
         return -1;
     }
 
-    array_init(&app->rects, sizeof(rect_t), 8);
+	coregame_init(&app->game);
 
-    vec2i_t grid_size = {200, 200};
-
-	u32 textures_count;
-#ifdef __linux__
-	#define PATH_LEN 1024
-	char path[PATH_LEN];
-	if (argc == 1)
-	{
-		const char* homepath = getenv("HOME");
-		snprintf(path, 1024, "%s/Pictures/Wallpapers", homepath);
-	}
-	else
-		strncpy(path, argv[1], 1024);
-#else
-	const char* path = argv[1];
-#endif
-    texture_t** textures = waapp_load_textures_threaded(path, &textures_count);
-
-    rect_t* rect;
-    u32 color = 0xFFFFFFFF;
-    u32 ti = 1;
-
-    vec2f_t rect_size = {300, 150};
-    vec2f_t rect_gaps = {1, 1};
-
-	for (i32 y = 0; y <= grid_size.y; y++)
-    {
-		for (i32 x = 0; x <= grid_size.x; x++)
-        {
-            rect = array_add_into(&app->rects);
-            rect_init(
-                rect,
-                vec2f(
-                    (rect_size.x + rect_gaps.x) * x, 
-                    (rect_size.y + rect_gaps.y) * y
-                ),
-                rect_size,
-                color,
-                textures[ti]
-            );
-            ti++;
-            if (ti >= textures_count)
-                ti = 0;
-        }
-    }
-
-    // Non texture testing.
-    rect = array_idx(&app->rects, 2);
-    rect->texture = NULL;
-    rect->color = rgba(0xFF00FFFF);
+	app->player = player_new(app, "test");
 
     return 0;
 }
@@ -211,7 +182,7 @@ waapp_run(waapp_t* app)
 void 
 waapp_cleanup(waapp_t* app)
 {
-    array_del(&app->rects);
+	coregame_cleanup(&app->game);
     waapp_opengl_cleanup(app);
     wa_window_delete(app->window);
 }

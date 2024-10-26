@@ -5,10 +5,16 @@
 #include <ght.h>
 #include "rect.h"
 
+#define PLAYER_SPEED  10
 #define PLAYER_HEALTH 100
 #define	PROJ_DMG	  40
 #define PLAYER_NAME_MAX 32
 #define UNUSED __attribute__((unused))
+
+#define PLAYER_DIR_UP	 0x01
+#define PLAYER_DIR_DOWN	 0x02
+#define PLAYER_DIR_RIGHT 0x04
+#define PLAYER_DIR_LEFT  0x08
 
 typedef struct 
 {
@@ -40,6 +46,7 @@ void coregame_cleanup(coregame_t* coregame);
 
 cg_player_t* coregame_add_player(coregame_t* coregame, const char* name);
 void coregame_free_player(coregame_t* coregame, cg_player_t* player);
+void coregame_set_player_dir(cg_player_t* player, u8 dir);
 
 cg_projectile_t* coregame_add_projectile(coregame_t* coregame, cg_player_t* player);
 void coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj);
