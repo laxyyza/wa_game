@@ -76,8 +76,8 @@ nk_wa_dev_create(struct nk_wa* nk)
     // u32 vert_shdr = glCreateShader(GL_VERTEX_SHADER);
     // u32 frag_shdr = glCreateShader(GL_FRAGMENT_SHADER);
 
-    u32 vert_shdr = shader_compile("src/shaders/nk_vert.glsl", GL_VERTEX_SHADER);
-    u32 frag_shdr = shader_compile("src/shaders/nk_frag.glsl", GL_FRAGMENT_SHADER);
+    u32 vert_shdr = shader_compile("client/src/shaders/nk_vert.glsl", GL_VERTEX_SHADER);
+    u32 frag_shdr = shader_compile("client/src/shaders/nk_frag.glsl", GL_FRAGMENT_SHADER);
 
     glAttachShader(dev->prog, vert_shdr);
     glAttachShader(dev->prog, frag_shdr);

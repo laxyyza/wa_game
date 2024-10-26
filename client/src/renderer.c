@@ -47,8 +47,8 @@ ren_def_bro(ren_t* ren)
 {
     ren->default_bro = ren_new_bro(DRAW_TRIANGLES,
                                     MAX_VERTICES,
-                                    "src/shaders/vert.glsl",
-                                    "src/shaders/frag.glsl");
+                                    "client/src/shaders/vert.glsl",
+                                    "client/src/shaders/frag.glsl");
 }
 
 void
