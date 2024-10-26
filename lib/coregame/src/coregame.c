@@ -38,10 +38,29 @@ coregame_init(coregame_t* coregame)
 	ght_init(&coregame->projectiles, 10, free);
 
 	coregame->world_border = cg_rect(
-		vec2f(-100, -100),
+		vec2f(-300, -300),
 		vec2f(10000, 10000)
 	);
 	coregame_get_delta_time(coregame);
+}
+
+static inline bool 
+rect_aabb_test(const cg_rect_t* a, const cg_rect_t* b)
+{
+	return	(a->pos.x < b->pos.x + b->size.x) &&
+			(a->pos.x + a->size.x > b->pos.x) &&
+			(a->pos.y < b->pos.y + b->size.y) && 
+			(a->pos.y + a->size.y > b->pos.y);
+}
+
+static inline bool
+rect_world_border_test(const coregame_t* coregame, const cg_rect_t* rect)
+{
+	const cg_rect_t* wb = &coregame->world_border;
+	return (rect->pos.x < wb->pos.x ||
+			rect->pos.x + rect->size.x > wb->pos.x + wb->size.x ||
+			rect->pos.y < wb->pos.y ||
+			rect->pos.y + rect->size.y > wb->pos.y + wb->size.y);
 }
 
 static void 
@@ -51,8 +70,16 @@ coregame_update_players(coregame_t* coregame)
 	GHT_FOREACH(cg_player_t* player, players, {
 		if (player->dir.x || player->dir.y)
 		{
-			player->rect.pos.x += player->dir.x * PLAYER_SPEED * coregame->delta;
-			player->rect.pos.y += player->dir.y * PLAYER_SPEED * coregame->delta;
+			const cg_rect_t new_rect = cg_rect(
+				vec2f(
+					player->rect.pos.x + player->dir.x * PLAYER_SPEED * coregame->delta,
+					player->rect.pos.y + player->dir.y * PLAYER_SPEED * coregame->delta
+				),
+				player->rect.size
+			);
+
+			if (!rect_world_border_test(coregame, &new_rect))
+				memcpy(&player->rect.pos, &new_rect, sizeof(vec2f_t));
 		}
 	});
 }

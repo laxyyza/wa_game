@@ -6,7 +6,7 @@
 #include "rect.h"
 #include <time.h>
 
-#define PLAYER_SPEED  500
+#define PLAYER_SPEED  1000
 #define PLAYER_HEALTH 100
 #define	PROJ_DMG	  40
 #define PLAYER_NAME_MAX 32
