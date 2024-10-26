@@ -13,6 +13,7 @@ player_new(waapp_t* app, const char* name)
 			app->tank_bottom_tex);
 	memcpy(&player->top, &player->rect, sizeof(rect_t));
 	player->top.texture = app->tank_top_tex;
+	ght_insert(&app->players, player->core->id, player);
 
 	return player;
 }

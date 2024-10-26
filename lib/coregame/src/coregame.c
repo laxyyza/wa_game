@@ -119,6 +119,8 @@ coregame_add_player(coregame_t* coregame, const char* name)
 void 
 coregame_free_player(coregame_t* coregame, cg_player_t* player)
 {
+	if (coregame->player_free_callback)
+		coregame->player_free_callback(player, coregame->user_data);
 	ght_del(&coregame->players, player->id);
 }
 

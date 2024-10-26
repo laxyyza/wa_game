@@ -46,6 +46,7 @@ typedef struct coregame
 	void* user_data;
 
 	void (*proj_free_callback)(cg_projectile_t* proj, void* data);
+	void (*player_free_callback)(cg_player_t* proj, void* data);
 } coregame_t;
 
 void coregame_init(coregame_t* coregame);

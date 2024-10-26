@@ -164,6 +164,13 @@ on_projectile_free(cg_projectile_t* cg_proj, void* data)
 	ght_del(&app->projectiles, cg_proj->id);
 }
 
+static void 
+on_player_free(cg_player_t* player, void* data)
+{
+	waapp_t* app = data;
+	ght_del(&app->players, player->id);
+}
+
 i32 
 waapp_init(waapp_t* app, i32 argc, const char** argv)
 {
@@ -205,17 +212,19 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 	coregame_init(&app->game);
 	app->game.user_data = app;
 	app->game.proj_free_callback = on_projectile_free;
+	app->game.player_free_callback = on_player_free;
 
 	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
 	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
 
 	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
+	ght_init(&app->projectiles, 10, free);
+	ght_init(&app->players, 10, free);
 
 	app->player = player_new(app, "test");
 
 	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
 
-	ght_init(&app->projectiles, 10, free);
 
     return 0;
 }

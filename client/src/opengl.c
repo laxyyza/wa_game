@@ -204,6 +204,15 @@ render_projectiles(waapp_t* app)
 	});
 }
 
+static void
+render_players(waapp_t* app)
+{
+	const ght_t* players = &app->players;
+	GHT_FOREACH(player_t* player, players, {
+		render_player(app, player);
+	});
+}
+
 void
 waapp_opengl_draw(waapp_t* app)
 {
@@ -236,8 +245,7 @@ waapp_opengl_draw(waapp_t* app)
     }
 
 	render_projectiles(app);
-
-	render_player(app, app->player);
+	render_players(app);
 
     ren_draw_batch(ren);
 
