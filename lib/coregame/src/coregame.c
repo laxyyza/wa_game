@@ -86,7 +86,7 @@ coregame_add_player(coregame_t* coregame, const char* name)
 	strncpy(player->username, name, PLAYER_NAME_MAX);
 	player->rect = cg_rect(
 		vec2f(50, 50),		// position
-		vec2f(100, 100)		// size
+		vec2f(150, 150)		// size
 	);
 	player->health = PLAYER_HEALTH;
 
