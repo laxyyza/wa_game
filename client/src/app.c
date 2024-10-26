@@ -189,7 +189,6 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 	app->player = player_new(app, "test");
 
 	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
-	// memcpy(&app->line_bro->shader, &app->ren.default_bro->shader, sizeof(bro_t));
 
     return 0;
 }
@@ -204,6 +203,7 @@ void
 waapp_cleanup(waapp_t* app)
 {
 	coregame_cleanup(&app->game);
+	ren_delete_bro(app->line_bro);
     waapp_opengl_cleanup(app);
     wa_window_delete(app->window);
 }
