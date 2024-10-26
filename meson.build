@@ -7,4 +7,5 @@ project('wa_opengl', 'c',
     ]
 )
 
+subdir('lib/')
 subdir('client/')

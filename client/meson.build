@@ -2,7 +2,6 @@ cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required: true)
 
 subdir('lib/wa/wa')
-subdir('lib/ght/ght')
 subdir('lib/glad')
 include_dir = include_directories('include/')
 
@@ -12,7 +11,6 @@ src = files(
     'src/opengl.c',
     'src/vertbuf.c',
     'src/idxbuf.c',
-    'src/array.c',
     'src/vertlayout.c',
     'src/vertarray.c',
     'src/shader.c',
@@ -33,6 +31,7 @@ executable('wa_opengl', src,
         include_dir,
         ght_include,
         glad_include,
+        coregame_include,
     ], 
     dependencies: [
         m_dep,
@@ -40,7 +39,8 @@ executable('wa_opengl', src,
     link_with: [
         libwa,
         libght,
-        libglad
+        libglad,
+        libcoregame,
     ],
     link_args: ['-Wl,-rpath=./lib']
 )
