@@ -7,3 +7,6 @@
 [submodule "lib/ssp"]
 	path = lib/ssp
 	url = git@github.com:laxyyza/ssp.git
+[submodule "lib/ght"]
+	path = lib/ght
+	url = git@github.com:laxyyza/ght.git
