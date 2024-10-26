@@ -1,4 +1,4 @@
-project('wa_opengl', 'c',
+project('wa_game', 'c',
     default_options: [
         'werror=true',
         'warning_level=2',

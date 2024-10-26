@@ -25,7 +25,7 @@ src = files(
     'src/loading.c',
 )
 
-executable('wa_opengl', src, 
+executable('wa_game', src, 
     include_directories: [
         wa_include, 
         include_dir,
