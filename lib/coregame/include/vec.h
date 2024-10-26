@@ -2,6 +2,7 @@
 #define _VEC_H_
 
 #include "int.h"
+#include <math.h>
 
 typedef struct 
 {
@@ -61,6 +62,19 @@ rgba(u32 color)
         (color       & 0xFF) / 255.0
     };
     return vec;
+}
+
+ALWAYS_INLINE inline void
+vec2f_norm(vec2f_t* vec)
+{
+	const f32 manitude = sqrtf(vec->x * vec->x + vec->y * vec->y);
+
+
+	if (manitude != 0)
+	{
+		vec->x /= manitude;
+		vec->y /= manitude;
+	}
 }
 
 #endif // _VEC_H_

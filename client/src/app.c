@@ -109,6 +109,22 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
             else
                 wa_set_cursor_shape(window, WA_CURSOR_DEFAULT);
         }
+		else if (ev->mouse.button == WA_MOUSE_LEFT && ev->mouse.pressed)
+		{
+			const player_t* player = app->player;
+			const vec2f_t mpos = vec2f(
+				(app->mouse.x - app->cam.x),
+				(app->mouse.y - app->cam.y)
+			);
+			vec2f_t dir = vec2f(
+				mpos.x - (player->core->rect.pos.x + (player->core->rect.size.x / 2)),
+				mpos.y - (player->core->rect.pos.y + (player->core->rect.size.y / 2))
+			);
+			vec2f_norm(&dir);
+
+			cg_projectile_t* proj = coregame_player_shoot(&app->game, app->player->core, dir);
+			projectile_new(app, proj);
+		}
     }
     else if (ev->type == WA_EVENT_MOUSE_WHEEL)
     {
@@ -139,6 +155,13 @@ static void
 waapp_close(_WA_UNUSED wa_window_t* window, _WA_UNUSED void* data)
 {
 
+}
+
+static void 
+on_projectile_free(cg_projectile_t* cg_proj, void* data)
+{
+	waapp_t* app = data;
+	ght_del(&app->projectiles, cg_proj->id);
 }
 
 i32 
@@ -180,6 +203,8 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     }
 
 	coregame_init(&app->game);
+	app->game.user_data = app;
+	app->game.proj_free_callback = on_projectile_free;
 
 	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
 	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
@@ -189,6 +214,8 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 	app->player = player_new(app, "test");
 
 	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
+
+	ght_init(&app->projectiles, 10, free);
 
     return 0;
 }

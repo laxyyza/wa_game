@@ -3,20 +3,6 @@
 #include <stdlib.h>
 #include <sys/random.h>
 #include <string.h>
-#include <math.h>
-
-void
-coregame_norm(vec2f_t* vec)
-{
-	const f32 manitude = sqrtf(vec->x * vec->x + vec->y * vec->y);
-
-
-	if (manitude != 0)
-	{
-		vec->x /= manitude;
-		vec->y /= manitude;
-	}
-}
 
 static void
 coregame_get_delta_time(coregame_t* coregame)
@@ -84,11 +70,18 @@ coregame_update_players(coregame_t* coregame)
 	});
 }
 
-// static void 
-// coregame_update_projectiles(coregame_t* coregame)
-// {
-//
-// }
+static void 
+coregame_update_projectiles(coregame_t* coregame)
+{
+	const ght_t* projs = &coregame->projectiles;
+	GHT_FOREACH(cg_projectile_t* proj, projs, {
+		proj->rect.pos.x += proj->dir.x * PROJ_SPEED * coregame->delta;
+		proj->rect.pos.y += proj->dir.y * PROJ_SPEED * coregame->delta;
+
+		if (rect_world_border_test(coregame, &proj->rect))
+			coregame_free_projectile(coregame, proj);
+	});
+}
 
 void 
 coregame_update(coregame_t* coregame)
@@ -96,6 +89,7 @@ coregame_update(coregame_t* coregame)
 	coregame_get_delta_time(coregame);
 
 	coregame_update_players(coregame);
+	coregame_update_projectiles(coregame);
 }
 
 void 
@@ -144,7 +138,15 @@ coregame_set_player_dir(cg_player_t* player, u8 dir)
 
 	player->dir = dir_vec;
 
-	coregame_norm(&player->dir);
+	vec2f_norm(&player->dir);
+}
+
+cg_projectile_t*
+coregame_player_shoot(coregame_t* coregame, cg_player_t* player, vec2f_t dir)
+{
+	cg_projectile_t* proj = coregame_add_projectile(coregame, player);
+	proj->dir = dir;
+	return proj;
 }
 
 cg_projectile_t* 
@@ -154,7 +156,9 @@ coregame_add_projectile(coregame_t* coregame, cg_player_t* player)
 	getrandom(&proj->id, sizeof(u32), 0);
 	proj->owner = player->id;
 	proj->rect.pos = player->rect.pos;
-	proj->rect.size = vec2f(10, 20);
+	proj->rect.pos.x += player->rect.size.x / 2;
+	proj->rect.pos.y += player->rect.size.y / 2;
+	proj->rect.size = vec2f(5, 30);
 
 	ght_insert(&coregame->projectiles, proj->id, proj);
 
@@ -164,5 +168,8 @@ coregame_add_projectile(coregame_t* coregame, cg_player_t* player)
 void 
 coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj)
 {
+	if (coregame->proj_free_callback)
+		coregame->proj_free_callback(proj, coregame->user_data);
+
 	ght_del(&coregame->projectiles, proj->id);
 }

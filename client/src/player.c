@@ -16,3 +16,14 @@ player_new(waapp_t* app, const char* name)
 
 	return player;
 }
+
+projectile_t* 
+projectile_new(waapp_t* app, cg_projectile_t* core_proj)
+{
+	projectile_t* proj = calloc(1, sizeof(projectile_t));
+	proj->core = core_proj;
+	rect_init(&proj->rect, proj->core->rect.pos, proj->core->rect.size, 0xFF0000FF, NULL);
+	proj->rect.rotation = atan2(proj->core->dir.y, proj->core->dir.x) + M_PI / 2;
+	ght_insert(&app->projectiles, proj->core->id, proj);
+	return proj;
+}

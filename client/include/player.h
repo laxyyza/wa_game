@@ -14,6 +14,13 @@ typedef struct
 	u8 movement_dir;
 } player_t;
 
+typedef struct 
+{
+	cg_projectile_t* core;
+	rect_t rect;
+} projectile_t;
+
 player_t* player_new(waapp_t* app, const char* name);
+projectile_t* projectile_new(waapp_t* app, cg_projectile_t* core_proj);
 
 #endif // _CLIENT_PLAYER_H_

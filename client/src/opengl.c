@@ -194,6 +194,16 @@ render_player(waapp_t* app, player_t* player)
 	ren_draw_rect(&app->ren, &player->top);
 }
 
+static void
+render_projectiles(waapp_t* app)
+{
+	const ght_t* projectiles = &app->projectiles;
+	GHT_FOREACH(projectile_t* proj, projectiles, {
+		proj->rect.pos = proj->core->rect.pos;
+		ren_draw_rect(&app->ren, &proj->rect);
+	});
+}
+
 void
 waapp_opengl_draw(waapp_t* app)
 {
@@ -224,6 +234,8 @@ waapp_opengl_draw(waapp_t* app)
 
         app->mouse_prev = app->mouse;
     }
+
+	render_projectiles(app);
 
 	render_player(app, app->player);
 

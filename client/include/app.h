@@ -23,6 +23,7 @@ typedef struct waapp
 
 	rect_t world_border;
 	coregame_t game;
+	ght_t projectiles;
 	player_t* player;
 	bro_t* line_bro;
 
