@@ -4,8 +4,9 @@
 #include <int.h>
 #include <ght.h>
 #include "rect.h"
+#include <time.h>
 
-#define PLAYER_SPEED  10
+#define PLAYER_SPEED  500
 #define PLAYER_HEALTH 100
 #define	PROJ_DMG	  40
 #define PLAYER_NAME_MAX 32
@@ -38,6 +39,9 @@ typedef struct coregame
 	ght_t players;
 	ght_t projectiles;
 	cg_rect_t world_border;
+
+	struct timespec last_time;
+	f64 delta;
 } coregame_t;
 
 void coregame_init(coregame_t* coregame);

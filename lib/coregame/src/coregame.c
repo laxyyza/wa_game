@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "coregame.h"
 #include <stdlib.h>
 #include <sys/random.h>
@@ -36,8 +37,8 @@ coregame_update_players(coregame_t* coregame)
 	GHT_FOREACH(cg_player_t* player, players, {
 		if (player->dir.x || player->dir.y)
 		{
-			player->rect.pos.x += player->dir.x * PLAYER_SPEED;
-			player->rect.pos.y += player->dir.y * PLAYER_SPEED;
+			player->rect.pos.x += player->dir.x * PLAYER_SPEED * coregame->delta;
+			player->rect.pos.y += player->dir.y * PLAYER_SPEED * coregame->delta;
 		}
 	});
 }
@@ -48,9 +49,24 @@ coregame_update_players(coregame_t* coregame)
 //
 // }
 
+static f64
+get_delta_time(coregame_t* coregame)
+{
+	struct timespec current_time;
+	clock_gettime(CLOCK_MONOTONIC, &current_time);
+	f64 delta = (current_time.tv_sec - coregame->last_time.tv_sec) + 
+				(current_time.tv_nsec - coregame->last_time.tv_nsec) / 1e9;
+
+	memcpy(&coregame->last_time, &current_time, sizeof(struct timespec));
+	coregame->delta = delta;
+	return delta;
+}
+
 void 
 coregame_update(coregame_t* coregame)
 {
+	get_delta_time(coregame);
+
 	coregame_update_players(coregame);
 }
 
