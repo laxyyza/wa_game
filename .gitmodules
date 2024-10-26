@@ -4,3 +4,6 @@
 [submodule "client/lib/wa"]
 	path = client/lib/wa
 	url = git@github.com:laxyyza/wa.git
+[submodule "lib/ssp"]
+	path = lib/ssp
+	url = git@github.com:laxyyza/ssp.git
