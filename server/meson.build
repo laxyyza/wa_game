@@ -1,6 +1,8 @@
 server_src = files(
     'src/main.c',
     'src/server.c',
+    'src/client.c',
+    'src/event.c',
 )
 server_include = include_directories('include/')
 

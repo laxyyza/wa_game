@@ -1,17 +1,22 @@
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
-#include <stdio.h>
-#include <ght.h>
-#include <int.h>
-#include <coregame.h>
+#include "server_common.h"
 #include "client.h"
+#include "event.h"
 
-typedef struct
+#define MAX_EVENTS 8
+
+typedef struct server
 {
-	i32 fd;
+	i32 tcp_fd;
+	i32 udp_fd;
 	i32 epfd;
+	u16 port;
 	ght_t clients;
+	struct epoll_event events[MAX_EVENTS];
+	struct sockaddr_in addr;
+	socklen_t addr_len;
 	bool running;
 } server_t;
 
