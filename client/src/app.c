@@ -164,7 +164,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     state->callbacks.event = waapp_event;
     state->callbacks.close = waapp_close;
 
-    app->bg_color = rgba(0x111111FF);
+    app->bg_color = rgba(0x333333FF);
 
     // if (argc == 2 && fullscreen == false)
     //     app->texture_path = argv[1];
