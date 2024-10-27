@@ -22,41 +22,50 @@ typedef struct fdevent
 
 typedef struct 
 {
-	i32 epfd;
-	i32 udp_fd;
-	u32 session_id;
-	u32 player_id;
-	netdef_t def;
-	udp_addr_t server_udp;
-	ssp_tcp_sock_t tcp;
-	ssp_segbuff_t segbuf;
-	ssp_segbuff_t udp_buf;
+	i32 fd;
+
+	f64 tickrate;
+	f64 interval;
+
+	udp_addr_t server;
+
+	ssp_segbuff_t buf;
+
+	struct timespec current_time;
+	struct timespec inout_start_time;
+	struct timespec send_start_time;
 
 	struct {
-		f64 tickrate;
-		f64 interval;
+		u32 count;
+		u32 last_count;
 
-		struct timespec current_time;
-		struct timespec inout_start_time;
-		struct timespec send_start_time;
+		u64 bytes;
+		u64 last_bytes;
+	} in;
 
-		struct {
-			u32 count;
-			u32 last_count;
+	struct {
+		u32 count;
+		u32 last_count;
 
-			u64 bytes;
-			u64 last_bytes;
-		} in;
+		u64 bytes;
+		u64 last_bytes;
+	} out;
+} client_udp_t;
 
-		struct {
-			u32 count;
-			u32 last_count;
+typedef struct 
+{
+	i32 epfd;
+	u32 session_id;
+	u32 player_id;
 
-			u64 bytes;
-			u64 last_bytes;
-		} out;
-	} udp;
+	netdef_t def;
 
+	struct {
+		ssp_tcp_sock_t	sock;
+		ssp_segbuff_t	buf;
+	} tcp;
+
+	client_udp_t udp;
 } client_net_t;
 
 i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate);

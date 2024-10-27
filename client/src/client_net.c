@@ -15,7 +15,7 @@ session_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 
 	app->net.session_id = sessionid->session_id;
 	app->net.player_id = sessionid->player_id;
-	app->net.udp_buf.session_id = sessionid->session_id;
+	app->net.udp.buf.session_id = sessionid->session_id;
 
 	printf("Got Session ID: %u, player ID: %u\n",
 		sessionid->session_id, sessionid->player_id);
@@ -110,7 +110,7 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 {
 	net_tcp_udp_info_t* info = (net_tcp_udp_info_t*)segment->data;
 	printf("UDP Server Port: %u\n", info->port);
-	app->net.server_udp.addr.sin_port = htons(info->port);
+	app->net.udp.server.addr.sin_port = htons(info->port);
 }
 
 static void
@@ -191,30 +191,30 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate)
 
 	client_net_set_tickrate(app, tickrate);
 
-	ssp_tcp_sock_create(&net->tcp, SSP_IPv4);
-	if ((ret = ssp_tcp_connect(&net->tcp, ipaddr, port)) == 0)
+	ssp_tcp_sock_create(&net->tcp.sock, SSP_IPv4);
+	if ((ret = ssp_tcp_connect(&net->tcp.sock, ipaddr, port)) == 0)
 	{
-		ssp_segbuff_init(&net->segbuf, 10, 0);
+		ssp_segbuff_init(&net->tcp.buf, 10, 0);
 
 		net_tcp_connect_t connect = {
 			.username = "Test User"
 		};
 
-		ssp_segbuff_add(&net->segbuf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
-		ssp_tcp_send_segbuf(&net->tcp, &net->segbuf);
+		ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
+		ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
 
 		net->epfd = epoll_create1(EPOLL_CLOEXEC);
 
-		add_fdevent(app, net->tcp.sockfd, tcp_read, tcp_close, &net->tcp);
+		add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, &net->tcp.sock);
 
-		net->udp_fd = socket(AF_INET, SOCK_DGRAM, 0);
-		net->server_udp.addr.sin_family = AF_INET;
-		net->server_udp.addr.sin_addr.s_addr = inet_addr(ipaddr);
-		net->server_udp.addr_len = sizeof(struct sockaddr_in);
+		net->udp.fd = socket(AF_INET, SOCK_DGRAM, 0);
+		net->udp.server.addr.sin_family = AF_INET;
+		net->udp.server.addr.sin_addr.s_addr = inet_addr(ipaddr);
+		net->udp.server.addr_len = sizeof(struct sockaddr_in);
 
-		add_fdevent(app, net->udp_fd, udp_read, NULL, NULL);
+		add_fdevent(app, net->udp.fd, udp_read, NULL, NULL);
 
-		ssp_segbuff_init(&net->udp_buf, 10, SSP_FOOTER_BIT | SSP_SESSION_BIT);
+		ssp_segbuff_init(&net->udp.buf, 10, SSP_FOOTER_BIT | SSP_SESSION_BIT);
 
 		client_net_poll(app, -1);
 	}
@@ -299,11 +299,11 @@ client_net_try_udp_flush(waapp_t* app)
 
 	if (elapsed_time >= net->udp.interval)
 	{
-		ssp_packet_t* packet = ssp_serialize_packet(&app->net.udp_buf);
+		ssp_packet_t* packet = ssp_serialize_packet(&net->udp.buf);
 		if (packet)
 		{
 			u32 packet_size = ssp_packet_size(packet);
-			if (sendto(app->net.udp_fd, packet, packet_size, 0, (struct sockaddr*)&app->net.server_udp.addr, app->net.server_udp.addr_len) == -1)
+			if (sendto(net->udp.fd, packet, packet_size, 0, (void*)&net->udp.server.addr, net->udp.server.addr_len) == -1)
 			{
 				perror("sendto");
 			}

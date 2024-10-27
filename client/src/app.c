@@ -24,7 +24,7 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 		if ((app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y) ||
 			(app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y))
 		{
-			ssp_segbuff_add(&app->net.udp_buf, NET_UDP_PLAYER_MOVE, 
+			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_MOVE, 
 							sizeof(u32) + (sizeof(vec2f_t) * 2), player->core);
 			app->prev_pos = player->core->pos;
 		}
@@ -108,7 +108,7 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 				app->mouse.x - app->cam.x,
 				app->mouse.y - app->cam.y
 			);
-			ssp_segbuff_add(&app->net.udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &app->player->core->cursor);
+			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &app->player->core->cursor);
 		}
     }
     else if (ev->type == WA_EVENT_MOUSE_BUTTON)
@@ -142,7 +142,7 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 			net_udp_player_shoot_t* shoot = malloc(sizeof(net_udp_player_shoot_t));
 			shoot->shoot_dir = dir;
 			shoot->shoot_pos = proj->rect.pos;
-			ssp_segbuff_add(&app->net.udp_buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
+			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
 		}
     }
     else if (ev->type == WA_EVENT_MOUSE_WHEEL)
