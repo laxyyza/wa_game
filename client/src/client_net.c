@@ -1,7 +1,9 @@
+#define _GNU_SOURCE
 #include "client_net.h"
 #include "app.h"
 #include <sys/epoll.h>
 #include "player.h"
+#include <time.h>
 
 #define BUFFER_SIZE 1024
 #define MAX_EVENTS 2
@@ -111,9 +113,21 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	app->net.server_udp.addr.sin_port = htons(info->port);
 }
 
+static struct timespec start_time, current_time;
+static u32 count = 0;
+static u64 bytes = 0;
+
 static void
 udp_read(waapp_t* app, fdevent_t* fdev)
 {
+	count++;
+
+	clock_gettime(CLOCK_MONOTONIC, &current_time);
+
+	f64 elapsed_time =	(current_time.tv_sec - start_time.tv_sec) +
+						(current_time.tv_nsec - start_time.tv_nsec) / 1e9;
+
+
 	void* buf = malloc(BUFFER_SIZE);
 	i64 bytes_read;
 	udp_addr_t addr = {
@@ -126,8 +140,19 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 		return;
 	}
 
+	bytes += bytes_read;
+
 	ssp_parse_buf(&app->net.def.ssp_state, buf, bytes_read, &addr);
 	free(buf);
+
+	if (elapsed_time >= 1.0)
+	{
+		printf("\rIN UDP Packets/s: %u (%lu bytes)\t\t", count, bytes);
+		fflush(stdout);
+		count = 0;
+		bytes = 0;
+		start_time = current_time;
+	}
 }
 
 static void 
@@ -220,24 +245,26 @@ client_net_poll(waapp_t* app, i32 timeout)
 	struct epoll_event events[MAX_EVENTS];
 	i32 nfds;
 
-	if ((nfds = epoll_wait(net->epfd, events, MAX_EVENTS, timeout)) == -1)
-	{
-		perror("epoll_wait");
-		return;
-	}
-
-	for (i32 i = 0; i < nfds; i++)
-	{
-		struct epoll_event* ev = events + i;
-		fdevent_t* fdev = ev->data.ptr;
-
-		if (ev->events & (EPOLLERR | EPOLLHUP))
+	do {
+		if ((nfds = epoll_wait(net->epfd, events, MAX_EVENTS, timeout)) == -1)
 		{
-			fdev->close(app, fdev);
+			perror("epoll_wait");
+			return;
 		}
-		else if (ev->events & EPOLLIN)
+
+		for (i32 i = 0; i < nfds; i++)
 		{
-			fdev->read(app, fdev);
+			struct epoll_event* ev = events + i;
+			fdevent_t* fdev = ev->data.ptr;
+
+			if (ev->events & (EPOLLERR | EPOLLHUP))
+			{
+				fdev->close(app, fdev);
+			}
+			else if (ev->events & EPOLLIN)
+			{
+				fdev->read(app, fdev);
+			}
 		}
-	}
+	} while(nfds && timeout == 0);
 }

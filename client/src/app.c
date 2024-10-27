@@ -149,13 +149,11 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 			);
 			vec2f_norm(&dir);
 
+			printf("Shoot\n");
+
 			cg_projectile_t* proj = coregame_player_shoot(&app->game, app->player->core, dir);
 			projectile_new(app, proj);
 
-			/**!!!!!!!!!!!!!!!
-			 *		MEMORY LEAK!!!
-			 * !!!!!!!!!!!!!!!
-			 */
 			net_udp_player_shoot_t* shoot = malloc(sizeof(net_udp_player_shoot_t));
 			shoot->shoot_dir = dir;
 			shoot->shoot_pos = proj->rect.pos;
