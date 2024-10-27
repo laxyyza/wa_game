@@ -14,10 +14,12 @@ executable('server', server_src,
         coregame_include,
         ssp_include,
         netdef_include,
+        cutils_include,
     ],
     link_with: [
         libssp,
         libnetdef,
         libcoregame,
+        libcutils,
     ]
 )

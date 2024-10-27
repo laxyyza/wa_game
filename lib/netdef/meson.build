@@ -10,5 +10,6 @@ libnetdef = library('netdef', netdef_src,
         coregame_include,
         ssp_include,
         ght_include,
+        cutils_include,
     ]
 )

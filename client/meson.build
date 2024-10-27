@@ -33,6 +33,7 @@ executable('wa_game', src,
         coregame_include,
         netdef_include,
         ssp_include,
+        cutils_include,
     ], 
     dependencies: [
         m_dep,
@@ -44,6 +45,7 @@ executable('wa_game', src,
         libcoregame,
         libnetdef,
         libssp,
+        libcutils,
     ],
     link_args: ['-Wl,-rpath=./lib']
 )

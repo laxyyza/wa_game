@@ -7,3 +7,6 @@
 [submodule "lib/ght"]
 	path = lib/ght
 	url = git@github.com:laxyyza/ght.git
+[submodule "lib/cutils"]
+	path = lib/cutils
+	url = git@github.com:laxyyza/cutils.git
