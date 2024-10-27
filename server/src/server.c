@@ -213,10 +213,15 @@ player_move(const ssp_segment_t* segment, server_t* server, client_t* source_cli
 	source_client->player->dir = move->dir;
 	source_client->player->pos = move->pos;
 
+	net_udp_player_move_t* new_move = framestack_alloc(&server->fs, sizeof(net_udp_player_move_t));
+	new_move->player_id = source_client->player->id;
+	new_move->dir = move->dir;
+	new_move->pos = move->pos;
+
 	GHT_FOREACH(client_t* client, clients, {
 		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, 
-				  sizeof(u32) + (sizeof(vec2f_t) * 2), 
-				  source_client->player);
+				  sizeof(net_udp_player_move_t), 
+				  new_move);
 	});
 }
 
@@ -228,11 +233,7 @@ player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_c
 	const net_udp_player_cursor_t* cursor = (const net_udp_player_cursor_t*)segment->data;
 	source_client->player->cursor = cursor->cursor_pos;
 
-	/*!!!!!!!!!!!!!!!!!!!
-	 * Memory leak!
-	 *!!!!!!!!!!!!!!!!!!!
-	 */
-	net_udp_player_cursor_t* new_cursor = malloc(sizeof(net_udp_player_cursor_t));
+	net_udp_player_cursor_t* new_cursor = framestack_alloc(&server->fs, sizeof(net_udp_player_cursor_t));
 	new_cursor->cursor_pos = cursor->cursor_pos;
 	new_cursor->player_id = source_client->player->id;
 
@@ -272,6 +273,7 @@ server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 		goto err;
 	server_init_netdef(server);
 	server_init_coregame(server);
+	framestack_init(&server->fs);
 
 	server->running = true;
 
@@ -343,6 +345,7 @@ server_run(server_t* server)
 		server_poll(server);
 		coregame_update(&server->game);
 		server_flush_udp_clients(server);
+		framestack_clear(&server->fs);
 
 		clock_gettime(CLOCK_MONOTONIC, &end_time);
 		f64 elapsed_time =	(end_time.tv_sec - start_time.tv_sec) + 

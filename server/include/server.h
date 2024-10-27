@@ -5,6 +5,7 @@
 #include "client.h"
 #include "event.h"
 #include "netdef.h"
+#include "framestack.h"
 
 #define MAX_EVENTS 8
 
@@ -19,6 +20,7 @@ typedef struct server
 	struct epoll_event events[MAX_EVENTS];
 	netdef_t netdef;
 	coregame_t game;
+	framestack_t fs;
 	bool running;
 } server_t;
 

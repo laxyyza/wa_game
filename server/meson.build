@@ -3,6 +3,7 @@ server_src = files(
     'src/server.c',
     'src/client.c',
     'src/event.c',
+    'src/framestack.c',
 )
 server_include = include_directories('include/')
 
