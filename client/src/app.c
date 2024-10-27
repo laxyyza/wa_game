@@ -151,6 +151,15 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 
 			cg_projectile_t* proj = coregame_player_shoot(&app->game, app->player->core, dir);
 			projectile_new(app, proj);
+
+			/**!!!!!!!!!!!!!!!
+			 *		MEMORY LEAK!!!
+			 * !!!!!!!!!!!!!!!
+			 */
+			net_udp_player_shoot_t* shoot = malloc(sizeof(net_udp_player_shoot_t));
+			shoot->shoot_dir = dir;
+			shoot->shoot_pos = proj->rect.pos;
+			ssp_segbuff_add(&app->net.udp_buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
 		}
     }
     else if (ev->type == WA_EVENT_MOUSE_WHEEL)
@@ -250,7 +259,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 
 	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
 
-	client_net_init(app, "127.0.0.1", 8080);
+	client_net_init(app, "192.168.18.4", 8080);
 
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 

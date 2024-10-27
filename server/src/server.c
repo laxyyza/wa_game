@@ -238,7 +238,28 @@ player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_c
 	new_cursor->player_id = source_client->player->id;
 
 	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(net_udp_player_cursor_t), new_cursor);
+		if (client != source_client)
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(net_udp_player_cursor_t), new_cursor);
+	});
+}
+
+static void 
+player_shoot(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	ght_t* clients = &server->clients;
+
+	const net_udp_player_shoot_t* shoot = (const net_udp_player_shoot_t*)segment->data;
+
+	coregame_player_shoot(&server->game, source_client->player, shoot->shoot_dir);
+
+	net_udp_player_shoot_t* new_shoot = framestack_alloc(&server->fs, sizeof(net_udp_player_shoot_t));
+	new_shoot->player_id = source_client->player->id;
+	new_shoot->shoot_dir = shoot->shoot_dir;
+	new_shoot->shoot_pos = shoot->shoot_pos;
+
+	GHT_FOREACH(client_t* client, clients, {
+		if (client != source_client)
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), new_shoot);
 	});
 }
 
@@ -249,6 +270,7 @@ server_init_netdef(server_t* server)
 	callbacks[NET_TCP_CONNECT] = (ssp_segmap_callback_t)client_tcp_connect;
 	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)player_move;
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
+	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_state.user_data = server;
@@ -333,7 +355,7 @@ server_run(server_t* server)
 {
 	printf("server_run()...\n");
 
-	f64 fps = 128.0;
+	f64 fps = 64.0;
 
 	struct timespec start_time, end_time, sleep_duration, prev_time;
 	f64 target_frame_time = 1.0 / fps;

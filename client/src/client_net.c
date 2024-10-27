@@ -153,6 +153,18 @@ player_cursor(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	}
 }
 
+static void 
+player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	const net_udp_player_shoot_t* shoot = (net_udp_player_shoot_t*)segment->data;
+	cg_player_t* player = ght_get(&app->game.players, shoot->player_id);
+	if (player)
+	{
+		cg_projectile_t* proj = coregame_player_shoot(&app->game, player, shoot->shoot_dir);
+		projectile_new(app, proj);
+	}
+}
+
 i32 
 client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -165,6 +177,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	callbacks[NET_TCP_DELETE_PLAYER] = (ssp_segmap_callback_t)delete_player;
 	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)player_move;
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
+	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;
