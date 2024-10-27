@@ -15,6 +15,17 @@ enum segtypes
 
 typedef struct 
 {
+	char username[PLAYER_NAME_MAX];
+} net_tcp_connect_t;
+
+typedef struct 
+{
+	u32 session_id; 
+	u32 player_id;
+} net_tcp_sessionid_t;
+
+typedef struct 
+{
 	coregame_t* coregame;
 	ssp_state_t ssp_state;
 } netdef_t;

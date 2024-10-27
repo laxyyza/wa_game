@@ -7,9 +7,7 @@
 #include "vec.h"
 #include "util.h"
 #include "player.h"
-#include "netdef.h"
-#include "ssp.h"
-#include "ssp_tcp.h"
+#include "client_net.h"
 
 struct nk_wa;
 struct nk_conext;
@@ -31,11 +29,7 @@ typedef struct waapp
 	player_t* player;
 	bro_t* line_bro;
 
-	struct {
-		netdef_t def;
-		ssp_tcp_sock_t sock;
-		ssp_segbuff_t segbuf;
-	} net;
+	client_net_t net;
 
     vec2f_t mouse;
     vec2f_t mouse_prev;

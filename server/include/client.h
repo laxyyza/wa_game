@@ -8,6 +8,7 @@ typedef struct server server_t;
 typedef struct 
 {
 	ssp_tcp_sock_t tcp_sock;
+	ssp_segbuff_t segbuf;
 	u32 game_id;
 } client_t;
 

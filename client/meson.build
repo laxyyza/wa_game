@@ -24,6 +24,7 @@ src = files(
     'src/util.c',
     'src/loading.c',
     'src/player.c',
+    'src/client_net.c',
 )
 
 executable('wa_game', src, 

@@ -1,4 +1,5 @@
 #include "server.h"
+#include <sys/random.h>
 
 #define PORT 8080
 
@@ -113,7 +114,15 @@ server_init_epoll(server_t* server)
 static void 
 client_tcp_connect(UNUSED const ssp_segment_t* segment, UNUSED server_t* server, client_t* client)
 {
-	printf("Client '%s' trying to connect.\n", client->tcp_sock.ipstr);
+	net_tcp_sessionid_t sessionid;
+
+	getrandom(&sessionid.session_id, sizeof(u32), 0);
+	getrandom(&sessionid.player_id, sizeof(u32), 0);
+
+	printf("Client '%s' got %u for session ID.\n", client->tcp_sock.ipstr, sessionid.session_id);
+
+	ssp_segbuff_add(&client->segbuf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), &sessionid);
+	ssp_tcp_send_segbuf(&client->tcp_sock, &client->segbuf);
 }
 
 static void
