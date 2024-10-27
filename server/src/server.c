@@ -112,14 +112,17 @@ server_init_epoll(server_t* server)
 // }
 
 static void 
-client_tcp_connect(UNUSED const ssp_segment_t* segment, UNUSED server_t* server, client_t* client)
+client_tcp_connect(const ssp_segment_t* segment, UNUSED server_t* server, client_t* client)
 {
 	net_tcp_sessionid_t sessionid;
+	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
 	getrandom(&sessionid.session_id, sizeof(u32), 0);
 	getrandom(&sessionid.player_id, sizeof(u32), 0);
+	client->session_id = sessionid.session_id;
+	client->player_id = sessionid.player_id;
 
-	printf("Client '%s' got %u for session ID.\n", client->tcp_sock.ipstr, sessionid.session_id);
+	printf("Client '%s' (%s) got %u for session ID.\n", connect->username, client->tcp_sock.ipstr, sessionid.session_id);
 
 	ssp_segbuff_add(&client->segbuf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), &sessionid);
 	ssp_tcp_send_segbuf(&client->tcp_sock, &client->segbuf);

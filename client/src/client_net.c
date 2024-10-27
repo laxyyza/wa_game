@@ -72,6 +72,7 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 i32 
 client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 {
+	i32 ret;
 	client_net_t* net = &app->net;
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_SESSION_ID] = (ssp_segmap_callback_t)session_id;
@@ -79,7 +80,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	netdef_init(&net->def, &app->game, callbacks);
 
 	ssp_tcp_sock_create(&net->tcp, SSP_IPv4);
-	if (ssp_tcp_connect(&net->tcp, ipaddr, port) == 0)
+	if ((ret = ssp_tcp_connect(&net->tcp, ipaddr, port)) == 0)
 	{
 		ssp_segbuff_init(&net->segbuf, 10);
 
@@ -89,15 +90,15 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 
 		ssp_segbuff_add(&net->segbuf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
 		ssp_tcp_send_segbuf(&net->tcp, &net->segbuf);
+
+		net->epfd = epoll_create1(EPOLL_CLOEXEC);
+
+		add_fdevent(app, net->tcp.sockfd, tcp_read, tcp_close, &net->tcp);
+
+		client_net_poll(app, -1);
 	}
 
-	net->epfd = epoll_create1(EPOLL_CLOEXEC);
-
-	add_fdevent(app, net->tcp.sockfd, tcp_read, tcp_close, &net->tcp);
-
-	client_net_poll(app, -1);
-
-	return 0;
+	return ret;
 }
 
 void

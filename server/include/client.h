@@ -7,9 +7,10 @@ typedef struct server server_t;
 
 typedef struct 
 {
+	u32 session_id;
+	u32 player_id;
 	ssp_tcp_sock_t tcp_sock;
 	ssp_segbuff_t segbuf;
-	u32 game_id;
 } client_t;
 
 client_t* accept_client(server_t* server);
