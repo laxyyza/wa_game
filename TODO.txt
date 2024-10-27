@@ -1,0 +1,9 @@
+Implement networking. 
+>>>- Common networking definitions between client and server.
+- Common network packet handling.
+- Implement client net code.
+- Finish server net code.
+
+Implement coregame in server.
+
+Fix win32 build. Currently it only works for Linux.

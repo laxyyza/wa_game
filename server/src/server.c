@@ -33,9 +33,9 @@ server_init_udp(server_t* server)
 }
 
 static void
-read_client(UNUSED server_t* server, event_t* event)
+read_client(server_t* server, event_t* event)
 {
-	client_t* client = event->data;
+	// client_t* client = event->data;
 	char buffer[1024] = {0};
 
 	ssize_t bytes_read;
@@ -50,7 +50,9 @@ read_client(UNUSED server_t* server, event_t* event)
 		server_close_event(server, event);
 	}
 	else
-		printf("TCP Packet from '%s': '%s'\n", client->tcp_sock.ipstr, buffer);
+	{
+		ssp_parse_buf(&server->netdef.ssp_state, buffer, bytes_read);
+	}
 }
 
 static void
@@ -108,6 +110,22 @@ server_init_epoll(server_t* server)
 // 	return 0;
 // }
 
+static void 
+client_tcp_connect(UNUSED const ssp_segment_t* segment, UNUSED void* data)
+{
+	printf("Some client trying to connect.\n");
+}
+
+static void
+server_init_netdef(server_t* server)
+{
+	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
+	callbacks[NET_TCP_CONNECT] = client_tcp_connect;
+
+	netdef_init(&server->netdef, NULL, callbacks);
+	server->netdef.ssp_state.user_data = server;
+}
+
 i32 
 server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 {
@@ -121,6 +139,7 @@ server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 		goto err;
 	if (server_init_epoll(server) == -1)
 		goto err;
+	server_init_netdef(server);
 	// if (server_init_coregame(server) == -1)
 	// 	goto err;
 

@@ -33,6 +33,8 @@ executable('wa_game', src,
         ght_include,
         glad_include,
         coregame_include,
+        netdef_include,
+        ssp_include,
     ], 
     dependencies: [
         m_dep,
@@ -42,6 +44,8 @@ executable('wa_game', src,
         libght,
         libglad,
         libcoregame,
+        libnetdef,
+        libssp,
     ],
     link_args: ['-Wl,-rpath=./lib']
 )

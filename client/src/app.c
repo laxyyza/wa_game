@@ -225,6 +225,22 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 
 	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
 
+	netdef_init(&app->net.def, &app->game, NULL);
+
+	ssp_tcp_sock_create(&app->net.sock, SSP_IPv4);
+	if (ssp_tcp_connect(&app->net.sock, "127.0.0.1", 8080) == 0)
+	{
+		ssp_segbuff_init(&app->net.segbuf, 10);
+
+		const char* msg = "Hello Server.\0";
+
+		ssp_segbuff_add(&app->net.segbuf, NET_TCP_CONNECT, 0, NULL);
+		ssp_segbuff_add(&app->net.segbuf, NET_DEBUG_MSG, strlen(msg) + 1, msg);
+
+		ssp_packet_t* packet = ssp_serialize_packet(&app->net.segbuf);
+		ssp_tcp_send(&app->net.sock, packet);
+		free(packet);
+	}
 
     return 0;
 }

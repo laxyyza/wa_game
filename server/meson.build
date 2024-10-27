@@ -12,8 +12,10 @@ executable('server', server_src,
         ght_include,
         coregame_include,
         ssp_include,
+        netdef_include,
     ],
     link_with: [
-        libssp
+        libssp,
+        libnetdef
     ]
 )

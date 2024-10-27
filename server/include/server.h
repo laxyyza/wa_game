@@ -4,6 +4,7 @@
 #include "server_common.h"
 #include "client.h"
 #include "event.h"
+#include "netdef.h"
 
 #define MAX_EVENTS 8
 
@@ -15,6 +16,7 @@ typedef struct server
 	u16 port;
 	ght_t clients;
 	struct epoll_event events[MAX_EVENTS];
+	netdef_t netdef;
 	bool running;
 } server_t;
 
