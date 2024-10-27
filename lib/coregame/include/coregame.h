@@ -20,11 +20,13 @@
 
 typedef struct cg_player
 {
-	u32 id;
-	char username[PLAYER_NAME_MAX];
-	cg_rect_t rect;
-	i32 health;
+	u32		id;
+	vec2f_t pos;
 	vec2f_t dir;
+	i32		health;
+
+	vec2f_t size;
+	char	username[PLAYER_NAME_MAX];
 } cg_player_t;
 
 typedef struct 

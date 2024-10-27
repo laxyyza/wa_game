@@ -14,6 +14,7 @@ typedef struct server
 	ssp_tcp_sock_t tcp_sock;
 	i32 epfd;
 	u16 port;
+	u16 udp_port;
 	ght_t clients;
 	struct epoll_event events[MAX_EVENTS];
 	netdef_t netdef;

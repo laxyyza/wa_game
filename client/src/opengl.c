@@ -187,8 +187,8 @@ rect_in_frustum(waapp_t* app, rect_t* rect)
 static void 
 render_player(waapp_t* app, player_t* player)
 {
-	player->rect.pos = player->core->rect.pos;
-	player->top.pos = player->core->rect.pos;
+	player->rect.pos = player->core->pos;
+	player->top.pos = player->core->pos;
 
 	ren_draw_rect(&app->ren, &player->rect);
 	ren_draw_rect(&app->ren, &player->top);

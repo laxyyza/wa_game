@@ -25,13 +25,12 @@ server_init_udp(server_t* server)
 		return -1;
 	}
 
-	server->tcp_sock.addr.sockaddr.in.sin_port = htons(server->port + 1);
+	server->tcp_sock.addr.sockaddr.in.sin_port = htons(server->udp_port);
 	if (bind(server->udp_fd, (struct sockaddr*)&server->tcp_sock.addr.sockaddr, server->tcp_sock.addr.addr_len) == -1)
 	{
 		perror("bind UDP");
 		return -1;
 	}
-
 
 	return 0;
 }
@@ -103,16 +102,22 @@ handle_new_connection(server_t* server, UNUSED event_t* event)
 }
 
 static void 
-read_udp_packet(UNUSED server_t* server, event_t* event)
+read_udp_packet(server_t* server, event_t* event)
 {
-	char buffer[1024] = {0};
+	void* buf = malloc(1024);
+	i64 bytes_read;
+	udp_addr_t info = {
+		.addr_len = sizeof(struct sockaddr_in)
+	};
 
-	if (recvfrom(event->fd, buffer, 1024, 0, NULL, NULL) == -1)\
+	if ((bytes_read = recvfrom(event->fd, buf, 1024, 0, &info.addr, &info.addr_len)) == -1)
 	{
 		perror("recvfrom");
+		return;
 	}
 
-	printf("UDP Packet: '%s'\n", buffer);
+	ssp_parse_buf(&server->netdef.ssp_state, buf, bytes_read, &info);
+	free(buf);
 }
 
 static i32
@@ -159,6 +164,7 @@ static void
 client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* client)
 {
 	net_tcp_sessionid_t sessionid;
+	net_tcp_udp_info_t udp_info = {server->udp_port};
 	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
 	client->player = coregame_add_player(&server->game, connect->username);
@@ -168,7 +174,50 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 	printf("Client '%s' (%s) got %u for session ID.\n", connect->username, client->tcp_sock.ipstr, sessionid.session_id);
 
 	ssp_segbuff_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), &sessionid);
+	ssp_segbuff_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), &udp_info);
 	broadcast_new_player(server, client);
+}
+
+static bool 
+verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source)
+{
+	client_t* client;
+
+	client = ght_get(&server->clients, session_id);
+	if (client == NULL)
+	{
+		printf("No client with session ID: %u\n", session_id);
+		return false;
+	}
+
+	if (client->tcp_sock.addr.sockaddr.in.sin_addr.s_addr != source_data->addr.sin_addr.s_addr)
+	{
+		printf("Client TCP address != source_data\n");
+		return false;
+	}
+
+	*new_source = client;
+	memcpy(&client->udp, source_data, sizeof(udp_addr_t));
+	client->udp_connected = true;
+
+	return true;
+}
+
+static void 
+player_move(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	ght_t* clients = &server->clients;
+
+	const net_udp_player_move_t* move = (const net_udp_player_move_t*)segment->data;
+
+	source_client->player->dir = move->dir;
+	source_client->player->pos = move->pos;
+
+	GHT_FOREACH(client_t* client, clients, {
+		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, 
+				  sizeof(u32) + (sizeof(vec2f_t) * 2), 
+				  source_client->player);
+	});
 }
 
 static void
@@ -176,9 +225,11 @@ server_init_netdef(server_t* server)
 {
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_CONNECT] = (ssp_segmap_callback_t)client_tcp_connect;
+	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)player_move;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_state.user_data = server;
+	server->netdef.ssp_state.verify_session = (ssp_session_verify_callback_t)verify_session;
 }
 
 i32 
@@ -187,6 +238,7 @@ server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 	printf("server_init()...\n");
 
 	server->port = PORT;
+	server->udp_port = PORT + 1;
 
 	ght_init(&server->clients, 10, free);
 
@@ -225,12 +277,34 @@ server_poll(server_t* server)
 	}
 }
 
+static void 
+server_flush_udp_clients(server_t* server)
+{
+	ght_t* clients = &server->clients;
+
+	GHT_FOREACH(client_t* client, clients, {
+		if (client->udp_connected)
+		{
+			ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
+			if (packet)
+			{
+				u32 packet_size = ssp_packet_size(packet);
+				if (sendto(server->udp_fd, packet, packet_size, 0, &client->udp.addr, client->udp.addr_len) == -1)
+				{
+					perror("sendto");
+				}
+				free(packet);
+			}
+		}
+	});
+}
+
 void 
 server_run(server_t* server)
 {
 	printf("server_run()...\n");
 
-	f64 fps = 64.0;
+	f64 fps = 128.0;
 
 	struct timespec start_time, end_time, sleep_duration, prev_time;
 	f64 target_frame_time = 1.0 / fps;
@@ -241,6 +315,7 @@ server_run(server_t* server)
 
 		server_poll(server);
 		coregame_update(&server->game);
+		server_flush_udp_clients(server);
 
 		clock_gettime(CLOCK_MONOTONIC, &end_time);
 		f64 elapsed_time =	(end_time.tv_sec - start_time.tv_sec) + 

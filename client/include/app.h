@@ -27,6 +27,7 @@ typedef struct waapp
 	ght_t projectiles;
 	ght_t players;
 	player_t* player;
+	vec2f_t prev_dir;
 	bro_t* line_bro;
 
 	client_net_t net;

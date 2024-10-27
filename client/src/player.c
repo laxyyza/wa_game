@@ -7,8 +7,8 @@ player_new_from(waapp_t* app, cg_player_t* cg_player)
 	player_t* player = calloc(1, sizeof(player_t));
 
 	player->core = cg_player;
-	rect_init(&player->rect, player->core->rect.pos, 
-			player->core->rect.size, 0x000000FF, 
+	rect_init(&player->rect, player->core->pos, 
+			player->core->size, 0x000000FF, 
 			app->tank_bottom_tex);
 	memcpy(&player->top, &player->rect, sizeof(rect_t));
 	player->top.texture = app->tank_top_tex;

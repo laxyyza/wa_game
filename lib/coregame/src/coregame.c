@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <sys/random.h>
 #include <string.h>
+#include <stdio.h>
 
 static void
 coregame_get_delta_time(coregame_t* coregame)
@@ -58,14 +59,14 @@ coregame_update_players(coregame_t* coregame)
 		{
 			const cg_rect_t new_rect = cg_rect(
 				vec2f(
-					player->rect.pos.x + player->dir.x * PLAYER_SPEED * coregame->delta,
-					player->rect.pos.y + player->dir.y * PLAYER_SPEED * coregame->delta
+					player->pos.x + player->dir.x * PLAYER_SPEED * coregame->delta,
+					player->pos.y + player->dir.y * PLAYER_SPEED * coregame->delta
 				),
-				player->rect.size
+				player->size
 			);
 
 			if (!rect_world_border_test(coregame, &new_rect))
-				memcpy(&player->rect.pos, &new_rect, sizeof(vec2f_t));
+				memcpy(&player->pos, &new_rect, sizeof(vec2f_t));
 		}
 	});
 }
@@ -105,10 +106,8 @@ coregame_add_player(coregame_t* coregame, const char* name)
 	cg_player_t* player = calloc(1, sizeof(cg_player_t));
 	getrandom(&player->id, sizeof(u32), 0);
 	strncpy(player->username, name, PLAYER_NAME_MAX);
-	player->rect = cg_rect(
-		vec2f(50, 50),		// position
-		vec2f(150, 150)		// size
-	);
+	player->pos = vec2f(50, 50);
+	player->size = vec2f(150, 150);
 	player->health = PLAYER_HEALTH;
 
 	coregame_add_player_from(coregame, player);
@@ -163,9 +162,9 @@ coregame_add_projectile(coregame_t* coregame, cg_player_t* player)
 	cg_projectile_t* proj = calloc(1, sizeof(cg_projectile_t));
 	getrandom(&proj->id, sizeof(u32), 0);
 	proj->owner = player->id;
-	proj->rect.pos = player->rect.pos;
-	proj->rect.pos.x += player->rect.size.x / 2;
-	proj->rect.pos.y += player->rect.size.y / 2;
+	proj->rect.pos = player->pos;
+	proj->rect.pos.x += player->size.x / 2;
+	proj->rect.pos.y += player->size.y / 2;
 	proj->rect.size = vec2f(5, 30);
 
 	ght_insert(&coregame->projectiles, proj->id, proj);

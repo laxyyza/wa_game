@@ -21,11 +21,14 @@ typedef struct fdevent
 typedef struct 
 {
 	i32 epfd;
+	i32 udp_fd;
 	u32 session_id;
 	u32 player_id;
 	netdef_t def;
+	udp_addr_t server_udp;
 	ssp_tcp_sock_t tcp;
 	ssp_segbuff_t segbuf;
+	ssp_segbuff_t udp_buf;
 } client_net_t;
 
 i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port);

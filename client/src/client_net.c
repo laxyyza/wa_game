@@ -13,6 +13,7 @@ session_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 
 	app->net.session_id = sessionid->session_id;
 	app->net.player_id = sessionid->player_id;
+	app->net.udp_buf.session_id = sessionid->session_id;
 
 	printf("Got Session ID: %u, player ID: %u\n",
 		sessionid->session_id, sessionid->player_id);
@@ -71,6 +72,7 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 	{
 		ssp_parse_buf(&app->net.def.ssp_state, buf, bytes_read, NULL);
 	}
+	free(buf);
 }
 
 static void 
@@ -101,6 +103,45 @@ delete_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_data
 	}
 }
 
+static void
+udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
+{
+	net_tcp_udp_info_t* info = (net_tcp_udp_info_t*)segment->data;
+	printf("UDP Server Port: %u\n", info->port);
+	app->net.server_udp.addr.sin_port = htons(info->port);
+}
+
+static void
+udp_read(waapp_t* app, fdevent_t* fdev)
+{
+	void* buf = malloc(BUFFER_SIZE);
+	i64 bytes_read;
+	udp_addr_t addr = {
+		.addr_len = sizeof(struct sockaddr_in)
+	};
+
+	if ((bytes_read = recvfrom(fdev->fd, buf, BUFFER_SIZE, 0, (struct sockaddr*)&addr.addr, &addr.addr_len)) == -1)
+	{
+		perror("recvfrom");
+		return;
+	}
+
+	ssp_parse_buf(&app->net.def.ssp_state, buf, bytes_read, &addr);
+	free(buf);
+}
+
+static void 
+player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	const net_udp_player_move_t* move = (net_udp_player_move_t*)segment->data;
+	cg_player_t* player = ght_get(&app->game.players, move->player_id);
+	if (player && app->player->core->id != move->player_id)
+	{
+		player->pos = move->pos;
+		player->dir = move->dir;
+	}
+}
+
 i32 
 client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -108,8 +149,10 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	client_net_t* net = &app->net;
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_SESSION_ID] = (ssp_segmap_callback_t)session_id;
+	callbacks[NET_TCP_UDP_INFO] = (ssp_segmap_callback_t)udp_info;
 	callbacks[NET_TCP_NEW_PLAYER] = (ssp_segmap_callback_t)new_player;
 	callbacks[NET_TCP_DELETE_PLAYER] = (ssp_segmap_callback_t)delete_player;
+	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)player_move;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;
@@ -117,7 +160,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	ssp_tcp_sock_create(&net->tcp, SSP_IPv4);
 	if ((ret = ssp_tcp_connect(&net->tcp, ipaddr, port)) == 0)
 	{
-		ssp_segbuff_init(&net->segbuf, 10);
+		ssp_segbuff_init(&net->segbuf, 10, 0);
 
 		net_tcp_connect_t connect = {
 			.username = "Test User"
@@ -129,6 +172,15 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 		net->epfd = epoll_create1(EPOLL_CLOEXEC);
 
 		add_fdevent(app, net->tcp.sockfd, tcp_read, tcp_close, &net->tcp);
+
+		net->udp_fd = socket(AF_INET, SOCK_DGRAM, 0);
+		net->server_udp.addr.sin_family = AF_INET;
+		net->server_udp.addr.sin_addr.s_addr = inet_addr(ipaddr);
+		net->server_udp.addr_len = sizeof(struct sockaddr_in);
+
+		add_fdevent(app, net->udp_fd, udp_read, NULL, NULL);
+
+		ssp_segbuff_init(&net->udp_buf, 10, SSP_FOOTER_BIT | SSP_SESSION_BIT);
 
 		client_net_poll(app, -1);
 	}
