@@ -311,6 +311,8 @@ client_net_try_udp_flush(waapp_t* app)
 			net->udp.out.count++;
 			net->udp.out.bytes += packet_size;
 
+			mmframes_clear(&app->mmf);
+
 			free(packet);
 		}
 		net->udp.send_start_time = net->udp.current_time;

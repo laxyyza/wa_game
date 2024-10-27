@@ -8,6 +8,7 @@
 #include "util.h"
 #include "player.h"
 #include "client_net.h"
+#include "mmframes.h"
 
 struct nk_wa;
 struct nk_conext;
@@ -32,6 +33,7 @@ typedef struct waapp
 	bro_t* line_bro;
 
 	client_net_t net;
+	mmframes_t mmf;
 
     vec2f_t mouse;
     vec2f_t mouse_prev;

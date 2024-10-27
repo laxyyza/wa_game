@@ -24,8 +24,10 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 		if ((app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y) ||
 			(app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y))
 		{
-			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_MOVE, 
-							sizeof(u32) + (sizeof(vec2f_t) * 2), player->core);
+			net_udp_player_move_t* move = mmframes_alloc(&app->mmf, sizeof(net_udp_player_move_t));
+			move->pos = player->core->pos;
+			move->dir = player->core->dir;
+			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
 			app->prev_pos = player->core->pos;
 		}
 		app->prev_dir = player->core->dir;
@@ -139,7 +141,7 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 			cg_projectile_t* proj = coregame_player_shoot(&app->game, app->player->core, dir);
 			projectile_new(app, proj);
 
-			net_udp_player_shoot_t* shoot = malloc(sizeof(net_udp_player_shoot_t));
+			net_udp_player_shoot_t* shoot = mmframes_alloc(&app->mmf, sizeof(net_udp_player_shoot_t));
 			shoot->shoot_dir = dir;
 			shoot->shoot_pos = proj->rect.pos;
 			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
@@ -244,6 +246,8 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 
 	client_net_init(app, "192.168.18.4", 8080, 64.0);
 
+	mmframes_init(&app->mmf);
+
     return 0;
 }
 
@@ -256,6 +260,7 @@ waapp_run(waapp_t* app)
 void 
 waapp_cleanup(waapp_t* app)
 {
+	mmframes_free(&app->mmf);
 	coregame_cleanup(&app->game);
 	ren_delete_bro(app->line_bro);
     waapp_opengl_cleanup(app);
