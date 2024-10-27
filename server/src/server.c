@@ -263,18 +263,23 @@ static void
 server_poll(server_t* server)
 {
 	i32 nfds;
-	i32 timeout = (server->clients.count == 0) ? -1 : 0;
-	if ((nfds = epoll_wait(server->epfd, server->events, MAX_EVENTS, timeout)) == -1)
-	{
-		perror("epoll_wait");
-		server->running = false;
-	}
+	i32 timeout;
 
-	for (i32 i = 0; i < nfds; i++)
-	{
-		struct epoll_event* event = server->events + i;
-		server_handle_event(server, event->data.ptr, event->events);
-	}
+	do {
+		timeout = (server->clients.count == 0) ? -1 : 0;
+
+		if ((nfds = epoll_wait(server->epfd, server->events, MAX_EVENTS, timeout)) == -1)
+		{
+			perror("epoll_wait");
+			server->running = false;
+		}
+
+		for (i32 i = 0; i < nfds; i++)
+		{
+			struct epoll_event* event = server->events + i;
+			server_handle_event(server, event->data.ptr, event->events);
+		}
+	} while (nfds);
 }
 
 static void 
