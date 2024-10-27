@@ -26,6 +26,7 @@ typedef struct cg_player
 	i32		health;
 
 	vec2f_t size;
+	vec2f_t cursor;
 	char	username[PLAYER_NAME_MAX];
 } cg_player_t;
 

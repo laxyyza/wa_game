@@ -220,12 +220,34 @@ player_move(const ssp_segment_t* segment, server_t* server, client_t* source_cli
 	});
 }
 
+static void 
+player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	ght_t* clients = &server->clients;
+
+	const net_udp_player_cursor_t* cursor = (const net_udp_player_cursor_t*)segment->data;
+	source_client->player->cursor = cursor->cursor_pos;
+
+	/*!!!!!!!!!!!!!!!!!!!
+	 * Memory leak!
+	 *!!!!!!!!!!!!!!!!!!!
+	 */
+	net_udp_player_cursor_t* new_cursor = malloc(sizeof(net_udp_player_cursor_t));
+	new_cursor->cursor_pos = cursor->cursor_pos;
+	new_cursor->player_id = source_client->player->id;
+
+	GHT_FOREACH(client_t* client, clients, {
+		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(net_udp_player_cursor_t), new_cursor);
+	});
+}
+
 static void
 server_init_netdef(server_t* server)
 {
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_CONNECT] = (ssp_segmap_callback_t)client_tcp_connect;
 	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)player_move;
+	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_state.user_data = server;

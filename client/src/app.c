@@ -26,14 +26,6 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 
 		coregame_update(&app->game);
 
-		const vec2f_t mpos = vec2f(
-			(app->mouse.x - app->cam.x),
-			(app->mouse.y - app->cam.y)
-		);
-		const vec2f_t origin = rect_origin(&player->rect);
-
-		player->top.rotation = angle(&origin, &mpos);
-
 		f64 elapsed_time = (current_time.tv_sec - start_time.tv_sec) + 
 							(current_time.tv_nsec - start_time.tv_nsec) / 1e9;
 		if (elapsed_time >= tick_interval)
@@ -122,6 +114,15 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
     {
         app->mouse.x = ev->pointer.x;
         app->mouse.y = ev->pointer.y;
+
+		if (app->player)
+		{
+			app->player->core->cursor = vec2f(
+				app->mouse.x - app->cam.x,
+				app->mouse.y - app->cam.y
+			);
+			ssp_segbuff_add(&app->net.udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &app->player->core->cursor);
+		}
     }
     else if (ev->type == WA_EVENT_MOUSE_BUTTON)
     {

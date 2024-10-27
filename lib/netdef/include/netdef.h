@@ -14,6 +14,7 @@ enum segtypes
 	NET_TCP_UDP_INFO,
 
 	NET_UDP_PLAYER_MOVE,
+	NET_UDP_PLAYER_CURSOR,
 	NET_UDP_PLAYER_SHOOT,
 
 	NET_DEBUG_MSG,
@@ -48,6 +49,12 @@ typedef struct
 	vec2f_t pos;
 	vec2f_t dir;
 } net_udp_player_move_t;
+
+typedef struct 
+{
+	vec2f_t cursor_pos;
+	u32		player_id;
+} net_udp_player_cursor_t;
 
 typedef struct 
 {

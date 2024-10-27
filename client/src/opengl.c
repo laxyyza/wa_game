@@ -211,6 +211,9 @@ render_players(waapp_t* app)
 	GHT_FOREACH(player_t* player, players, {
 		if (player->core->dir.x || player->core->dir.y)
 			player->rect.rotation = atan2(player->core->dir.y, player->core->dir.x) + M_PI / 2;
+
+		const vec2f_t origin = rect_origin(&player->rect);
+		player->top.rotation = angle(&origin, &player->core->cursor);
 		render_player(app, player);
 	});
 }

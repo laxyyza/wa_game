@@ -142,6 +142,17 @@ player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	}
 }
 
+static void 
+player_cursor(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	const net_udp_player_cursor_t* cursor = (net_udp_player_cursor_t*)segment->data;
+	cg_player_t* player = ght_get(&app->game.players, cursor->player_id);
+	if (player)
+	{
+		player->cursor = cursor->cursor_pos;
+	}
+}
+
 i32 
 client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -153,6 +164,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	callbacks[NET_TCP_NEW_PLAYER] = (ssp_segmap_callback_t)new_player;
 	callbacks[NET_TCP_DELETE_PLAYER] = (ssp_segmap_callback_t)delete_player;
 	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)player_move;
+	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;
