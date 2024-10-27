@@ -10,6 +10,9 @@ session_id(const ssp_segment_t* segment, UNUSED waapp_t* app, UNUSED void* sourc
 {
 	const net_tcp_sessionid_t* sessionid = (const net_tcp_sessionid_t*)segment->data;
 
+	app->net.session_id = sessionid->session_id;
+	app->net.player_id = sessionid->player_id;
+
 	printf("Got Session ID: %u, player ID: %u\n",
 		sessionid->session_id, sessionid->player_id);
 }

@@ -18,7 +18,7 @@
 #define PLAYER_DIR_RIGHT 0x04
 #define PLAYER_DIR_LEFT  0x08
 
-typedef struct 
+typedef struct cg_player
 {
 	u32 id;
 	char username[PLAYER_NAME_MAX];

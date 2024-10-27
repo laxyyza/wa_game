@@ -21,6 +21,8 @@ typedef struct fdevent
 typedef struct 
 {
 	i32 epfd;
+	u32 session_id;
+	u32 player_id;
 	netdef_t def;
 	ssp_tcp_sock_t tcp;
 	ssp_segbuff_t segbuf;
