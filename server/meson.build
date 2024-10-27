@@ -16,6 +16,7 @@ executable('server', server_src,
     ],
     link_with: [
         libssp,
-        libnetdef
+        libnetdef,
+        libcoregame,
     ]
 )

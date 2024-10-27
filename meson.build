@@ -7,6 +7,9 @@ project('wa_game', 'c',
     ]
 )
 
+cc = meson.get_compiler('c')
+m_dep = cc.find_library('m', required: true)
+
 subdir('lib/')
 subdir('client/')
 subdir('server/')

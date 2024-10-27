@@ -14,22 +14,23 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 	
 	client_net_poll(app, 0);
 
-	coregame_set_player_dir(player->core, player->movement_dir);
+	if (player)
+	{
+		coregame_set_player_dir(player->core, player->movement_dir);
 
-	if (player->movement_dir)
-		player->rect.rotation = atan2(player->core->dir.y, player->core->dir.x) + M_PI / 2;
+		if (player->movement_dir)
+			player->rect.rotation = atan2(player->core->dir.y, player->core->dir.x) + M_PI / 2;
 
-	coregame_update(&app->game);
+		coregame_update(&app->game);
 
-    const vec2f_t mpos = vec2f(
-        (app->mouse.x - app->cam.x),
-        (app->mouse.y - app->cam.y)
-    );
-	const vec2f_t origin = rect_origin(&player->rect);
+		const vec2f_t mpos = vec2f(
+			(app->mouse.x - app->cam.x),
+			(app->mouse.y - app->cam.y)
+		);
+		const vec2f_t origin = rect_origin(&player->rect);
 
-	player->top.rotation = angle(&origin, 
-								   &mpos);
-
+		player->top.rotation = angle(&origin, &mpos);
+	}
     waapp_opengl_draw(app);
 }
 
@@ -223,8 +224,6 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
 	ght_init(&app->projectiles, 10, free);
 	ght_init(&app->players, 10, free);
-
-	app->player = player_new(app, "test");
 
 	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
 

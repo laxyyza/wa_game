@@ -57,14 +57,17 @@ read_client(server_t* server, event_t* event)
 }
 
 static void
-close_client(UNUSED server_t* server, event_t* event)
+close_client(server_t* server, event_t* event)
 {
 	client_t* client = event->data;
 
 	ssp_tcp_sock_close(&client->tcp_sock);
 	printf("Client '%s' closed.\n", client->tcp_sock.ipstr);
 
-	free(client);
+	if (client->player)
+		coregame_free_player(&server->game, client->player);
+
+	ght_del(&server->clients, client->session_id);
 }
 
 static void
@@ -105,27 +108,45 @@ server_init_epoll(server_t* server)
 	return 0;
 }
 
-// static i32
-// server_init_coregame(server_t* server)
-// {
-// 	return 0;
-// }
+static void
+server_init_coregame(server_t* server)
+{
+	coregame_init(&server->game);
+}
 
 static void 
-client_tcp_connect(const ssp_segment_t* segment, UNUSED server_t* server, client_t* client)
+broadcast_new_player(server_t* server, client_t* new_client)
+{
+	ght_t* clients = &server->clients;
+
+	GHT_FOREACH(client_t* client, clients, {
+		if (client->player)
+		{
+			ssp_segbuff_add(&client->segbuf, NET_TCP_NEW_PLAYER, sizeof(cg_player_t), new_client->player);
+			if (client != new_client)
+			{
+				ssp_segbuff_add(&new_client->segbuf, NET_TCP_NEW_PLAYER, sizeof(cg_player_t), client->player);
+				ssp_tcp_send_segbuf(&client->tcp_sock, &client->segbuf);
+			}
+		}
+	});
+	ssp_tcp_send_segbuf(&new_client->tcp_sock, &new_client->segbuf);
+}
+
+static void 
+client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* client)
 {
 	net_tcp_sessionid_t sessionid;
 	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
-	getrandom(&sessionid.session_id, sizeof(u32), 0);
-	getrandom(&sessionid.player_id, sizeof(u32), 0);
-	client->session_id = sessionid.session_id;
-	client->player_id = sessionid.player_id;
+	client->player = coregame_add_player(&server->game, connect->username);
+	sessionid.session_id = client->session_id;
+	sessionid.player_id = client->player->id;
 
 	printf("Client '%s' (%s) got %u for session ID.\n", connect->username, client->tcp_sock.ipstr, sessionid.session_id);
 
 	ssp_segbuff_add(&client->segbuf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), &sessionid);
-	ssp_tcp_send_segbuf(&client->tcp_sock, &client->segbuf);
+	broadcast_new_player(server, client);
 }
 
 static void
@@ -145,6 +166,8 @@ server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 
 	server->port = PORT;
 
+	ght_init(&server->clients, 10, free);
+
 	if (server_init_tcp(server) == -1)
 		goto err;
 	if (server_init_udp(server) == -1)
@@ -152,8 +175,7 @@ server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 	if (server_init_epoll(server) == -1)
 		goto err;
 	server_init_netdef(server);
-	// if (server_init_coregame(server) == -1)
-	// 	goto err;
+	server_init_coregame(server);
 
 	server->running = true;
 

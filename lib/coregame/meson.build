@@ -8,5 +8,8 @@ libcoregame = library('coregame', coregame_src,
     include_directories: [
         coregame_include,
         ght_include,
+    ],
+    dependencies: [
+        m_dep
     ]
 )

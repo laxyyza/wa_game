@@ -17,6 +17,7 @@ typedef struct server
 	ght_t clients;
 	struct epoll_event events[MAX_EVENTS];
 	netdef_t netdef;
+	coregame_t game;
 	bool running;
 } server_t;
 

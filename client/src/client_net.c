@@ -1,12 +1,13 @@
 #include "client_net.h"
 #include "app.h"
 #include <sys/epoll.h>
+#include "player.h"
 
 #define BUFFER_SIZE 1024
 #define MAX_EVENTS 2
 
 static void 
-session_id(const ssp_segment_t* segment, UNUSED waapp_t* app, UNUSED void* source_data)
+session_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 {
 	const net_tcp_sessionid_t* sessionid = (const net_tcp_sessionid_t*)segment->data;
 
@@ -72,6 +73,22 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 	}
 }
 
+static void 
+new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_data)
+{
+	const cg_player_t* new_player = (const cg_player_t*)segment->data;
+
+	cg_player_t* cg_player = malloc(sizeof(cg_player_t));
+	memcpy(cg_player, new_player, sizeof(cg_player_t));
+
+	player_t* player = player_new_from(app, cg_player);
+
+	if (cg_player->id == app->net.player_id)
+		app->player = player;
+
+	coregame_add_player_from(&app->game, cg_player);
+}
+
 i32 
 client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -79,8 +96,10 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	client_net_t* net = &app->net;
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_SESSION_ID] = (ssp_segmap_callback_t)session_id;
+	callbacks[NET_TCP_NEW_PLAYER] = (ssp_segmap_callback_t)new_player;
 
 	netdef_init(&net->def, &app->game, callbacks);
+	net->def.ssp_state.user_data = app;
 
 	ssp_tcp_sock_create(&net->tcp, SSP_IPv4);
 	if ((ret = ssp_tcp_connect(&net->tcp, ipaddr, port)) == 0)

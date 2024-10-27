@@ -1,5 +1,6 @@
 #include "client.h"
 #include "server.h"
+#include <sys/random.h>
 
 client_t* 
 accept_client(server_t* server)
@@ -19,6 +20,10 @@ accept_client(server_t* server)
 	printf("New client '%s' (%d) connected.\n", client->tcp_sock.ipstr, client->tcp_sock.sockfd);
 
 	ssp_segbuff_init(&client->segbuf, 10);
+
+	getrandom(&client->session_id, sizeof(u32), 0);
+
+	ght_insert(&server->clients, client->session_id, client);
 
 	return client;
 }

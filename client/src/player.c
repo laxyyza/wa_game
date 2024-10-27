@@ -1,13 +1,12 @@
 #include "player.h"
 #include "app.h"
 
-
 player_t* 
-player_new(waapp_t* app, const char* name)
+player_new_from(waapp_t* app, cg_player_t* cg_player)
 {
 	player_t* player = calloc(1, sizeof(player_t));
 
-	player->core = coregame_add_player(&app->game, name);
+	player->core = cg_player;
 	rect_init(&player->rect, player->core->rect.pos, 
 			player->core->rect.size, 0x000000FF, 
 			app->tank_bottom_tex);
@@ -16,6 +15,14 @@ player_new(waapp_t* app, const char* name)
 	ght_insert(&app->players, player->core->id, player);
 
 	return player;
+}
+
+player_t* 
+player_new(waapp_t* app, const char* name)
+{
+	cg_player_t* cg_player = coregame_add_player(&app->game, name);
+
+	return player_new_from(app, cg_player);
 }
 
 projectile_t* 

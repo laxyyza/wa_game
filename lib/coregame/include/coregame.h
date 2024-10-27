@@ -54,6 +54,7 @@ void coregame_update(coregame_t* coregame);
 void coregame_cleanup(coregame_t* coregame);
 
 cg_player_t* coregame_add_player(coregame_t* coregame, const char* name);
+void coregame_add_player_from(coregame_t* coregame, cg_player_t* player);
 void coregame_free_player(coregame_t* coregame, cg_player_t* player);
 void coregame_set_player_dir(cg_player_t* player, u8 dir);
 cg_projectile_t* coregame_player_shoot(coregame_t* coregame, cg_player_t* player, vec2f_t dir);

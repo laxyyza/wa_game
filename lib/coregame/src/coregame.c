@@ -111,9 +111,15 @@ coregame_add_player(coregame_t* coregame, const char* name)
 	);
 	player->health = PLAYER_HEALTH;
 
-	ght_insert(&coregame->players, player->id, player);
+	coregame_add_player_from(coregame, player);
 
 	return player;
+}
+
+void 
+coregame_add_player_from(coregame_t* coregame, cg_player_t* player)
+{
+	ght_insert(&coregame->players, player->id, player);
 }
 
 void 

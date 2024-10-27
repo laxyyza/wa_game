@@ -1,6 +1,3 @@
-cc = meson.get_compiler('c')
-m_dep = cc.find_library('m', required: true)
-
 subdir('lib/wa/wa')
 subdir('lib/glad')
 include_dir = include_directories('include/')
