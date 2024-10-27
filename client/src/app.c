@@ -24,9 +24,6 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 	{
 		coregame_set_player_dir(player->core, player->movement_dir);
 
-		if (player->movement_dir)
-			player->rect.rotation = atan2(player->core->dir.y, player->core->dir.x) + M_PI / 2;
-
 		coregame_update(&app->game);
 
 		const vec2f_t mpos = vec2f(

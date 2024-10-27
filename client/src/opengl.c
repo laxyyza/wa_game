@@ -209,6 +209,8 @@ render_players(waapp_t* app)
 {
 	const ght_t* players = &app->players;
 	GHT_FOREACH(player_t* player, players, {
+		if (player->core->dir.x || player->core->dir.y)
+			player->rect.rotation = atan2(player->core->dir.y, player->core->dir.x) + M_PI / 2;
 		render_player(app, player);
 	});
 }

@@ -45,8 +45,8 @@ typedef struct
 typedef struct 
 {
 	u32		player_id;
-	vec2f_t dir;
 	vec2f_t pos;
+	vec2f_t dir;
 } net_udp_player_move_t;
 
 typedef struct 
