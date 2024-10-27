@@ -56,18 +56,37 @@ read_client(server_t* server, event_t* event)
 	}
 }
 
+static void 
+broadcast_delete_player(server_t* server, u32 id)
+{
+	ght_t* clients = &server->clients;
+	net_tcp_delete_player_t del_player = {id};
+
+	GHT_FOREACH(client_t* client, clients, {
+		ssp_segbuff_add(&client->segbuf, NET_TCP_DELETE_PLAYER, sizeof(net_tcp_delete_player_t), &del_player);
+		ssp_tcp_send_segbuf(&client->tcp_sock, &client->segbuf);
+	});
+}
+
 static void
 close_client(server_t* server, event_t* event)
 {
+	u32 player_id = 0;
 	client_t* client = event->data;
 
 	ssp_tcp_sock_close(&client->tcp_sock);
 	printf("Client '%s' closed.\n", client->tcp_sock.ipstr);
 
 	if (client->player)
+	{
+		player_id = client->player->id;
 		coregame_free_player(&server->game, client->player);
+	}
 
 	ght_del(&server->clients, client->session_id);
+
+	if (player_id)
+		broadcast_delete_player(server, player_id);
 }
 
 static void

@@ -10,6 +10,7 @@ enum segtypes
 	NET_TCP_SESSION_ID,
 	NET_DEBUG_MSG,
 	NET_TCP_NEW_PLAYER,
+	NET_TCP_DELETE_PLAYER,
 
 	NET_SEGTYPES_LEN
 };
@@ -24,6 +25,11 @@ typedef struct
 	u32 session_id; 
 	u32 player_id;
 } net_tcp_sessionid_t;
+
+typedef struct 
+{
+	u32 player_id;
+} net_tcp_delete_player_t;
 
 typedef struct cg_player net_tcp_new_player_t;
 

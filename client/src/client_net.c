@@ -89,6 +89,18 @@ new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_data)
 	coregame_add_player_from(&app->game, cg_player);
 }
 
+static void 
+delete_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_data)
+{
+	const net_tcp_delete_player_t* del_player = (const net_tcp_delete_player_t*)segment->data;
+
+	cg_player_t* player = ght_get(&app->game.players, del_player->player_id);
+	if (player)
+	{
+		coregame_free_player(&app->game, player);
+	}
+}
+
 i32 
 client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -97,6 +109,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_SESSION_ID] = (ssp_segmap_callback_t)session_id;
 	callbacks[NET_TCP_NEW_PLAYER] = (ssp_segmap_callback_t)new_player;
+	callbacks[NET_TCP_DELETE_PLAYER] = (ssp_segmap_callback_t)delete_player;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;
