@@ -213,7 +213,7 @@ player_move(const ssp_segment_t* segment, server_t* server, client_t* source_cli
 	source_client->player->dir = move->dir;
 	source_client->player->pos = move->pos;
 
-	net_udp_player_move_t* new_move = framestack_alloc(&server->fs, sizeof(net_udp_player_move_t));
+	net_udp_player_move_t* new_move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
 	new_move->player_id = source_client->player->id;
 	new_move->dir = move->dir;
 	new_move->pos = move->pos;
@@ -233,7 +233,7 @@ player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_c
 	const net_udp_player_cursor_t* cursor = (const net_udp_player_cursor_t*)segment->data;
 	source_client->player->cursor = cursor->cursor_pos;
 
-	net_udp_player_cursor_t* new_cursor = framestack_alloc(&server->fs, sizeof(net_udp_player_cursor_t));
+	net_udp_player_cursor_t* new_cursor = mmframes_alloc(&server->mmf, sizeof(net_udp_player_cursor_t));
 	new_cursor->cursor_pos = cursor->cursor_pos;
 	new_cursor->player_id = source_client->player->id;
 
@@ -252,7 +252,7 @@ player_shoot(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 
 	coregame_player_shoot(&server->game, source_client->player, shoot->shoot_dir);
 
-	net_udp_player_shoot_t* new_shoot = framestack_alloc(&server->fs, sizeof(net_udp_player_shoot_t));
+	net_udp_player_shoot_t* new_shoot = mmframes_alloc(&server->mmf, sizeof(net_udp_player_shoot_t));
 	new_shoot->player_id = source_client->player->id;
 	new_shoot->shoot_dir = shoot->shoot_dir;
 	new_shoot->shoot_pos = shoot->shoot_pos;
@@ -295,7 +295,7 @@ server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 		goto err;
 	server_init_netdef(server);
 	server_init_coregame(server);
-	framestack_init(&server->fs);
+	mmframes_init(&server->mmf);
 
 	server->running = true;
 
@@ -367,7 +367,7 @@ server_run(server_t* server)
 		server_poll(server);
 		coregame_update(&server->game);
 		server_flush_udp_clients(server);
-		framestack_clear(&server->fs);
+		mmframes_clear(&server->mmf);
 
 		clock_gettime(CLOCK_MONOTONIC, &end_time);
 		f64 elapsed_time =	(end_time.tv_sec - start_time.tv_sec) + 
