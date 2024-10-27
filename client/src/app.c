@@ -10,6 +10,26 @@
 struct timespec start_time, current_time;
 f64 tick_interval = 1.0 / 64.0;
 
+static void 
+print_packet_stats(waapp_t* app)
+{
+	client_net_t* net = &app->net;
+
+	clock_gettime(CLOCK_MONOTONIC, &net->current_time);
+
+	f64 elapsed_time =	(net->current_time.tv_sec - net->start_time.tv_sec) +
+						(net->current_time.tv_nsec - net->start_time.tv_nsec) / 1e9;
+
+	if (elapsed_time >= 1.0)
+	{
+		printf("\rIN UDP Packets/s: %u (%lu bytes)                   ", net->count, net->bytes);
+		fflush(stdout);
+		net->count = 0;
+		net->bytes = 0;
+		net->start_time = net->current_time;
+	}
+}
+
 static void
 waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 {
@@ -17,6 +37,7 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 	player_t* player = app->player;
 	
 	client_net_poll(app, 0);
+	print_packet_stats(app);
 
 	clock_gettime(CLOCK_MONOTONIC, &current_time);
 
@@ -26,20 +47,28 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 
 		coregame_update(&app->game);
 
+		if ((app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y) ||
+			(app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y))
+		{
+			ssp_segbuff_add(&app->net.udp_buf, NET_UDP_PLAYER_MOVE, 
+							sizeof(u32) + (sizeof(vec2f_t) * 2), player->core);
+			app->prev_pos = player->core->pos;
+		}
+
 		f64 elapsed_time = (current_time.tv_sec - start_time.tv_sec) + 
 							(current_time.tv_nsec - start_time.tv_nsec) / 1e9;
 		if (elapsed_time >= tick_interval)
 		{
-			ssp_segbuff_add(&app->net.udp_buf, NET_UDP_PLAYER_MOVE, 
-				   sizeof(u32) + (sizeof(vec2f_t) * 2), player->core);
-
 			ssp_packet_t* packet = ssp_serialize_packet(&app->net.udp_buf);
-			u32 packet_size = ssp_packet_size(packet);
-			if (sendto(app->net.udp_fd, packet, packet_size, 0, (struct sockaddr*)&app->net.server_udp.addr, app->net.server_udp.addr_len) == -1)
+			if (packet)
 			{
-				perror("sendto");
+				u32 packet_size = ssp_packet_size(packet);
+				if (sendto(app->net.udp_fd, packet, packet_size, 0, (struct sockaddr*)&app->net.server_udp.addr, app->net.server_udp.addr_len) == -1)
+				{
+					perror("sendto");
+				}
+				free(packet);
 			}
-			free(packet);
 			start_time = current_time;
 		}
 
@@ -148,8 +177,6 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 				mpos.y - (player->core->pos.y + (player->core->size.y / 2))
 			);
 			vec2f_norm(&dir);
-
-			printf("Shoot\n");
 
 			cg_projectile_t* proj = coregame_player_shoot(&app->game, app->player->core, dir);
 			projectile_new(app, proj);

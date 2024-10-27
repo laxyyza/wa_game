@@ -28,6 +28,7 @@ typedef struct waapp
 	ght_t players;
 	player_t* player;
 	vec2f_t prev_dir;
+	vec2f_t prev_pos;
 	bro_t* line_bro;
 
 	client_net_t net;

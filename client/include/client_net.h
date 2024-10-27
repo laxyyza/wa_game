@@ -1,9 +1,11 @@
 #ifndef _CLIENT_NET_H_
 #define _CLIENT_NET_H_
 
+#define _GNU_SOURCE
 #include "netdef.h"
 #include "ssp.h"
 #include "ssp_tcp.h"
+#include "time.h"
 
 typedef struct waapp waapp_t;
 typedef struct fdevent fdevent_t;
@@ -29,6 +31,11 @@ typedef struct
 	ssp_tcp_sock_t tcp;
 	ssp_segbuff_t segbuf;
 	ssp_segbuff_t udp_buf;
+
+	struct timespec start_time;
+	struct timespec current_time;
+	u32 count;
+	u64 bytes;
 } client_net_t;
 
 i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port);

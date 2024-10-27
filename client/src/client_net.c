@@ -5,7 +5,7 @@
 #include "player.h"
 #include <time.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 #define MAX_EVENTS 2
 
 static void 
@@ -113,20 +113,12 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	app->net.server_udp.addr.sin_port = htons(info->port);
 }
 
-static struct timespec start_time, current_time;
-static u32 count = 0;
-static u64 bytes = 0;
-
 static void
 udp_read(waapp_t* app, fdevent_t* fdev)
 {
-	count++;
+	client_net_t* net = &app->net;
 
-	clock_gettime(CLOCK_MONOTONIC, &current_time);
-
-	f64 elapsed_time =	(current_time.tv_sec - start_time.tv_sec) +
-						(current_time.tv_nsec - start_time.tv_nsec) / 1e9;
-
+	net->count++;
 
 	void* buf = malloc(BUFFER_SIZE);
 	i64 bytes_read;
@@ -140,19 +132,10 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 		return;
 	}
 
-	bytes += bytes_read;
+	net->bytes += bytes_read;
 
 	ssp_parse_buf(&app->net.def.ssp_state, buf, bytes_read, &addr);
 	free(buf);
-
-	if (elapsed_time >= 1.0)
-	{
-		printf("\rIN UDP Packets/s: %u (%lu bytes)\t\t", count, bytes);
-		fflush(stdout);
-		count = 0;
-		bytes = 0;
-		start_time = current_time;
-	}
 }
 
 static void 
