@@ -219,9 +219,8 @@ player_move(const ssp_segment_t* segment, server_t* server, client_t* source_cli
 	new_move->pos = move->pos;
 
 	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, 
-				  sizeof(net_udp_player_move_t), 
-				  new_move);
+		if (client != source_client)
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), new_move);
 	});
 }
 
