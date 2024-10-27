@@ -118,8 +118,6 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 {
 	client_net_t* net = &app->net;
 
-	net->count++;
-
 	void* buf = malloc(BUFFER_SIZE);
 	i64 bytes_read;
 	udp_addr_t addr = {
@@ -132,7 +130,8 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 		return;
 	}
 
-	net->bytes += bytes_read;
+	net->udp.in.bytes += bytes_read;
+	net->udp.in.count++;
 
 	ssp_parse_buf(&app->net.def.ssp_state, buf, bytes_read, &addr);
 	free(buf);

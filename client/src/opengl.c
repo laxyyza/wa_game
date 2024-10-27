@@ -114,37 +114,18 @@ waapp_gui(waapp_t* app)
             memcpy(&app->bg_color, &bg, sizeof(vec4f_t));
         }
 
-        static bool popup = false;
-
-        if (nk_button_label(ctx, "Images"))
-            popup = true;
-
-        if (popup)
-        {
-            if (nk_popup_begin(ctx, NK_POPUP_DYNAMIC, "Images", 0, nk_rect(50, 50, 200, 300)))
-            {
-                nk_layout_row_dynamic(ctx, 100, 1);
-                const ght_t* textures = &app->ren.current_bro->textures;
-
-                GHT_FOREACH(texture_t* texture, textures, 
-                    nk_image(ctx, nk_image_id(texture->id));
-                );
-
-                nk_layout_row_dynamic(ctx, 20, 1);
-                if (nk_button_label(ctx, "Cancel"))
-                {
-                    popup = false;
-                    nk_popup_close(ctx);
-                }
-                nk_popup_end(ctx);
-            } 
-            else
-                popup = false;
-        }
-
         const char* fullscreen_str = (state->window.state & WA_STATE_FULLSCREEN) ? "Windowed" : "Fullscreen";
         if (nk_button_label(ctx, fullscreen_str))
             wa_window_set_fullscreen(app->window, !(state->window.state & WA_STATE_FULLSCREEN));
+
+		char udp_in_stat[256];
+		snprintf(udp_in_stat, 256, "IN  UDP Packets/s: %u (%lu)", 
+				app->net.udp.in.last_count, app->net.udp.in.last_bytes);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		snprintf(udp_in_stat, 256, "OUT UDP Packets/s: %u (%lu)", 
+				app->net.udp.out.last_count, app->net.udp.out.last_bytes);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
     }
     nk_end(ctx);
     if (nk_window_is_hidden(ctx, window_name))

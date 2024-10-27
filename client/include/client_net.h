@@ -32,10 +32,25 @@ typedef struct
 	ssp_segbuff_t segbuf;
 	ssp_segbuff_t udp_buf;
 
-	struct timespec start_time;
-	struct timespec current_time;
-	u32 count;
-	u64 bytes;
+	struct {
+		struct timespec current_time;
+		struct timespec start_time;
+
+		struct {
+			u32 count;
+			u64 bytes;
+			u32 last_count;
+			u64 last_bytes;
+		} in;
+
+		struct {
+			u32 count;
+			u64 bytes;
+			u32 last_count;
+			u64 last_bytes;
+		} out;
+	} udp;
+
 } client_net_t;
 
 i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port);

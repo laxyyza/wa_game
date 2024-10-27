@@ -10,23 +10,36 @@
 struct timespec start_time, current_time;
 f64 tick_interval = 1.0 / 64.0;
 
+static f64 
+get_elapsed_time(struct timespec* current_time, struct timespec* start_time)
+{
+	f64 elapsed_time =	(current_time->tv_sec - start_time->tv_sec) +
+						(current_time->tv_nsec - start_time->tv_nsec) / 1e9;
+	return elapsed_time;
+}
+
 static void 
 print_packet_stats(waapp_t* app)
 {
 	client_net_t* net = &app->net;
 
-	clock_gettime(CLOCK_MONOTONIC, &net->current_time);
+	clock_gettime(CLOCK_MONOTONIC, &net->udp.current_time);
 
-	f64 elapsed_time =	(net->current_time.tv_sec - net->start_time.tv_sec) +
-						(net->current_time.tv_nsec - net->start_time.tv_nsec) / 1e9;
+	f64 elapsed_time = get_elapsed_time(&net->udp.current_time, &net->udp.start_time);
 
 	if (elapsed_time >= 1.0)
 	{
-		printf("\rIN UDP Packets/s: %u (%lu bytes)                   ", net->count, net->bytes);
-		fflush(stdout);
-		net->count = 0;
-		net->bytes = 0;
-		net->start_time = net->current_time;
+		net->udp.in.last_count = net->udp.in.count;
+		net->udp.in.last_bytes = net->udp.in.bytes;
+		net->udp.in.count = 0;
+		net->udp.in.bytes = 0;
+
+		net->udp.out.last_count = net->udp.out.count;
+		net->udp.out.last_bytes = net->udp.out.bytes;
+		net->udp.out.count = 0;
+		net->udp.out.bytes = 0;
+
+		net->udp.start_time = net->udp.current_time;
 	}
 }
 
@@ -34,6 +47,7 @@ static void
 waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 {
 	waapp_t* app = data;
+	client_net_t* net = &app->net;
 	player_t* player = app->player;
 	
 	client_net_poll(app, 0);
@@ -67,6 +81,10 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 				{
 					perror("sendto");
 				}
+
+				net->udp.out.count++;
+				net->udp.out.bytes += packet_size;
+ 
 				free(packet);
 			}
 			start_time = current_time;
