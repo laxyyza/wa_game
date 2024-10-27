@@ -10,6 +10,10 @@ executable('server', server_src,
     include_directories: [
         server_include,
         ght_include,
-        coregame_include
+        coregame_include,
+        ssp_include,
+    ],
+    link_with: [
+        libssp
     ]
 )

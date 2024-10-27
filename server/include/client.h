@@ -7,9 +7,8 @@ typedef struct server server_t;
 
 typedef struct 
 {
-	i32 tcp_fd;
+	ssp_tcp_sock_t tcp_sock;
 	u32 game_id;
-	char ipaddr[INET_ADDRSTRLEN];
 } client_t;
 
 client_t* accept_client(server_t* server);

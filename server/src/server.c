@@ -5,37 +5,11 @@
 static i32
 server_init_tcp(server_t* server)
 {
-	if ((server->tcp_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-	{
-		perror("socket TCP");
-		return -1;
-	}
+	i32 ret;
 
-	server->addr.sin_family = AF_INET;
-	server->addr.sin_port = htons(server->port);
-	server->addr.sin_addr.s_addr = INADDR_ANY;
-	server->addr_len = sizeof(struct sockaddr_in);
+	ret = ssp_tcp_server(&server->tcp_sock, SSP_IPv4, server->port);
 
-	int opt = 1;
-	if (setsockopt(server->tcp_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int)) == -1)
-	{
-		perror("setsockopt");
-		return -1;
-	}
-
-	if (bind(server->tcp_fd, (struct sockaddr*)&server->addr, server->addr_len) == -1)
-	{
-		perror("bind");
-		return -1;
-	}
-
-	if (listen(server->tcp_fd, 10) == -1)
-	{
-		perror("listen");
-		return -1;
-	}
-
-	return 0;
+	return ret;
 }
 
 static i32
@@ -47,8 +21,8 @@ server_init_udp(server_t* server)
 		return -1;
 	}
 
-	server->addr.sin_port = htons(server->port + 1);
-	if (bind(server->udp_fd, (struct sockaddr*)&server->addr, server->addr_len) == -1)
+	server->tcp_sock.addr.sockaddr.in.sin_port = htons(server->port + 1);
+	if (bind(server->udp_fd, (struct sockaddr*)&server->tcp_sock.addr.sockaddr, server->tcp_sock.addr.addr_len) == -1)
 	{
 		perror("bind UDP");
 		return -1;
@@ -76,7 +50,7 @@ read_client(UNUSED server_t* server, event_t* event)
 		server_close_event(server, event);
 	}
 	else
-		printf("TCP Packet from '%s': '%s'\n", client->ipaddr, buffer);
+		printf("TCP Packet from '%s': '%s'\n", client->tcp_sock.ipstr, buffer);
 }
 
 static void
@@ -84,8 +58,8 @@ close_client(UNUSED server_t* server, event_t* event)
 {
 	client_t* client = event->data;
 
-	close(client->tcp_fd);
-	printf("Client '%s' closed.\n", client->ipaddr);
+	ssp_tcp_sock_close(&client->tcp_sock);
+	printf("Client '%s' closed.\n", client->tcp_sock.ipstr);
 
 	free(client);
 }
@@ -97,7 +71,7 @@ handle_new_connection(server_t* server, UNUSED event_t* event)
 	if (client == NULL)
 		return;
 
-	server_add_event(server, client->tcp_fd, client, read_client, close_client);
+	server_add_event(server, client->tcp_sock.sockfd, client, read_client, close_client);
 }
 
 static void 
@@ -122,7 +96,7 @@ server_init_epoll(server_t* server)
 		return -1;
 	}
 
-	server_add_event(server, server->tcp_fd, NULL, handle_new_connection, NULL);
+	server_add_event(server, server->tcp_sock.sockfd, NULL, handle_new_connection, NULL);
 	server_add_event(server, server->udp_fd, NULL, read_udp_packet, NULL);
 
 	return 0;

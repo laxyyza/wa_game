@@ -7,6 +7,8 @@
 #include <ght.h>
 #include <int.h>
 #include <coregame.h>
+#include <ssp.h>
+#include <ssp_tcp.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>

@@ -9,14 +9,12 @@
 
 typedef struct server
 {
-	i32 tcp_fd;
 	i32 udp_fd;
+	ssp_tcp_sock_t tcp_sock;
 	i32 epfd;
 	u16 port;
 	ght_t clients;
 	struct epoll_event events[MAX_EVENTS];
-	struct sockaddr_in addr;
-	socklen_t addr_len;
 	bool running;
 } server_t;
 
