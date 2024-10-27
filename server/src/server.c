@@ -35,7 +35,7 @@ server_init_udp(server_t* server)
 static void
 read_client(server_t* server, event_t* event)
 {
-	// client_t* client = event->data;
+	client_t* client = event->data;
 	char buffer[1024] = {0};
 
 	ssize_t bytes_read;
@@ -51,7 +51,7 @@ read_client(server_t* server, event_t* event)
 	}
 	else
 	{
-		ssp_parse_buf(&server->netdef.ssp_state, buffer, bytes_read);
+		ssp_parse_buf(&server->netdef.ssp_state, buffer, bytes_read, client);
 	}
 }
 
@@ -111,16 +111,16 @@ server_init_epoll(server_t* server)
 // }
 
 static void 
-client_tcp_connect(UNUSED const ssp_segment_t* segment, UNUSED void* data)
+client_tcp_connect(UNUSED const ssp_segment_t* segment, UNUSED server_t* server, client_t* client)
 {
-	printf("Some client trying to connect.\n");
+	printf("Client '%s' trying to connect.\n", client->tcp_sock.ipstr);
 }
 
 static void
 server_init_netdef(server_t* server)
 {
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
-	callbacks[NET_TCP_CONNECT] = client_tcp_connect;
+	callbacks[NET_TCP_CONNECT] = (ssp_segmap_callback_t)client_tcp_connect;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_state.user_data = server;

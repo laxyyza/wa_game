@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 void 
-tcp_debug_msg(const ssp_segment_t* segment, UNUSED void* user_data)
+tcp_debug_msg(const ssp_segment_t* segment, UNUSED void* user_data, UNUSED void* source_data)
 {
 	const char* msg = (const char*)segment->data;
 
