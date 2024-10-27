@@ -173,7 +173,7 @@ player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 }
 
 i32 
-client_net_init(waapp_t* app, const char* ipaddr, u16 port)
+client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate)
 {
 	i32 ret;
 	client_net_t* net = &app->net;
@@ -188,6 +188,8 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;
+
+	client_net_set_tickrate(app, tickrate);
 
 	ssp_tcp_sock_create(&net->tcp, SSP_IPv4);
 	if ((ret = ssp_tcp_connect(&net->tcp, ipaddr, port)) == 0)
@@ -249,4 +251,75 @@ client_net_poll(waapp_t* app, i32 timeout)
 			}
 		}
 	} while(nfds && timeout == 0);
+
+	client_net_get_stats(app);
+}
+
+static f64 
+get_elapsed_time(struct timespec* current_time, struct timespec* start_time)
+{
+	f64 elapsed_time =	(current_time->tv_sec - start_time->tv_sec) +
+						(current_time->tv_nsec - start_time->tv_nsec) / 1e9;
+	return elapsed_time;
+}
+
+void 
+client_net_get_stats(waapp_t* app)
+{
+	client_net_t* net = &app->net;
+
+	clock_gettime(CLOCK_MONOTONIC, &net->udp.current_time);
+
+	f64 elapsed_time = get_elapsed_time(&net->udp.current_time, &net->udp.inout_start_time);
+
+	if (elapsed_time >= 1.0)
+	{
+		net->udp.in.last_count = net->udp.in.count;
+		net->udp.in.last_bytes = net->udp.in.bytes;
+		net->udp.in.count = 0;
+		net->udp.in.bytes = 0;
+
+		net->udp.out.last_count = net->udp.out.count;
+		net->udp.out.last_bytes = net->udp.out.bytes;
+		net->udp.out.count = 0;
+		net->udp.out.bytes = 0;
+
+		net->udp.inout_start_time = net->udp.current_time;
+	}
+}
+
+void
+client_net_try_udp_flush(waapp_t* app)
+{
+	client_net_t* net = &app->net;
+
+	// f64 elapsed_time = (net->udp.current_time.tv_sec - net->udp.send_start_time.tv_sec) + 
+	// 					(net->udp.current_time.tv_nsec - net->udp.send_start_time.tv_nsec) / 1e9;
+	f64 elapsed_time = get_elapsed_time(&net->udp.current_time, &net->udp.send_start_time);
+
+	if (elapsed_time >= net->udp.interval)
+	{
+		ssp_packet_t* packet = ssp_serialize_packet(&app->net.udp_buf);
+		if (packet)
+		{
+			u32 packet_size = ssp_packet_size(packet);
+			if (sendto(app->net.udp_fd, packet, packet_size, 0, (struct sockaddr*)&app->net.server_udp.addr, app->net.server_udp.addr_len) == -1)
+			{
+				perror("sendto");
+			}
+
+			net->udp.out.count++;
+			net->udp.out.bytes += packet_size;
+
+			free(packet);
+		}
+		net->udp.send_start_time = net->udp.current_time;
+	}
+}
+
+void 
+client_net_set_tickrate(waapp_t* app, f64 tickrate)
+{
+	app->net.udp.tickrate = tickrate;
+	app->net.udp.interval = 1.0 / tickrate;
 }

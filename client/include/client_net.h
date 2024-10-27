@@ -33,27 +33,36 @@ typedef struct
 	ssp_segbuff_t udp_buf;
 
 	struct {
+		f64 tickrate;
+		f64 interval;
+
 		struct timespec current_time;
-		struct timespec start_time;
+		struct timespec inout_start_time;
+		struct timespec send_start_time;
 
 		struct {
 			u32 count;
-			u64 bytes;
 			u32 last_count;
+
+			u64 bytes;
 			u64 last_bytes;
 		} in;
 
 		struct {
 			u32 count;
-			u64 bytes;
 			u32 last_count;
+
+			u64 bytes;
 			u64 last_bytes;
 		} out;
 	} udp;
 
 } client_net_t;
 
-i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port);
+i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate);
 void client_net_poll(waapp_t* app, i32 timeout);
+void client_net_try_udp_flush(waapp_t* app);
+void client_net_get_stats(waapp_t* app);
+void client_net_set_tickrate(waapp_t* app, f64 tickrate);
 
 #endif // _CLIENT_NET_H_

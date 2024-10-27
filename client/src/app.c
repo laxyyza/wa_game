@@ -7,53 +7,13 @@
 #include "gui/gui.h"
 #include <time.h>
 
-struct timespec start_time, current_time;
-f64 tick_interval = 1.0 / 64.0;
-
-static f64 
-get_elapsed_time(struct timespec* current_time, struct timespec* start_time)
-{
-	f64 elapsed_time =	(current_time->tv_sec - start_time->tv_sec) +
-						(current_time->tv_nsec - start_time->tv_nsec) / 1e9;
-	return elapsed_time;
-}
-
-static void 
-print_packet_stats(waapp_t* app)
-{
-	client_net_t* net = &app->net;
-
-	clock_gettime(CLOCK_MONOTONIC, &net->udp.current_time);
-
-	f64 elapsed_time = get_elapsed_time(&net->udp.current_time, &net->udp.start_time);
-
-	if (elapsed_time >= 1.0)
-	{
-		net->udp.in.last_count = net->udp.in.count;
-		net->udp.in.last_bytes = net->udp.in.bytes;
-		net->udp.in.count = 0;
-		net->udp.in.bytes = 0;
-
-		net->udp.out.last_count = net->udp.out.count;
-		net->udp.out.last_bytes = net->udp.out.bytes;
-		net->udp.out.count = 0;
-		net->udp.out.bytes = 0;
-
-		net->udp.start_time = net->udp.current_time;
-	}
-}
-
 static void
 waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 {
 	waapp_t* app = data;
-	client_net_t* net = &app->net;
 	player_t* player = app->player;
 	
 	client_net_poll(app, 0);
-	print_packet_stats(app);
-
-	clock_gettime(CLOCK_MONOTONIC, &current_time);
 
 	if (player)
 	{
@@ -68,29 +28,9 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 							sizeof(u32) + (sizeof(vec2f_t) * 2), player->core);
 			app->prev_pos = player->core->pos;
 		}
-
-		f64 elapsed_time = (current_time.tv_sec - start_time.tv_sec) + 
-							(current_time.tv_nsec - start_time.tv_nsec) / 1e9;
-		if (elapsed_time >= tick_interval)
-		{
-			ssp_packet_t* packet = ssp_serialize_packet(&app->net.udp_buf);
-			if (packet)
-			{
-				u32 packet_size = ssp_packet_size(packet);
-				if (sendto(app->net.udp_fd, packet, packet_size, 0, (struct sockaddr*)&app->net.server_udp.addr, app->net.server_udp.addr_len) == -1)
-				{
-					perror("sendto");
-				}
-
-				net->udp.out.count++;
-				net->udp.out.bytes += packet_size;
- 
-				free(packet);
-			}
-			start_time = current_time;
-		}
-
 		app->prev_dir = player->core->dir;
+
+		client_net_try_udp_flush(app);
 	}
     waapp_opengl_draw(app);
 }
@@ -302,9 +242,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 
 	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
 
-	client_net_init(app, "192.168.18.4", 8080);
-
-	clock_gettime(CLOCK_MONOTONIC, &start_time);
+	client_net_init(app, "192.168.18.4", 8080, 64.0);
 
     return 0;
 }
