@@ -46,18 +46,24 @@ typedef struct cg_player
 	};
 } cg_player_t;
 
-typedef struct 
+typedef struct cg_projectile
 {
-	u32 id;
 	u32 owner;
 	cg_rect_t rect;
 	vec2f_t dir;
+	f32 rotation;
+
+	struct cg_projectile* next;
+	struct cg_projectile* prev;
 } cg_projectile_t;
 
 typedef struct coregame 
 {
 	ght_t players;
-	ght_t projectiles;
+	struct {
+		cg_projectile_t* head;
+		cg_projectile_t* tail;
+	} proj;
 	cg_rect_t world_border;
 
 	struct timespec last_time;
@@ -71,9 +77,11 @@ typedef struct coregame
 
 	f32 interp_factor;
 	f32 interp_threshold_dist;
+
+	bool client;
 } coregame_t;
 
-void coregame_init(coregame_t* coregame);
+void coregame_init(coregame_t* coregame, bool client);
 void coregame_update(coregame_t* coregame);
 void coregame_cleanup(coregame_t* coregame);
 

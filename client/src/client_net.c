@@ -193,10 +193,7 @@ player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	const net_udp_player_shoot_t* shoot = (net_udp_player_shoot_t*)segment->data;
 	cg_player_t* player = ght_get(&app->game.players, shoot->player_id);
 	if (player)
-	{
-		cg_projectile_t* proj = coregame_player_shoot(&app->game, player, shoot->shoot_dir);
-		projectile_new(app, proj);
-	}
+		coregame_player_shoot(&app->game, player, shoot->shoot_dir);
 }
 
 static void 

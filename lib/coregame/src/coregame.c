@@ -1,6 +1,7 @@
 #include "coregame.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifdef __linux__
 #include <sys/random.h>
@@ -24,10 +25,9 @@ coregame_get_delta_time(coregame_t* coregame)
 
 
 void 
-coregame_init(coregame_t* coregame)
+coregame_init(coregame_t* coregame, bool client)
 {
 	ght_init(&coregame->players, 10, free);
-	ght_init(&coregame->projectiles, 10, free);
 
 	coregame->world_border = cg_rect(
 		vec2f(-300, -300),
@@ -37,6 +37,7 @@ coregame_init(coregame_t* coregame)
 
 	coregame->interp_factor = INTERPOLATE_FACTOR;
 	coregame->interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
+	coregame->client = client;
 }
 
 static inline bool 
@@ -150,8 +151,12 @@ coregame_proj_hit_player_test(coregame_t* coregame, cg_projectile_t* proj)
 static void 
 coregame_update_projectiles(coregame_t* coregame)
 {
-	const ght_t* projs = &coregame->projectiles;
-	GHT_FOREACH(cg_projectile_t* proj, projs, {
+	cg_projectile_t* proj = coregame->proj.head;
+	cg_projectile_t* proj_next;
+
+	while (proj)
+	{
+		proj_next = proj->next;
 		proj->rect.pos.x += proj->dir.x * PROJ_SPEED * coregame->delta;
 		proj->rect.pos.y += proj->dir.y * PROJ_SPEED * coregame->delta;
 
@@ -160,7 +165,8 @@ coregame_update_projectiles(coregame_t* coregame)
 		{
 			coregame_free_projectile(coregame, proj);
 		}
-	});
+		proj = proj_next;
+	}
 }
 
 void 
@@ -175,7 +181,6 @@ coregame_update(coregame_t* coregame)
 void 
 coregame_cleanup(coregame_t* coregame)
 {
-	ght_destroy(&coregame->projectiles);
 	ght_destroy(&coregame->players);
 }
 
@@ -233,6 +238,8 @@ coregame_player_shoot(coregame_t* coregame, cg_player_t* player, vec2f_t dir)
 {
 	cg_projectile_t* proj = coregame_add_projectile(coregame, player);
 	proj->dir = dir;
+	if (coregame->client)
+		proj->rotation = atan2(proj->dir.y, proj->dir.x) + M_PI / 2;
 	return proj;
 }
 
@@ -240,14 +247,22 @@ cg_projectile_t*
 coregame_add_projectile(coregame_t* coregame, cg_player_t* player)
 {
 	cg_projectile_t* proj = calloc(1, sizeof(cg_projectile_t));
-	coregame_randb(&proj->id, sizeof(u32));
 	proj->owner = player->id;
 	proj->rect.pos = player->pos;
 	proj->rect.pos.x += player->size.x / 2;
 	proj->rect.pos.y += player->size.y / 2;
 	proj->rect.size = vec2f(5, 30);
 
-	ght_insert(&coregame->projectiles, proj->id, proj);
+	if (coregame->proj.tail == NULL)
+	{
+		coregame->proj.tail = coregame->proj.head = proj;
+	}
+	else
+	{
+		coregame->proj.tail->next = proj;
+		proj->prev = coregame->proj.tail;
+		coregame->proj.tail = proj;
+	}
 
 	return proj;
 }
@@ -258,7 +273,16 @@ coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj)
 	if (coregame->proj_free_callback)
 		coregame->proj_free_callback(proj, coregame->user_data);
 
-	ght_del(&coregame->projectiles, proj->id);
+	if (proj->prev)
+		proj->prev->next = proj->next;
+	if (proj->next)
+		proj->next->prev = proj->prev;
+	if (proj == coregame->proj.head)
+		coregame->proj.head = proj->next;
+	if (proj == coregame->proj.tail)
+		coregame->proj.tail = proj->next;
+
+	free(proj);
 }
 
 void 

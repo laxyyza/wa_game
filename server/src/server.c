@@ -185,7 +185,7 @@ on_player_damaged(cg_player_t* player, server_t* server)
 static void
 server_init_coregame(server_t* server)
 {
-	coregame_init(&server->game);
+	coregame_init(&server->game, false);
 	server->game.user_data = server;
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 	server->game.player_damaged = (cg_player_changed_callback_t)on_player_damaged;

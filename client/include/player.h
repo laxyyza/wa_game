@@ -31,6 +31,5 @@ typedef struct
 player_t* player_new(waapp_t* app, const char* name);
 player_t* player_new_from(waapp_t* app, cg_player_t* cg_player);
 void	  player_set_health(player_t* player, i32 new_hp);
-projectile_t* projectile_new(waapp_t* app, cg_projectile_t* core_proj);
 
 #endif // _CLIENT_PLAYER_H_

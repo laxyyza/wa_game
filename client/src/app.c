@@ -155,7 +155,6 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 			vec2f_norm(&dir);
 
 			cg_projectile_t* proj = coregame_player_shoot(&app->game, app->player->core, dir);
-			projectile_new(app, proj);
 
 			net_udp_player_shoot_t* shoot = mmframes_alloc(&app->mmf, sizeof(net_udp_player_shoot_t));
 			shoot->shoot_dir = dir;
@@ -192,13 +191,6 @@ static void
 waapp_close(_WA_UNUSED wa_window_t* window, _WA_UNUSED void* data)
 {
 
-}
-
-static void 
-on_projectile_free(cg_projectile_t* cg_proj, void* data)
-{
-	waapp_t* app = data;
-	ght_del(&app->projectiles, cg_proj->id);
 }
 
 static void 
@@ -247,16 +239,14 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
         return -1;
     }
 
-	coregame_init(&app->game);
+	coregame_init(&app->game, true);
 	app->game.user_data = app;
-	app->game.proj_free_callback = on_projectile_free;
 	app->game.player_free_callback = on_player_free;
 
 	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
 	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
 
 	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
-	ght_init(&app->projectiles, 10, free);
 	ght_init(&app->players, 10, free);
 
 	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);

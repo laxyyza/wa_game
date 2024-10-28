@@ -201,11 +201,17 @@ render_player(waapp_t* app, player_t* player)
 static void
 render_projectiles(waapp_t* app)
 {
-	const ght_t* projectiles = &app->projectiles;
-	GHT_FOREACH(projectile_t* proj, projectiles, {
-		proj->rect.pos = proj->core->rect.pos;
-		ren_draw_rect(&app->ren, &proj->rect);
-	});
+	cg_projectile_t* proj = app->game.proj.head;
+
+	while (proj)
+	{
+		rect_t rect;
+		rect_init(&rect, proj->rect.pos, proj->rect.size, 0xFF0000FF, NULL);
+		rect.rotation = proj->rotation;
+		ren_draw_rect(&app->ren, &rect);
+
+		proj = proj->next;
+	}
 }
 
 static void
