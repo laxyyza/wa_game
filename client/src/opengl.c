@@ -126,6 +126,14 @@ waapp_gui(waapp_t* app)
 		snprintf(udp_in_stat, 256, "OUT UDP Packets/s: %u (%lu bytes)", 
 				app->net.udp.out.last_count, app->net.udp.out.last_bytes);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		snprintf(udp_in_stat, 256, "Interpolate Factor: %f", app->game.interp_factor);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		nk_slider_float(ctx, 0.01, &app->game.interp_factor, 1.0, 0.005);
+
+		snprintf(udp_in_stat, 256, "Interp Threshold Dist: %f", app->game.interp_threshold_dist);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		nk_slider_float(ctx, 0.0001, &app->game.interp_threshold_dist, 20.0, 0.0001);
     }
     nk_end(ctx);
     if (nk_window_is_hidden(ctx, window_name))

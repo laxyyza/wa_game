@@ -6,8 +6,11 @@
 #include "rect.h"
 #include <time.h>
 
+#define INTERPOLATE_FACTOR			0.2
+#define INTERPOLATE_THRESHOLD_DIST	0.001
+
 #define PROJ_SPEED	  5000
-#define PLAYER_SPEED  1000
+#define PLAYER_SPEED  1400
 #define PLAYER_HEALTH 100
 #define	PROJ_DMG	  40
 #define PLAYER_NAME_MAX 32
@@ -34,7 +37,11 @@ typedef struct cg_player
 	vec2f_t prev_dir;
 	vec2f_t cursor;
 	char	username[PLAYER_NAME_MAX];
-	bool	changed;
+
+	struct {
+		vec2f_t server_pos;
+		bool	interpolate;
+	};
 } cg_player_t;
 
 typedef struct 
@@ -58,6 +65,9 @@ typedef struct coregame
 	void (*proj_free_callback)(cg_projectile_t* proj, void* data);
 	void (*player_free_callback)(cg_player_t* proj, void* data);
 	cg_player_changed_callback_t player_changed;
+
+	f32 interp_factor;
+	f32 interp_threshold_dist;
 } coregame_t;
 
 void coregame_init(coregame_t* coregame);
@@ -72,5 +82,7 @@ cg_projectile_t* coregame_player_shoot(coregame_t* coregame, cg_player_t* player
 
 cg_projectile_t* coregame_add_projectile(coregame_t* coregame, cg_player_t* player);
 void coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj);
+
+f32  coregame_dist(const vec2f_t* a, const vec2f_t* b);
 
 #endif // _CORE_GAME_H_

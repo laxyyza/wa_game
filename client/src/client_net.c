@@ -141,11 +141,24 @@ static void
 player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 {
 	const net_udp_player_move_t* move = (net_udp_player_move_t*)segment->data;
-	cg_player_t* player = ght_get(&app->game.players, move->player_id);
+	const vec2f_t* server_pos = &move->pos;
+	const vec2f_t* client_pos;
+	player_t* player = ght_get(&app->players, move->player_id);
+
 	if (player)
 	{
-		player->pos = move->pos;
-		player->dir = move->dir;
+		client_pos = &player->core->pos;
+
+		f32 dist = coregame_dist(client_pos, server_pos);
+
+		if (dist > app->game.interp_threshold_dist)
+		{
+			player->core->interpolate = true;
+			player->core->server_pos = *server_pos;
+		}
+		else
+			player->core->pos = *server_pos;
+		player->core->dir = move->dir;
 	}
 }
 

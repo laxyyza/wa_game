@@ -29,6 +29,9 @@ coregame_init(coregame_t* coregame)
 		vec2f(10000, 10000)
 	);
 	coregame_get_delta_time(coregame);
+
+	coregame->interp_factor = INTERPOLATE_FACTOR;
+	coregame->interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
 }
 
 static inline bool 
@@ -50,33 +53,67 @@ rect_world_border_test(const coregame_t* coregame, const cg_rect_t* rect)
 			rect->pos.y + rect->size.y > wb->pos.y + wb->size.y);
 }
 
+f32 
+coregame_dist(const vec2f_t* a, const vec2f_t* b)
+{
+	return sqrtf(powf(b->x - a->x, 2) + powf(b->y - a->y, 2));
+}
+
+static void 
+coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
+{
+	const vec2f_t* client_pos = &player->pos;
+	const vec2f_t* server_pos = &player->server_pos;
+	f32 dist = coregame_dist(client_pos, server_pos);
+
+	if (dist > coregame->interp_threshold_dist)
+	{
+		player->pos.x = client_pos->x + (server_pos->x - client_pos->x) * coregame->interp_factor;
+		player->pos.y = client_pos->y + (server_pos->y - client_pos->y) * coregame->interp_factor;
+	}
+	else
+	{
+		player->pos = player->server_pos;
+		player->interpolate = false;
+	}
+}
+
+static void 
+coregame_move_player(coregame_t* coregame, cg_player_t* player)
+{
+	if (player->dir.x || player->dir.y)
+	{
+		const cg_rect_t new_rect = cg_rect(
+			vec2f(
+				player->pos.x + player->dir.x * PLAYER_SPEED * coregame->delta,
+				player->pos.y + player->dir.y * PLAYER_SPEED * coregame->delta
+			),
+			player->size
+		);
+
+		if (!rect_world_border_test(coregame, &new_rect))
+			memcpy(&player->pos, &new_rect, sizeof(vec2f_t));
+	}
+
+	if (player->prev_dir.x != player->dir.x || player->prev_dir.y != player->dir.y ||
+		player->prev_pos.x != player->pos.x || player->prev_pos.y != player->pos.y)
+	{
+		if (coregame->player_changed)
+			coregame->player_changed(player, coregame->user_data);
+		player->prev_pos = player->pos;
+		player->prev_dir = player->dir;
+	}
+}
+
 static void 
 coregame_update_players(coregame_t* coregame)
 {
 	const ght_t* players = &coregame->players;
 	GHT_FOREACH(cg_player_t* player, players, {
-		if (player->dir.x || player->dir.y)
-		{
-			const cg_rect_t new_rect = cg_rect(
-				vec2f(
-					player->pos.x + player->dir.x * PLAYER_SPEED * coregame->delta,
-					player->pos.y + player->dir.y * PLAYER_SPEED * coregame->delta
-				),
-				player->size
-			);
-
-			if (!rect_world_border_test(coregame, &new_rect))
-				memcpy(&player->pos, &new_rect, sizeof(vec2f_t));
-		}
-
-		if (player->prev_dir.x != player->dir.x || player->prev_dir.y != player->dir.y ||
-		    player->prev_pos.x != player->pos.x || player->prev_pos.y != player->pos.y)
-		{
-			if (coregame->player_changed)
-				coregame->player_changed(player, coregame->user_data);
-			player->prev_pos = player->pos;
-			player->prev_dir = player->dir;
-		}
+		if (player->interpolate)
+			coregame_interpolate_player(coregame, player);
+		else
+			coregame_move_player(coregame, player);
 	});
 }
 
