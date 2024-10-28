@@ -96,7 +96,10 @@ new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_data)
 	player_t* player = player_new_from(app, cg_player);
 
 	if (cg_player->id == app->net.player_id)
+	{
 		app->player = player;
+		player->hpbar.fill.color = rgba(0x00FF00FF);
+	}
 
 	coregame_add_player_from(&app->game, cg_player);
 }
