@@ -133,11 +133,13 @@ coregame_proj_hit_player_test(coregame_t* coregame, cg_projectile_t* proj)
 			cg_rect_t rect = cg_rect(player->pos, player->size);
 			if (rect_aabb_test(&proj->rect, &rect))
 			{
-				player->health -= PROJ_DMG;
-				if (player->health < 0)
-					player->health = 0;
 				if (coregame->player_damaged)
-					coregame->player_damaged(player, coregame->user_data);
+				{
+					player->health -= PROJ_DMG;
+					if (player->health < 0)
+						player->health = 0;
+						coregame->player_damaged(player, coregame->user_data);
+				}
 				return true;
 			}
 		}
