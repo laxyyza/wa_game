@@ -180,6 +180,8 @@ ren_viewport(ren_t* ren, i32 w, i32 h)
     glViewport(0, 0, w, h);
     ren->proj = mat_ortho(0, w, h, 0, -1.0, 1.0);
     ren_set_mvp(ren);
+	ren->viewport.x = w;
+	ren->viewport.y = h;
 }
 
 void 

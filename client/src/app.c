@@ -21,8 +21,23 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 
 		coregame_update(&app->game);
 
-		// if (app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y)
-		// 	app->prev_pos = player->core->pos;
+		if (app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y)
+		{
+			if (app->lock_cam)
+			{
+				const vec2f_t* viewport = &app->ren.viewport;
+				app->cam.x = -(player->core->pos.x - (viewport->x / 2) + (player->core->size.x / 2));
+				app->cam.y = -(player->core->pos.y - (viewport->y / 2) + (player->core->size.y / 2));
+				ren_set_view(&app->ren, &app->cam);
+
+				player->core->cursor = vec2f(
+					app->mouse.x - app->cam.x,
+					app->mouse.y - app->cam.y
+				);
+				ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &player->core->cursor);
+			}
+			app->prev_pos = player->core->pos;
+		}
 		if (app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y)
 		{
 			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
@@ -68,6 +83,10 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 			else if (ev->keyboard.key == WA_KEY_D)
 			{
 				player->movement_dir |= PLAYER_DIR_RIGHT;
+			}
+			else if (ev->keyboard.key == WA_KEY_SPACE)
+			{
+				app->lock_cam = !app->lock_cam;
 			}
         }
 		else
@@ -213,6 +232,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     state->callbacks.close = waapp_close;
 
     app->bg_color = rgba(0x333333FF);
+	app->lock_cam = true;
 
     // if (argc == 2 && fullscreen == false)
     //     app->texture_path = argv[1];

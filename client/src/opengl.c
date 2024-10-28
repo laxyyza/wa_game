@@ -241,6 +241,7 @@ waapp_opengl_draw(waapp_t* app)
     {
         if (state->mouse_map[WA_MOUSE_RIGHT])
         {
+			app->lock_cam = false;
             vec2f_t diff = vec2f(
                 app->mouse_prev.x - app->mouse.x,
                 app->mouse_prev.y - app->mouse.y

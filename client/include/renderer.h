@@ -66,6 +66,8 @@ typedef struct renderer
     u32     max_texture_units;
     u32*    texture_slots;
     u32     texture_idx;
+
+	vec2f_t viewport;
 } ren_t;
 
 void ren_init(ren_t* ren);
