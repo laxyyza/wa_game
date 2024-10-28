@@ -18,6 +18,10 @@
 #define PLAYER_DIR_RIGHT 0x04
 #define PLAYER_DIR_LEFT  0x08
 
+typedef struct cg_player cg_player_t;
+
+typedef void (*cg_player_changed_callback_t)(cg_player_t* player, void* user_data);
+
 typedef struct cg_player
 {
 	u32		id;
@@ -26,8 +30,11 @@ typedef struct cg_player
 	i32		health;
 
 	vec2f_t size;
+	vec2f_t prev_pos;
+	vec2f_t prev_dir;
 	vec2f_t cursor;
 	char	username[PLAYER_NAME_MAX];
+	bool	changed;
 } cg_player_t;
 
 typedef struct 
@@ -50,6 +57,7 @@ typedef struct coregame
 
 	void (*proj_free_callback)(cg_projectile_t* proj, void* data);
 	void (*player_free_callback)(cg_player_t* proj, void* data);
+	cg_player_changed_callback_t player_changed;
 } coregame_t;
 
 void coregame_init(coregame_t* coregame);

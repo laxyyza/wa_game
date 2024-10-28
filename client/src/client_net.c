@@ -142,7 +142,7 @@ player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 {
 	const net_udp_player_move_t* move = (net_udp_player_move_t*)segment->data;
 	cg_player_t* player = ght_get(&app->game.players, move->player_id);
-	if (player && app->player->core->id != move->player_id)
+	if (player)
 	{
 		player->pos = move->pos;
 		player->dir = move->dir;

@@ -68,6 +68,15 @@ coregame_update_players(coregame_t* coregame)
 			if (!rect_world_border_test(coregame, &new_rect))
 				memcpy(&player->pos, &new_rect, sizeof(vec2f_t));
 		}
+
+		if (player->prev_dir.x != player->dir.x || player->prev_dir.y != player->dir.y ||
+		    player->prev_pos.x != player->pos.x || player->prev_pos.y != player->pos.y)
+		{
+			if (coregame->player_changed)
+				coregame->player_changed(player, coregame->user_data);
+			player->prev_pos = player->pos;
+			player->prev_dir = player->dir;
+		}
 	});
 }
 

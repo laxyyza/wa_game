@@ -136,9 +136,25 @@ server_init_epoll(server_t* server)
 }
 
 static void
+on_player_changed(cg_player_t* player, server_t* server)
+{
+	ght_t* clients = &server->clients;
+	net_udp_player_move_t* move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
+	move->player_id = player->id;
+	move->pos = player->pos;
+	move->dir = player->dir;
+
+	GHT_FOREACH(client_t* client, clients, {
+		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
+	});
+}
+
+static void
 server_init_coregame(server_t* server)
 {
 	coregame_init(&server->game);
+	server->game.user_data = server;
+	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 }
 
 static void 
@@ -204,24 +220,11 @@ verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void**
 }
 
 static void 
-player_move(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+player_dir(const ssp_segment_t* segment, UNUSED server_t* server, client_t* source_client)
 {
-	ght_t* clients = &server->clients;
+	const net_udp_player_dir_t* dir = (const net_udp_player_dir_t*)segment->data;
 
-	const net_udp_player_move_t* move = (const net_udp_player_move_t*)segment->data;
-
-	source_client->player->dir = move->dir;
-	source_client->player->pos = move->pos;
-
-	net_udp_player_move_t* new_move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
-	new_move->player_id = source_client->player->id;
-	new_move->dir = move->dir;
-	new_move->pos = move->pos;
-
-	GHT_FOREACH(client_t* client, clients, {
-		if (client != source_client)
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), new_move);
-	});
+	source_client->player->dir = dir->dir;
 }
 
 static void 
@@ -267,7 +270,7 @@ server_init_netdef(server_t* server)
 {
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_CONNECT] = (ssp_segmap_callback_t)client_tcp_connect;
-	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)player_move;
+	callbacks[NET_UDP_PLAYER_DIR] = (ssp_segmap_callback_t)player_dir;
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
 	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
 

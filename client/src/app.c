@@ -21,16 +21,13 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 
 		coregame_update(&app->game);
 
-		if ((app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y) ||
-			(app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y))
+		// if (app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y)
+		// 	app->prev_pos = player->core->pos;
+		if (app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y)
 		{
-			net_udp_player_move_t* move = mmframes_alloc(&app->mmf, sizeof(net_udp_player_move_t));
-			move->pos = player->core->pos;
-			move->dir = player->core->dir;
-			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
-			app->prev_pos = player->core->pos;
+			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
+			app->prev_dir = player->core->dir;
 		}
-		app->prev_dir = player->core->dir;
 
 		client_net_try_udp_flush(app);
 	}
