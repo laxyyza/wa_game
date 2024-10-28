@@ -32,6 +32,7 @@ typedef struct cg_player
 	vec2f_t pos;
 	vec2f_t dir;
 	i32		health;
+	i32		max_health;
 
 	vec2f_t size;
 	vec2f_t prev_pos;
@@ -66,6 +67,7 @@ typedef struct coregame
 	void (*proj_free_callback)(cg_projectile_t* proj, void* data);
 	void (*player_free_callback)(cg_player_t* proj, void* data);
 	cg_player_changed_callback_t player_changed;
+	cg_player_changed_callback_t player_damaged;
 
 	f32 interp_factor;
 	f32 interp_threshold_dist;

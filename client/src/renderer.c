@@ -226,54 +226,6 @@ ren_add_rect_indices(bro_t* bro, u32 v)
     }
 }
 
-// void 
-// ren_draw_rect(ren_t* ren, const rect_t* rect)
-// {
-//     bro_t* bro = ren->current_bro;
-//
-//     if (bro->vbo.count + RECT_VERT > bro->vbo.max_count)
-//         ren_draw_batch(ren);
-//
-//     const vec2f_t* pos = &rect->pos;
-//     const vec2f_t* size = &rect->size;
-//     const vec4f_t* color = &rect->color;
-//     const u32 v = bro->vbo.count;
-//     vertex_t* vertices = bro->vbo.buf + v;
-//
-//     bro_add_texture(bro, rect->texture);
-//
-//     f32 texture_id = (rect->texture) ? rect->texture->unit : NO_TEXTURE;
-//     if (bro->draw_mode == GL_LINES)
-//         texture_id = NO_TEXTURE;
-//
-//     vertices->pos = vec4f(rect->pos.x, rect->pos.y, 0, 1);
-//     vertices->color = *color;
-//     vertices->tex_cords = vec2f(0.0, 0.0);
-//     vertices->texture_id = texture_id;
-//     vertices++;
-//     
-//     vertices->pos = vec4f(pos->x + size->x, pos->y, 0, 1);
-//     vertices->color = *color;
-//     vertices->tex_cords = vec2f(1.0, 0.0);
-//     vertices->texture_id = texture_id;
-//     vertices++;
-//
-//     vertices->pos = vec4f(pos->x + size->x, pos->y + size->y, 0, 1);
-//     vertices->color = *color;
-//     vertices->tex_cords = vec2f(1.0, 1.0);
-//     vertices->texture_id = texture_id;
-//     vertices++;
-//
-//     vertices->pos = vec4f(pos->x, pos->y + size->y, 0, 1);
-//     vertices->color = *color;
-//     vertices->tex_cords = vec2f(0.0, 1.0);
-//     vertices->texture_id = texture_id;
-//
-//     ren_add_rect_indices(bro, v);
-//
-//     bro->vbo.count += RECT_VERT;
-// }
-
 static f32 
 ren_texture_idx(ren_t* ren, texture_t* texture)
 {
@@ -292,9 +244,63 @@ ren_texture_idx(ren_t* ren, texture_t* texture)
     return ret;
 }
 
+static void 
+ren_draw_rect_norm(ren_t* ren, const rect_t* rect)
+{
+    bro_t* bro = ren->current_bro;
+
+    if (bro->vbo.count + RECT_VERT > bro->vbo.max_count)
+        ren_draw_batch(ren);
+
+    const vec2f_t* pos = &rect->pos;
+    const vec2f_t* size = &rect->size;
+    const vec4f_t* color = &rect->color;
+    const u32 v = bro->vbo.count;
+    vertex_t* vertices = bro->vbo.buf + v;
+
+    f32 texture_idx = ren_texture_idx(ren, rect->texture);
+
+    if (bro->draw_mode == GL_LINES)
+        texture_idx = NO_TEXTURE;
+
+    vertices->pos = vec4f(rect->pos.x, rect->pos.y, 0, 1);
+    vertices->color = *color;
+    vertices->tex_cords = vec2f(0.0, 0.0);
+    vertices->texture_id = texture_idx;
+    vertices++;
+    
+    vertices->pos = vec4f(pos->x + size->x, pos->y, 0, 1);
+    vertices->color = *color;
+    vertices->tex_cords = vec2f(1.0, 0.0);
+    vertices->texture_id = texture_idx;
+    vertices++;
+
+    vertices->pos = vec4f(pos->x + size->x, pos->y + size->y, 0, 1);
+    vertices->color = *color;
+    vertices->tex_cords = vec2f(1.0, 1.0);
+    vertices->texture_id = texture_idx;
+    vertices++;
+
+    vertices->pos = vec4f(pos->x, pos->y + size->y, 0, 1);
+    vertices->color = *color;
+    vertices->tex_cords = vec2f(0.0, 1.0);
+    vertices->texture_id = texture_idx;
+
+    ren_add_rect_indices(bro, v);
+
+    bro->vbo.count += RECT_VERT;
+}
+
+
 void 
 ren_draw_rect(ren_t* ren, const rect_t* rect)
 {
+	if (rect->rotation == 0)
+	{
+		ren_draw_rect_norm(ren, rect);
+		return;
+	}
+
     bro_t* bro = ren->current_bro;
 
     if (bro->vbo.count + RECT_VERT > bro->vbo.max_count || 

@@ -180,11 +180,22 @@ rect_in_frustum(waapp_t* app, rect_t* rect)
 static void 
 render_player(waapp_t* app, player_t* player)
 {
+	healthbar_t* hpbar = &player->hpbar;
+
 	player->rect.pos = player->core->pos;
 	player->top.pos = player->core->pos;
 
+	player->hpbar.background.pos = vec2f(
+		player->rect.pos.x + (player->rect.size.x - player->hpbar.background.size.x) / 2,
+		player->rect.pos.y - 30
+	);
+	player->hpbar.fill.pos = hpbar->background.pos; 
+
 	ren_draw_rect(&app->ren, &player->rect);
 	ren_draw_rect(&app->ren, &player->top);
+
+	ren_draw_rect(&app->ren, &player->hpbar.background);
+	ren_draw_rect(&app->ren, &player->hpbar.fill);
 }
 
 static void

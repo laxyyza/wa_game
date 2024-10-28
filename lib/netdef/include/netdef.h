@@ -17,6 +17,7 @@ enum segtypes
 	NET_UDP_PLAYER_DIR,
 	NET_UDP_PLAYER_CURSOR,
 	NET_UDP_PLAYER_SHOOT,
+	NET_UDP_PLAYER_HEALTH,
 
 	NET_DEBUG_MSG,
 
@@ -69,6 +70,12 @@ typedef struct
 	vec2f_t shoot_dir;
 	vec2f_t shoot_pos;
 } net_udp_player_shoot_t;
+
+typedef struct 
+{
+	u32 player_id;
+	i32 health;
+} net_udp_player_health_t;
 
 typedef struct cg_player net_tcp_new_player_t;
 

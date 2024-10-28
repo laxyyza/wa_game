@@ -122,6 +122,29 @@ coregame_update_players(coregame_t* coregame)
 	});
 }
 
+static bool
+coregame_proj_hit_player_test(coregame_t* coregame, cg_projectile_t* proj)
+{
+	const ght_t* players = &coregame->players;
+
+	GHT_FOREACH(cg_player_t* player, players, {
+		if (player->id != proj->owner && player->health > 0)
+		{
+			cg_rect_t rect = cg_rect(player->pos, player->size);
+			if (rect_aabb_test(&proj->rect, &rect))
+			{
+				player->health -= PROJ_DMG;
+				if (player->health < 0)
+					player->health = 0;
+				if (coregame->player_damaged)
+					coregame->player_damaged(player, coregame->user_data);
+				return true;
+			}
+		}
+	});
+	return false;
+}
+
 static void 
 coregame_update_projectiles(coregame_t* coregame)
 {
@@ -130,8 +153,11 @@ coregame_update_projectiles(coregame_t* coregame)
 		proj->rect.pos.x += proj->dir.x * PROJ_SPEED * coregame->delta;
 		proj->rect.pos.y += proj->dir.y * PROJ_SPEED * coregame->delta;
 
-		if (rect_world_border_test(coregame, &proj->rect))
+		if (coregame_proj_hit_player_test(coregame, proj) || 
+			rect_world_border_test(coregame, &proj->rect))
+		{
 			coregame_free_projectile(coregame, proj);
+		}
 	});
 }
 
@@ -160,6 +186,7 @@ coregame_add_player(coregame_t* coregame, const char* name)
 	player->pos = vec2f(50, 50);
 	player->size = vec2f(150, 150);
 	player->health = PLAYER_HEALTH;
+	player->max_health = PLAYER_HEALTH;
 
 	coregame_add_player_from(coregame, player);
 

@@ -196,6 +196,15 @@ player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	}
 }
 
+static void 
+player_health(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	const net_udp_player_health_t* health = (net_udp_player_health_t*)segment->data;
+	player_t* player = ght_get(&app->players, health->player_id);
+	if (player)
+		player_set_health(player, health->health);
+}
+
 i32 
 client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -209,6 +218,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)player_move;
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
 	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
+	callbacks[NET_UDP_PLAYER_HEALTH] = (ssp_segmap_callback_t)player_health;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;

@@ -158,11 +158,37 @@ on_player_changed(cg_player_t* player, server_t* server)
 }
 
 static void
+on_player_damaged(cg_player_t* player, server_t* server)
+{
+	ght_t* clients = &server->clients;
+	net_udp_player_health_t* health = mmframes_alloc(&server->mmf, sizeof(net_udp_player_health_t));
+	net_udp_player_move_t* move = NULL;
+	health->player_id = player->id;
+	health->health = player->health;
+
+	if (player->health <= 0)
+	{
+		move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
+		move->player_id = player->id;
+		player->pos = move->pos = vec2f(100, 100);
+		player->dir = move->dir = vec2f(0, 0);
+		player->health = health->health = player->max_health;
+	}
+
+	GHT_FOREACH(client_t* client, clients, {
+		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_HEALTH, sizeof(net_udp_player_health_t), health);
+		if (move)
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
+	});
+}
+
+static void
 server_init_coregame(server_t* server)
 {
 	coregame_init(&server->game);
 	server->game.user_data = server;
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
+	server->game.player_damaged = (cg_player_changed_callback_t)on_player_damaged;
 }
 
 static void 
