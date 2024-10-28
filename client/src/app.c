@@ -241,7 +241,9 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 
 	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
 
-	client_net_init(app, "192.168.18.4", 8080, 64.0);
+	const char* ipaddr = (argc == 1) ? "127.0.0.1" : argv[1];
+
+	client_net_init(app, ipaddr, 8080, 64.0);
 
 	mmframes_init(&app->mmf);
 
