@@ -12,4 +12,6 @@ m_dep = cc.find_library('m', required: true)
 
 subdir('lib/')
 subdir('client/')
-subdir('server/')
+if not meson.is_cross_build()
+    subdir('server/')
+endif

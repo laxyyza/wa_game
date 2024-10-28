@@ -119,11 +119,11 @@ waapp_gui(waapp_t* app)
             wa_window_set_fullscreen(app->window, !(state->window.state & WA_STATE_FULLSCREEN));
 
 		char udp_in_stat[256];
-		snprintf(udp_in_stat, 256, "IN  UDP Packets/s: %u (%lu bytes)", 
+		snprintf(udp_in_stat, 256, "IN  UDP Packets/s: %u (%zu bytes)", 
 				app->net.udp.in.last_count, app->net.udp.in.last_bytes);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
-		snprintf(udp_in_stat, 256, "OUT UDP Packets/s: %u (%lu bytes)", 
+		snprintf(udp_in_stat, 256, "OUT UDP Packets/s: %u (%zu bytes)", 
 				app->net.udp.out.last_count, app->net.udp.out.last_bytes);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 

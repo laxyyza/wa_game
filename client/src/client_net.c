@@ -1,9 +1,12 @@
 #define _GNU_SOURCE
 #include "client_net.h"
 #include "app.h"
-#include <sys/epoll.h>
 #include "player.h"
 #include <time.h>
+
+#ifdef __linux__
+#include <sys/epoll.h>
+#endif
 
 #define BUFFER_SIZE 4096
 #define MAX_EVENTS 2
@@ -22,15 +25,16 @@ session_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 }
 
 static void 
-add_fdevent(waapp_t* app, i32 fd, fdevent_callback_t read, fdevent_callback_t close, void* data)
+add_fdevent(waapp_t* app, sock_t fd, fdevent_callback_t read, fdevent_callback_t close, void* data)
 {
 	client_net_t* net = &app->net;
-	fdevent_t* event = calloc(1, sizeof(fdevent_t));
+	fdevent_t* event = array_add_into(&net->events);
 	event->fd = fd;
 	event->read = read;
 	event->close = close;
 	event->data = data;
 
+#ifdef __linux__
 	struct epoll_event ev = {
 		.data.ptr = event,
 		.events = EPOLLIN | EPOLLHUP
@@ -38,18 +42,22 @@ add_fdevent(waapp_t* app, i32 fd, fdevent_callback_t read, fdevent_callback_t cl
 
 	if (epoll_ctl(net->epfd, EPOLL_CTL_ADD, fd, &ev) == -1)
 		perror("epoll_ctl ADD");
+#endif
 }
 
 static void
-tcp_close(waapp_t* app, fdevent_t* fdev)
+tcp_close(UNUSED waapp_t* app, fdevent_t* fdev)
 {
 	ssp_tcp_sock_t* sock = fdev->data;
 
+#ifdef __linux__
 	if (epoll_ctl(app->net.epfd, EPOLL_CTL_DEL, fdev->fd, NULL) == -1)
 		perror("epoll_ctl DEL");
+#endif
 
 	ssp_tcp_sock_close(sock);
-	free(fdev);
+	// TODO: Remove fdevent_t from app->net.events
+	// free(fdev);
 
 	printf("TCP Socket Disconnected.\n");
 
@@ -204,6 +212,12 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate)
 
 	client_net_set_tickrate(app, tickrate);
 
+	array_init(&net->events, sizeof(fdevent_t), 4);
+
+#ifdef _WIN32
+	WSAStartup(MAKEWORD(2, 2), &net->wsa_data);
+#endif
+
 	ssp_tcp_sock_create(&net->tcp.sock, SSP_IPv4);
 	if ((ret = ssp_tcp_connect(&net->tcp.sock, ipaddr, port)) == 0)
 	{
@@ -216,7 +230,9 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate)
 		ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
 		ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
 
+#ifdef __linux__
 		net->epfd = epoll_create1(EPOLL_CLOEXEC);
+#endif
 
 		add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, &net->tcp.sock);
 
@@ -235,6 +251,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate)
 	return ret;
 }
 
+#ifdef __linux__
 void
 client_net_poll(waapp_t* app, i32 timeout)
 {
@@ -267,6 +284,57 @@ client_net_poll(waapp_t* app, i32 timeout)
 
 	client_net_get_stats(app);
 }
+#endif // __linux__
+
+#ifdef _WIN32
+void
+client_net_poll(waapp_t* app, i32 timeout)
+{
+	client_net_t* net = &app->net;
+	sock_t max_fd = 0;
+	i32 ret;
+	fdevent_t* events = (fdevent_t*)net->events.buf;
+	struct timeval timeval = {0, 0};
+
+	do {
+		FD_ZERO(&net->read_fds);
+		FD_ZERO(&net->execpt_fds);
+		for (u32 i = 0; i < net->events.count; i++)
+		{
+			fdevent_t* fdev = events + i;
+			FD_SET(fdev->fd, &net->read_fds);
+			FD_SET(fdev->fd, &net->execpt_fds);
+			if (fdev->fd > max_fd)
+				max_fd = fdev->fd;
+		}
+
+		ret = select(max_fd + 1, &net->read_fds, NULL, &net->execpt_fds, (timeout == -1) ? NULL : &timeval);
+		if (ret == -1)
+		{
+			perror("select");
+			return;
+		}
+		else if (ret > 0)
+		{
+			for (u32 i = 0; i < net->events.count; i++)
+			{
+				fdevent_t* fdev = events + i;
+				if (FD_ISSET(fdev->fd, &net->execpt_fds))
+				{
+					if (fdev->close)
+						fdev->close(app, fdev);
+				}
+				else if (FD_ISSET(fdev->fd, &net->read_fds))
+				{
+					fdev->read(app, fdev);
+				}
+			}
+		}
+	} while(ret > 0 && timeout == 0);
+
+	client_net_get_stats(app);
+}
+#endif // _WIN32
 
 static f64 
 get_elapsed_time(struct timespec* current_time, struct timespec* start_time)
@@ -316,7 +384,7 @@ client_net_try_udp_flush(waapp_t* app)
 		if (packet)
 		{
 			u32 packet_size = ssp_packet_size(packet);
-			if (sendto(net->udp.fd, packet, packet_size, 0, (void*)&net->udp.server.addr, net->udp.server.addr_len) == -1)
+			if (sendto(net->udp.fd, (void*)packet, packet_size, 0, (void*)&net->udp.server.addr, net->udp.server.addr_len) == -1)
 			{
 				perror("sendto");
 			}

@@ -23,6 +23,12 @@ src = files(
     'src/player.c',
     'src/client_net.c',
 )
+deps = [m_dep]
+
+if meson.is_cross_build()
+    winsock_dep = cc.find_library('ws2_32', required: true)
+    deps += winsock_dep
+endif
 
 executable('wa_game', src, 
     include_directories: [
@@ -35,9 +41,7 @@ executable('wa_game', src,
         ssp_include,
         cutils_include,
     ], 
-    dependencies: [
-        m_dep,
-    ],
+    dependencies: deps,
     link_with: [
         libwa,
         libght,

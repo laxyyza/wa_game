@@ -1,6 +1,7 @@
 #ifndef _CORE_GAME_H_
 #define _CORE_GAME_H_
 
+#define _GNU_SOURCE
 #include <int.h>
 #include <ght.h>
 #include "rect.h"
@@ -84,5 +85,6 @@ cg_projectile_t* coregame_add_projectile(coregame_t* coregame, cg_player_t* play
 void coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj);
 
 f32  coregame_dist(const vec2f_t* a, const vec2f_t* b);
+void coregame_randb(void* buf, u64 count);
 
 #endif // _CORE_GAME_H_

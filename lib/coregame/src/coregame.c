@@ -1,9 +1,14 @@
-#define _GNU_SOURCE
 #include "coregame.h"
 #include <stdlib.h>
-#include <sys/random.h>
 #include <string.h>
-#include <stdio.h>
+
+#ifdef __linux__
+#include <sys/random.h>
+#endif // __linux__
+#ifdef _WIN32
+#include <windows.h>
+#include <ntsecapi.h>
+#endif // _WIN32
 
 static void
 coregame_get_delta_time(coregame_t* coregame)
@@ -150,7 +155,7 @@ cg_player_t*
 coregame_add_player(coregame_t* coregame, const char* name)
 {
 	cg_player_t* player = calloc(1, sizeof(cg_player_t));
-	getrandom(&player->id, sizeof(u32), 0);
+	coregame_randb(&player->id, sizeof(u32));
 	strncpy(player->username, name, PLAYER_NAME_MAX);
 	player->pos = vec2f(50, 50);
 	player->size = vec2f(150, 150);
@@ -206,7 +211,7 @@ cg_projectile_t*
 coregame_add_projectile(coregame_t* coregame, cg_player_t* player)
 {
 	cg_projectile_t* proj = calloc(1, sizeof(cg_projectile_t));
-	getrandom(&proj->id, sizeof(u32), 0);
+	coregame_randb(&proj->id, sizeof(u32));
 	proj->owner = player->id;
 	proj->rect.pos = player->pos;
 	proj->rect.pos.x += player->size.x / 2;
@@ -225,4 +230,15 @@ coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj)
 		coregame->proj_free_callback(proj, coregame->user_data);
 
 	ght_del(&coregame->projectiles, proj->id);
+}
+
+void 
+coregame_randb(void* buf, u64 count)
+{
+#ifdef __linux__
+	getrandom(buf, count, 0);
+#endif
+#ifdef _WIN32
+	RtlGenRandom(buf, count);
+#endif
 }

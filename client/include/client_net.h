@@ -6,6 +6,13 @@
 #include "ssp.h"
 #include "ssp_tcp.h"
 #include "time.h"
+#include "array.h"
+
+#ifdef _WIN32
+#include <windows.h>
+
+#define MAX_SOCKETS 8
+#endif
 
 typedef struct waapp waapp_t;
 typedef struct fdevent fdevent_t;
@@ -14,7 +21,7 @@ typedef void (*fdevent_callback_t)(waapp_t* app, fdevent_t* fdevent);
 
 typedef struct fdevent
 {
-	i32 fd;
+	sock_t fd;
 	void* data;
 	fdevent_callback_t read;
 	fdevent_callback_t close;
@@ -22,7 +29,7 @@ typedef struct fdevent
 
 typedef struct 
 {
-	i32 fd;
+	sock_t fd;
 
 	f64 tickrate;
 	f64 interval;
@@ -54,7 +61,9 @@ typedef struct
 
 typedef struct 
 {
+#ifdef __linux__
 	i32 epfd;
+#endif
 	u32 session_id;
 	u32 player_id;
 
@@ -66,6 +75,14 @@ typedef struct
 	} tcp;
 
 	client_udp_t udp;
+
+	array_t events;
+
+#ifdef _WIN32
+	fd_set read_fds;
+	fd_set execpt_fds;
+	WSADATA wsa_data;
+#endif
 } client_net_t;
 
 i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate);
