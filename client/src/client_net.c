@@ -80,7 +80,7 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 	}
 	else
 	{
-		ssp_parse_buf(&app->net.def.ssp_state, buf, bytes_read, NULL);
+		ssp_parse_buf(&app->net.def.ssp_state, NULL, buf, bytes_read, NULL);
 	}
 	free(buf);
 }
@@ -144,7 +144,7 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 	net->udp.in.bytes += bytes_read;
 	net->udp.in.count++;
 
-	ssp_parse_buf(&app->net.def.ssp_state, buf, bytes_read, &addr);
+	ssp_parse_buf(&net->def.ssp_state, &net->udp.buf, buf, bytes_read, &addr);
 	free(buf);
 }
 
@@ -255,7 +255,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 
 		add_fdevent(app, net->udp.fd, udp_read, NULL, NULL);
 
-		ssp_segbuff_init(&net->udp.buf, 10, SSP_FOOTER_BIT | SSP_SESSION_BIT);
+		ssp_segbuff_init(&net->udp.buf, 10, SSP_FOOTER_BIT | SSP_SESSION_BIT | SSP_SEQUENCE_COUNT_BIT);
 
 		client_net_poll(app, -1);
 	}

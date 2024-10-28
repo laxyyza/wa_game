@@ -62,7 +62,7 @@ read_client(server_t* server, event_t* event)
 	}
 	else
 	{
-		ssp_parse_buf(&server->netdef.ssp_state, buffer, bytes_read, client);
+		ssp_parse_buf(&server->netdef.ssp_state, &client->udp_buf, buffer, bytes_read, client);
 	}
 }
 
@@ -124,7 +124,7 @@ read_udp_packet(server_t* server, event_t* event)
 		return;
 	}
 
-	ssp_parse_buf(&server->netdef.ssp_state, buf, bytes_read, &info);
+	ssp_parse_buf(&server->netdef.ssp_state, NULL, buf, bytes_read, &info);
 	free(buf);
 }
 
@@ -232,7 +232,7 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 }
 
 static bool 
-verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source)
+verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_segbuff_t** segbuf)
 {
 	client_t* client;
 
@@ -250,6 +250,7 @@ verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void**
 	}
 
 	*new_source = client;
+	*segbuf = &client->udp_buf;
 	memcpy(&client->udp, source_data, sizeof(udp_addr_t));
 	client->udp_connected = true;
 

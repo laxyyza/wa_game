@@ -20,7 +20,7 @@ accept_client(server_t* server)
 	printf("New client '%s' (%d) connected.\n", client->tcp_sock.ipstr, client->tcp_sock.sockfd);
 
 	ssp_segbuff_init(&client->tcp_buf, 10, 0);
-	ssp_segbuff_init(&client->udp_buf, 10, SSP_FOOTER_BIT | SSP_SESSION_BIT);
+	ssp_segbuff_init(&client->udp_buf, 10, SSP_FOOTER_BIT | SSP_SESSION_BIT | SSP_SEQUENCE_COUNT_BIT);
 
 	getrandom(&client->session_id, sizeof(u32), 0);
 
