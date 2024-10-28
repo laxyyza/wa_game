@@ -13,7 +13,7 @@
 #define PROJ_SPEED	  5000
 #define PLAYER_SPEED  1400
 #define PLAYER_HEALTH 100
-#define	PROJ_DMG	  40
+#define	PROJ_DMG	  10
 #define PLAYER_NAME_MAX 32
 #define UNUSED __attribute__((unused))
 
