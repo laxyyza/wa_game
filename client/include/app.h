@@ -38,6 +38,7 @@ typedef struct waapp
     vec2f_t mouse_prev;
     vec3f_t cam;
 	bool	lock_cam;
+	bool	trigger_shooting;
 
     struct nk_wa* nk_wa;
     struct nk_context* nk_ctx;

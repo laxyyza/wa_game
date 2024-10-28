@@ -7,6 +7,28 @@
 #include "gui/gui.h"
 #include <time.h>
 
+static void 
+client_shoot(waapp_t* app)
+{
+	const player_t* player = app->player;
+	const vec2f_t mpos = vec2f(
+		(app->mouse.x - app->cam.x),
+		(app->mouse.y - app->cam.y)
+	);
+	vec2f_t dir = vec2f(
+		mpos.x - (player->core->pos.x + (player->core->size.x / 2)),
+		mpos.y - (player->core->pos.y + (player->core->size.y / 2))
+	);
+	vec2f_norm(&dir);
+
+	cg_projectile_t* proj = coregame_player_shoot(&app->game, app->player->core, dir);
+
+	net_udp_player_shoot_t* shoot = mmframes_alloc(&app->mmf, sizeof(net_udp_player_shoot_t));
+	shoot->shoot_dir = dir;
+	shoot->shoot_pos = proj->rect.pos;
+	ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
+}
+
 static void
 waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 {
@@ -43,6 +65,9 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
 			app->prev_dir = player->core->dir;
 		}
+
+		if (app->trigger_shooting)
+			client_shoot(app);
 
 		client_net_try_udp_flush(app);
 	}
@@ -87,6 +112,10 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 			else if (ev->keyboard.key == WA_KEY_SPACE)
 			{
 				app->lock_cam = !app->lock_cam;
+			}
+			else if (ev->keyboard.key == WA_KEY_T)
+			{
+				app->trigger_shooting = !app->trigger_shooting;
 			}
         }
 		else
@@ -143,23 +172,7 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
         }
 		else if (ev->mouse.button == WA_MOUSE_LEFT && ev->mouse.pressed)
 		{
-			const player_t* player = app->player;
-			const vec2f_t mpos = vec2f(
-				(app->mouse.x - app->cam.x),
-				(app->mouse.y - app->cam.y)
-			);
-			vec2f_t dir = vec2f(
-				mpos.x - (player->core->pos.x + (player->core->size.x / 2)),
-				mpos.y - (player->core->pos.y + (player->core->size.y / 2))
-			);
-			vec2f_norm(&dir);
-
-			cg_projectile_t* proj = coregame_player_shoot(&app->game, app->player->core, dir);
-
-			net_udp_player_shoot_t* shoot = mmframes_alloc(&app->mmf, sizeof(net_udp_player_shoot_t));
-			shoot->shoot_dir = dir;
-			shoot->shoot_pos = proj->rect.pos;
-			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
+			client_shoot(app);
 		}
     }
     else if (ev->type == WA_EVENT_MOUSE_WHEEL)
