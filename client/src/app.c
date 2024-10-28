@@ -243,7 +243,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 
 	const char* ipaddr = (argc == 1) ? "127.0.0.1" : argv[1];
 
-	client_net_init(app, ipaddr, 8080, 64.0);
+	client_net_init(app, ipaddr, 8080);
 
 	mmframes_init(&app->mmf);
 

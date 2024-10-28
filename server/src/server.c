@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define PORT 8080
+#define TICKRATE 64.0
 
 static i32
 server_init_tcp(server_t* server)
@@ -14,6 +15,13 @@ server_init_tcp(server_t* server)
 	ret = ssp_tcp_server(&server->tcp_sock, SSP_IPv4, server->port);
 
 	return ret;
+}
+
+static void
+server_set_tickrate(server_t* server, f64 tickrate)
+{
+	server->tickrate = tickrate;
+	server->interval = 1.0 / tickrate;
 }
 
 static i32
@@ -180,7 +188,10 @@ static void
 client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* client)
 {
 	net_tcp_sessionid_t sessionid;
-	net_tcp_udp_info_t udp_info = {server->udp_port};
+	net_tcp_udp_info_t udp_info = {
+		.port = server->udp_port,
+		.tickrate = server->tickrate
+	};
 	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
 	client->player = coregame_add_player(&server->game, connect->username);
@@ -299,6 +310,8 @@ server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 	server_init_coregame(server);
 	mmframes_init(&server->mmf);
 
+	server_set_tickrate(server, TICKRATE);
+
 	server->running = true;
 
 	return 0;
@@ -357,10 +370,7 @@ server_run(server_t* server)
 {
 	printf("server_run()...\n");
 
-	f64 fps = 64.0;
-
 	struct timespec start_time, end_time, sleep_duration, prev_time;
-	f64 target_frame_time = 1.0 / fps;
 
 	while (server->running)
 	{
@@ -381,7 +391,7 @@ server_run(server_t* server)
 
 		memcpy(&prev_time, &start_time, sizeof(struct timespec));
 
-		f64 sleep_time = target_frame_time - elapsed_time;
+		f64 sleep_time = server->interval - elapsed_time;
 		if (sleep_time > 0)
 		{
 			sleep_duration.tv_sec = (time_t)sleep_time;

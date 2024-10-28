@@ -119,6 +119,9 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	net_tcp_udp_info_t* info = (net_tcp_udp_info_t*)segment->data;
 	printf("UDP Server Port: %u\n", info->port);
 	app->net.udp.server.addr.sin_port = htons(info->port);
+	client_net_set_tickrate(app, info->tickrate);
+
+	app->net.udp.port = info->port;
 }
 
 static void
@@ -194,7 +197,7 @@ player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 }
 
 i32 
-client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate)
+client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 {
 	i32 ret;
 	client_net_t* net = &app->net;
@@ -210,8 +213,6 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate)
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;
 
-	client_net_set_tickrate(app, tickrate);
-
 	array_init(&net->events, sizeof(fdevent_t), 4);
 
 #ifdef _WIN32
@@ -222,6 +223,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate)
 	if ((ret = ssp_tcp_connect(&net->tcp.sock, ipaddr, port)) == 0)
 	{
 		ssp_segbuff_init(&net->tcp.buf, 10, 0);
+		net->udp.ipaddr = ipaddr;
 
 		net_tcp_connect_t connect = {
 			.username = "Test User"

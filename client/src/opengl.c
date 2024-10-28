@@ -95,10 +95,15 @@ waapp_gui(waapp_t* app)
     if (nk_begin(ctx, window_name, window_rect, win_flags))
                  
     {
+		char udp_in_stat[256];
         if (win_flags & NK_WINDOW_MINIMIZED)
             win_flags ^= NK_WINDOW_MINIMIZED;
 
+		snprintf(udp_in_stat, 256, "Game Server: %s:%u (%.1f/s)",
+				app->net.udp.ipaddr, app->net.udp.port, app->net.udp.tickrate);
         nk_layout_row_dynamic(ctx, 20, 1);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
         nk_label(ctx, "Background Color", NK_TEXT_LEFT);
         nk_layout_row_dynamic(ctx, 25, 1);
         if (nk_combo_begin_color(ctx, nk_rgb_cf(bg), nk_vec2(nk_widget_width(ctx), 400)))
@@ -118,7 +123,6 @@ waapp_gui(waapp_t* app)
         if (nk_button_label(ctx, fullscreen_str))
             wa_window_set_fullscreen(app->window, !(state->window.state & WA_STATE_FULLSCREEN));
 
-		char udp_in_stat[256];
 		snprintf(udp_in_stat, 256, "IN  UDP Packets/s: %u (%zu bytes)", 
 				app->net.udp.in.last_count, app->net.udp.in.last_bytes);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);

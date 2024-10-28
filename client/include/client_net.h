@@ -57,6 +57,9 @@ typedef struct
 		u64 bytes;
 		u64 last_bytes;
 	} out;
+
+	const char* ipaddr;
+	u16 port;
 } client_udp_t;
 
 typedef struct 
@@ -85,7 +88,7 @@ typedef struct
 #endif
 } client_net_t;
 
-i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port, f64 tickrate);
+i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port);
 void client_net_poll(waapp_t* app, i32 timeout);
 void client_net_try_udp_flush(waapp_t* app);
 void client_net_get_stats(waapp_t* app);

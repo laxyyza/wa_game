@@ -22,6 +22,8 @@ typedef struct server
 	coregame_t game;
 	mmframes_t mmf;
 	bool running;
+	f64		tickrate;
+	f64		interval;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, const char** argv);

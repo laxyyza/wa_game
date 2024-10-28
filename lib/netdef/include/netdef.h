@@ -42,6 +42,7 @@ typedef struct
 typedef struct 
 {
 	u16 port;
+	f64 tickrate;
 } net_tcp_udp_info_t;
 
 typedef struct 
