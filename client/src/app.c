@@ -11,10 +11,8 @@ static void
 client_shoot(waapp_t* app)
 {
 	const player_t* player = app->player;
-	const vec2f_t mpos = vec2f(
-		(app->mouse.x - app->cam.x),
-		(app->mouse.y - app->cam.y)
-	);
+
+	const vec2f_t mpos = screen_to_world(app, &app->mouse);
 	vec2f_t dir = vec2f(
 		mpos.x - (player->core->pos.x + (player->core->size.x / 2)),
 		mpos.y - (player->core->pos.y + (player->core->size.y / 2))
@@ -27,6 +25,20 @@ client_shoot(waapp_t* app)
 	shoot->shoot_dir = dir;
 	shoot->shoot_pos = proj->rect.pos;
 	ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
+}
+
+static void
+waapp_lock_cam(waapp_t* app)
+{
+	player_t* player = app->player;
+
+	const vec2f_t* viewport = &app->ren.viewport;
+	app->cam.x = -(player->core->pos.x * app->ren.scale.x - (viewport->x / 2) + (player->core->size.x / 2) );
+	app->cam.y = -(player->core->pos.y * app->ren.scale.y - (viewport->y / 2) + (player->core->size.y / 2) );
+	ren_set_view(&app->ren, &app->cam);
+
+	player->core->cursor = screen_to_world(app, &app->mouse);
+	ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &player->core->cursor);
 }
 
 static void
@@ -46,18 +58,7 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 		if (app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y)
 		{
 			if (app->lock_cam)
-			{
-				const vec2f_t* viewport = &app->ren.viewport;
-				app->cam.x = -(player->core->pos.x - (viewport->x / 2) + (player->core->size.x / 2));
-				app->cam.y = -(player->core->pos.y - (viewport->y / 2) + (player->core->size.y / 2));
-				ren_set_view(&app->ren, &app->cam);
-
-				player->core->cursor = vec2f(
-					app->mouse.x - app->cam.x,
-					app->mouse.y - app->cam.y
-				);
-				ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &player->core->cursor);
-			}
+				waapp_lock_cam(app);
 			app->prev_pos = player->core->pos;
 		}
 		if (app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y)
@@ -111,7 +112,8 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 			}
 			else if (ev->keyboard.key == WA_KEY_SPACE)
 			{
-				app->lock_cam = !app->lock_cam;
+				if ((app->lock_cam = !app->lock_cam))
+					waapp_lock_cam(app);
 			}
 			else if (ev->keyboard.key == WA_KEY_T)
 			{
@@ -151,10 +153,7 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 
 		if (app->player)
 		{
-			app->player->core->cursor = vec2f(
-				app->mouse.x - app->cam.x,
-				app->mouse.y - app->cam.y
-			);
+			app->player->core->cursor = screen_to_world(app, &app->mouse);
 			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &app->player->core->cursor);
 		}
     }
@@ -181,6 +180,8 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 
         gui_scroll(app, 0.0, dir);
 
+		vec2f_t old_wpos = (app->lock_cam) ? app->player->core->pos : screen_to_world(app, &app->mouse);
+
         if (dir > 0)
         {
             app->ren.scale.x += 0.1;
@@ -197,6 +198,13 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
                 app->ren.scale.y = 0.1;
         }
         ren_set_scale(&app->ren, &app->ren.scale);
+
+		vec2f_t new_wpos = (app->lock_cam) ? app->player->core->pos : screen_to_world(app, &app->mouse);
+
+		app->cam.x = app->cam.x - (old_wpos.x - new_wpos.x) * app->ren.scale.x;
+		app->cam.y = app->cam.y - (old_wpos.y - new_wpos.y) * app->ren.scale.y;
+
+		ren_set_view(&app->ren, &app->cam);
     }
 }
 

@@ -155,28 +155,6 @@ waapp_gui(waapp_t* app)
     gui_render(app);
 }
 
-UNUSED static bool 
-rect_in_frustum(waapp_t* app, rect_t* rect)
-{
-	const wa_state_t* state = wa_window_get_state(app->window);
-	rect_t frustum = {
-		.pos.x = -app->cam.x,
-		.pos.y = -app->cam.y,
-		.size.x = state->window.w,
-		.size.y = state->window.h,
-	};
-
-	if (rect->pos.x + rect->size.x < frustum.pos.x ||
-		rect->pos.x > frustum.pos.x + frustum.size.x ||
-		rect->pos.y + rect->size.y < frustum.pos.y ||
-		rect->pos.y > frustum.pos.y + frustum.size.y)
-	{
-		return false;
-	}
-
-	return true;
-}
-
 static void 
 render_player(waapp_t* app, player_t* player)
 {
@@ -252,8 +230,8 @@ waapp_opengl_draw(waapp_t* app)
                 app->mouse_prev.x - app->mouse.x,
                 app->mouse_prev.y - app->mouse.y
             );
-            cam->x -= diff.x / ren->scale.x;
-            cam->y -= diff.y / ren->scale.y;
+            cam->x -= diff.x;
+            cam->y -= diff.y;
             ren_set_view(ren, cam);
         }
 

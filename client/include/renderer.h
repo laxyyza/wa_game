@@ -45,6 +45,7 @@ typedef struct renderer
     mat4_t view;
     mat4_t model;
     mat4_t mvp;
+	mat4_t scale_mat;
     vec2f_t scale;
 
     bro_t* default_bro; // Default Batch Render Object
@@ -68,6 +69,7 @@ typedef struct renderer
     u32     texture_idx;
 
 	vec2f_t viewport;
+	vec2f_t cam;
 } ren_t;
 
 void ren_init(ren_t* ren);

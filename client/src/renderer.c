@@ -136,6 +136,7 @@ ren_init(ren_t* ren)
     enable_blending();
     ren_def_bro(ren);
     ren_bind_bro(ren, ren->default_bro);
+	mat4_identity(&ren->scale_mat);
 
     ren->scale = vec2f(1, 1);
     ren_set_scale(ren, &ren->scale);
@@ -148,30 +149,32 @@ ren_init(ren_t* ren)
 static void
 ren_set_mvp(ren_t* ren)
 {
-    mat4_t tmp;
-    mat4_mul(&tmp, &ren->view, &ren->proj);
-    mat4_mul(&ren->mvp, &tmp, &ren->model);
+    // mat4_t tmp;
+    mat4_mul(&ren->mvp, &ren->view, &ren->proj);
+    // mat4_mul(&ren->mvp, &tmp, &ren->model);
     shader_bind(&ren->current_bro->shader);
     shader_uniform_mat4f(&ren->current_bro->shader, "mvp", &ren->mvp);
 }
 
 void 
-ren_set_scale(ren_t* ren, const vec2f_t* scale)
+ren_set_scale(ren_t* ren, const vec2f_t* vec)
 {
-    mat4_identity(&ren->model);
-    mat4_scale(&ren->model, scale->x, scale->y, 1.0f);
-    ren_set_mvp(ren);
+	if (&ren->scale != vec)
+        memcpy(&ren->scale, vec, sizeof(vec2f_t));
 
-    if (&ren->scale != scale)
-        memcpy(&ren->scale, scale, sizeof(vec2f_t));
+	vec3f_t view = {ren->cam.x, ren->cam.y, 1.0};
+	ren_set_view(ren, &view);
 }
 
 void 
 ren_set_view(ren_t* ren, const vec3f_t* view)
 {
     mat4_identity(&ren->view);
-    mat4_translate(&ren->view, view);
+	mat4_scale(&ren->view, ren->scale.x, ren->scale.y, 1.0);
+	mat4_translate(&ren->view, view);
     ren_set_mvp(ren);
+	ren->cam.x = view->x;
+	ren->cam.y = view->y;
 }
 
 void 
@@ -293,10 +296,34 @@ ren_draw_rect_norm(ren_t* ren, const rect_t* rect)
     bro->vbo.count += RECT_VERT;
 }
 
+// static bool 
+// rect_in_frustum(ren_t* ren, UNUSED const rect_t* rect)
+// {
+// 	printf("Cam: (%f/%f) -> (%f/%f), scale: %f\n",
+// 		ren->cam.x, ren->cam.y, 
+// 		ren->cam.x * (ren->scale.x / ren->viewport.x), ren->viewport.x, 
+// 		ren->scale.x);
+//
+// 	return true;
+//
+// 	// if (rect->pos.x + rect->size.x < frustum.pos.x ||
+// 	// 	rect->pos.x > frustum.pos.x + frustum.size.x ||
+// 	// 	rect->pos.y + rect->size.y < frustum.pos.y ||
+// 	// 	rect->pos.y > frustum.pos.y + frustum.size.y)
+// 	// {
+// 	// 	return false;
+// 	// }
+//
+// 	return true;
+// }
+
 
 void 
 ren_draw_rect(ren_t* ren, const rect_t* rect)
 {
+	// if (rect_in_frustum(ren, rect) == false)
+	// 	return;
+	//
 	if (rect->rotation == 0)
 	{
 		ren_draw_rect_norm(ren, rect);
