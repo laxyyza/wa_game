@@ -81,7 +81,7 @@ waapp_gui(waapp_t* app)
 
     static nk_flags win_flags = 
         NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | 
-        NK_WINDOW_MINIMIZED | NK_WINDOW_TITLE | 
+         NK_WINDOW_TITLE | 
         NK_WINDOW_CLOSABLE | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE;
     const char* window_name = state->window.title;
     // static struct nk_vec2 window_offset = {10, 10};
@@ -106,7 +106,10 @@ waapp_gui(waapp_t* app)
         nk_layout_row_dynamic(ctx, 20, 1);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
-		snprintf(udp_in_stat, 256, "PING: %f ms", app->net.udp.latency);
+		if (app->net.udp.latency < 1.0)
+			snprintf(udp_in_stat, 256, "PING: %.4f ms", app->net.udp.latency);
+		else
+			snprintf(udp_in_stat, 256, "PING: %.2f ms", app->net.udp.latency);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
         nk_layout_row_dynamic(ctx, 20, 2);
