@@ -112,8 +112,7 @@ waapp_gui(waapp_t* app)
 			snprintf(udp_in_stat, 256, "PING: %.2f ms", app->net.udp.latency);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
-        nk_layout_row_dynamic(ctx, 20, 2);
-		snprintf(udp_in_stat, 256, "CLIENT FPS: %u", app->fps);
+		snprintf(udp_in_stat, 256, "CLIENT FPS: %u (%.2f ms)", app->fps, app->frame_time);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
 		wa_state_t* state = wa_window_get_state(app->window);

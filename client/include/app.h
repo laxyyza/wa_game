@@ -40,6 +40,7 @@ typedef struct waapp
 	bool	lock_cam;
 	bool	trigger_shooting;
 	u32		fps;
+	f64		frame_time;
 	u32		frames;
 	f32		max_fps;
 	f64		fps_interval;
@@ -51,6 +52,10 @@ typedef struct waapp
 
     struct nk_wa* nk_wa;
     struct nk_context* nk_ctx;
+
+	struct timespec start_time;
+	struct timespec end_time;
+	struct timespec last_time;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, const char** argv);

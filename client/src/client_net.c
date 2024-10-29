@@ -361,10 +361,15 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	struct epoll_event events[MAX_EVENTS];
 	wa_state_t* state = wa_window_get_state(app->window);
 
-	if (do_timeout && state->window.vsync == false && app->fps_limit)
+	if (prev_start_time)
 	{
 		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
 							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
+		app->frame_time = prev_frame_time_ns / 1e6;
+	}
+
+	if (do_timeout && state->window.vsync == false && app->fps_limit)
+	{
 		timeout_time_ns = app->fps_interval - prev_frame_time_ns;
 		if (timeout_time_ns > 0)
 			ns_to_timespec(&timeout, timeout_time_ns);
@@ -433,10 +438,15 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	struct timespec current_time;
 	wa_state_t* state = wa_window_get_state(app->window);
 
-	if (do_timeout && state->window.vsync == false && app->fps_limit)
+	if (prev_frame_time_ns)
 	{
 		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
 							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
+		app->frame_time = prev_frame_time_ns / 1e6;
+	}
+
+	if (do_timeout && state->window.vsync == false && app->fps_limit)
+	{
 		timeout_time_ns = app->fps_interval - prev_frame_time_ns;
 		if (timeout_time_ns > 0)
 			ns_to_timeval(&timeval, timeout_time_ns);
