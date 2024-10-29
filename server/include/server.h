@@ -10,6 +10,7 @@
 #define MAX_EVENTS 8
 #define FRAMETIMES_LEN 128
 #define FRAMETIME_LEN 63
+#define MAX_SPAWN_POINTS 8
 
 typedef struct server
 {
@@ -22,6 +23,10 @@ typedef struct server
 	struct epoll_event events[MAX_EVENTS];
 	netdef_t netdef;
 	coregame_t game;
+
+	vec2f_t spawn_points[MAX_SPAWN_POINTS];
+	u32 spawn_idx;
+
 	mmframes_t mmf;
 	bool running;
 	f64		tickrate;

@@ -190,7 +190,7 @@ coregame_add_player(coregame_t* coregame, const char* name)
 	cg_player_t* player = calloc(1, sizeof(cg_player_t));
 	coregame_randb(&player->id, sizeof(u32));
 	strncpy(player->username, name, PLAYER_NAME_MAX);
-	player->pos = vec2f(50, 50);
+	player->pos = vec2f(0, 0);
 	player->size = vec2f(150, 150);
 	player->health = PLAYER_HEALTH;
 	player->max_health = PLAYER_HEALTH;

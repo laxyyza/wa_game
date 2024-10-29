@@ -18,6 +18,17 @@ server_init_tcp(server_t* server)
 	return ret;
 }
 
+static vec2f_t 
+server_next_spawn(server_t* server)
+{
+	vec2f_t ret = server->spawn_points[server->spawn_idx];
+
+	server->spawn_idx++;
+	if (server->spawn_idx >= MAX_SPAWN_POINTS)
+		server->spawn_idx = 0;
+	return ret;
+}
+
 static void
 server_set_tickrate(server_t* server, f64 tickrate)
 {
@@ -172,7 +183,7 @@ on_player_damaged(cg_player_t* player, server_t* server)
 	{
 		move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
 		move->player_id = player->id;
-		player->pos = move->pos = vec2f(100, 100);
+		player->pos = move->pos = server_next_spawn(server);
 		player->dir = move->dir = vec2f(0, 0);
 		player->health = health->health = player->max_health;
 	}
@@ -191,6 +202,57 @@ server_init_coregame(server_t* server)
 	server->game.user_data = server;
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 	server->game.player_damaged = (cg_player_changed_callback_t)on_player_damaged;
+
+	f32 offset = 200.0;
+	const cg_rect_t* wb = &server->game.world_border;
+
+	// Top Left
+	server->spawn_points[0] = vec2f(
+		wb->pos.x + offset,
+		wb->pos.y + offset
+	);
+
+	// Top Middle
+	server->spawn_points[1] = vec2f(
+		wb->pos.x + (wb->size.x / 2),
+		wb->pos.y + offset
+	);
+
+	// Top Right 
+	server->spawn_points[2] = vec2f(
+		wb->pos.x + wb->size.x - (offset * 2),
+		wb->pos.y + offset
+	);
+	
+	// Middle Right 
+	server->spawn_points[3] = vec2f(
+		wb->pos.x + wb->size.x - (offset * 2),
+		wb->pos.y + (wb->size.y / 2)
+	);
+	
+	// Bottom Right 
+	server->spawn_points[4] = vec2f(
+		wb->pos.x + wb->size.x - (offset * 2),
+		wb->pos.y + wb->size.y - (offset * 2)
+	);
+	
+	// Bottom Middle 
+	server->spawn_points[5] = vec2f(
+		wb->pos.x + (wb->size.x / 2),
+		wb->pos.y + wb->size.y - (offset * 2)
+	);
+
+	// Bottom Left 
+	server->spawn_points[6] = vec2f(
+		wb->pos.x + offset,
+		wb->pos.y + wb->size.y - (offset * 2)
+	);
+	
+	// Middle Left 
+	server->spawn_points[7] = vec2f(
+		wb->pos.x + offset,
+		wb->pos.y + (wb->size.y / 2)
+	);
 }
 
 static void 
@@ -223,6 +285,7 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
 	client->player = coregame_add_player(&server->game, connect->username);
+	client->player->pos = server_next_spawn(server);
 	sessionid.session_id = client->session_id;
 	sessionid.player_id = client->player->id;
 
