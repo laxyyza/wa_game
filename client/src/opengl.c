@@ -99,6 +99,8 @@ waapp_gui(waapp_t* app)
         if (win_flags & NK_WINDOW_MINIMIZED)
             win_flags ^= NK_WINDOW_MINIMIZED;
 
+		app->on_ui = nk_window_is_any_hovered(ctx);
+
 		snprintf(udp_in_stat, 256, "Game Server: %s:%u (%.1f/s)",
 				app->net.udp.ipaddr, app->net.udp.port, app->net.udp.tickrate);
         nk_layout_row_dynamic(ctx, 20, 1);
@@ -174,6 +176,8 @@ waapp_gui(waapp_t* app)
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
     }
+    else 
+		app->on_ui = false;
     nk_end(ctx);
     if (nk_window_is_hidden(ctx, window_name))
     {
