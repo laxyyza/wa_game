@@ -3,6 +3,7 @@
 #include <sys/random.h>
 #include <time.h>
 #include <string.h>
+#include <errno.h>
 
 #define PORT 8080
 #define TICKRATE 64.0
@@ -358,6 +359,8 @@ server_poll(server_t* server)
 
 		if ((nfds = epoll_wait(server->epfd, server->events, MAX_EVENTS, timeout)) == -1)
 		{
+			if (errno == EINTR)
+				continue;
 			perror("epoll_wait");
 			server->running = false;
 		}
