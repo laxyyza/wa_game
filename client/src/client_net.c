@@ -135,6 +135,8 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	client_net_set_tickrate(app, info->tickrate);
 
 	app->net.udp.port = info->port;
+
+	ssp_segbuff_init(&app->net.udp.buf, 10, info->ssp_flags);
 }
 
 static void
@@ -278,8 +280,6 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 		net->udp.server.addr_len = sizeof(struct sockaddr_in);
 
 		client_net_add_fdevent(app, net->udp.fd, udp_read, NULL, NULL);
-
-		ssp_segbuff_init(&net->udp.buf, 10, SSP_FOOTER_BIT | SSP_SESSION_BIT | SSP_SEQUENCE_COUNT_BIT);
 
 		client_net_poll(app, NULL, NULL);
 

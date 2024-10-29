@@ -280,7 +280,8 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 	net_tcp_sessionid_t sessionid;
 	net_tcp_udp_info_t udp_info = {
 		.port = server->udp_port,
-		.tickrate = server->tickrate
+		.tickrate = server->tickrate,
+		.ssp_flags = SSP_FLAGS
 	};
 	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
