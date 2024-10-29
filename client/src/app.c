@@ -322,10 +322,12 @@ waapp_run(waapp_t* app)
 	while (wa_window_running(app->window))
 	{
 		client_net_poll(app, &start_time, &end_time);
+#ifdef _WIN32
+		wa_window_poll_timeout(app->window, 0);
+#endif
 
 		clock_gettime(CLOCK_MONOTONIC, &start_time);
-		// wa_window_poll(app->window);
-
+	
 		// When VSync is enabled, WA (Window Abstraction) will automatically call waapp_draw().
 		// Only if VSync is disabled, we call it ourself.
 		if (state->window.vsync == false)

@@ -410,14 +410,37 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 #endif // __linux__
 
 #ifdef _WIN32
-void
-client_net_poll(waapp_t* app, i32 timeout)
+
+static inline void
+ns_to_timeval(struct timeval* timeval, i64 ns)
+{
+	timeval->tv_sec = ns / 1e9;
+	timeval->tv_usec = (ns % (i64)1e9) / 1000;
+}
+
+void 
+client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec* prev_end_time)
 {
 	client_net_t* net = &app->net;
+	i64 timeout_time_ns = 0;
+	i64 prev_frame_time_ns;
+	i64 elapsed_time_ns;
 	sock_t max_fd = 0;
 	i32 ret;
 	fdevent_t* events = (fdevent_t*)net->events.buf;
 	struct timeval timeval = {0, 0};
+	struct timeval* do_timeout = (prev_start_time == NULL) ? NULL : &timeval;
+	struct timespec current_time;
+	wa_state_t* state = wa_window_get_state(app->window);
+
+	if (do_timeout && state->window.vsync == false && app->fps_limit)
+	{
+		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
+							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
+		timeout_time_ns = app->fps_interval - prev_frame_time_ns;
+		if (timeout_time_ns > 0)
+			ns_to_timeval(&timeval, timeout_time_ns);
+	}
 
 	do {
 		FD_ZERO(&net->read_fds);
@@ -431,7 +454,7 @@ client_net_poll(waapp_t* app, i32 timeout)
 				max_fd = fdev->fd;
 		}
 
-		ret = select(max_fd + 1, &net->read_fds, NULL, &net->execpt_fds, (timeout == -1) ? NULL : &timeval);
+		ret = select(max_fd + 1, &net->read_fds, NULL, &net->execpt_fds, do_timeout);
 		if (ret == -1)
 		{
 			perror("select");
@@ -453,10 +476,73 @@ client_net_poll(waapp_t* app, i32 timeout)
 				}
 			}
 		}
-	} while(ret > 0 && timeout == 0);
+
+		if (do_timeout && state->window.vsync == false && app->fps_limit)
+		{
+			clock_gettime(CLOCK_MONOTONIC, &current_time);
+			elapsed_time_ns =	((current_time.tv_sec - prev_end_time->tv_sec) * 1e9) +
+								(current_time.tv_nsec - prev_end_time->tv_nsec);
+			memcpy(prev_end_time, &current_time, sizeof(struct timespec));
+			timeout_time_ns -= elapsed_time_ns;
+			if (timeout_time_ns > 0)
+				ns_to_timeval(&timeval, timeout_time_ns);
+			else
+				timeval.tv_sec = timeval.tv_usec = 0;
+		}
+		else 
+			break;
+	} while(ret || timeout_time_ns > 0);
 
 	client_net_get_stats(app);
 }
+
+// void
+// client_net_poll(waapp_t* app, i32 timeout)
+// {
+// 	client_net_t* net = &app->net;
+// 	sock_t max_fd = 0;
+// 	i32 ret;
+// 	fdevent_t* events = (fdevent_t*)net->events.buf;
+// 	struct timeval timeval = {0, 0};
+//
+// 	do {
+// 		FD_ZERO(&net->read_fds);
+// 		FD_ZERO(&net->execpt_fds);
+// 		for (u32 i = 0; i < net->events.count; i++)
+// 		{
+// 			fdevent_t* fdev = events + i;
+// 			FD_SET(fdev->fd, &net->read_fds);
+// 			FD_SET(fdev->fd, &net->execpt_fds);
+// 			if (fdev->fd > max_fd)
+// 				max_fd = fdev->fd;
+// 		}
+//
+// 		ret = select(max_fd + 1, &net->read_fds, NULL, &net->execpt_fds, (timeout == -1) ? NULL : &timeval);
+// 		if (ret == -1)
+// 		{
+// 			perror("select");
+// 			return;
+// 		}
+// 		else if (ret > 0)
+// 		{
+// 			for (u32 i = 0; i < net->events.count; i++)
+// 			{
+// 				fdevent_t* fdev = events + i;
+// 				if (FD_ISSET(fdev->fd, &net->execpt_fds))
+// 				{
+// 					if (fdev->close)
+// 						fdev->close(app, fdev);
+// 				}
+// 				else if (FD_ISSET(fdev->fd, &net->read_fds))
+// 				{
+// 					fdev->read(app, fdev);
+// 				}
+// 			}
+// 		}
+// 	} while(ret > 0 && timeout == 0);
+//
+// 	client_net_get_stats(app);
+// }
 #endif // _WIN32
 
 static void 
