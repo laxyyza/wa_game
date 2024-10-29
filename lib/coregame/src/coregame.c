@@ -30,7 +30,7 @@ coregame_init(coregame_t* coregame, bool client)
 	ght_init(&coregame->players, 10, free);
 
 	coregame->world_border = cg_rect(
-		vec2f(-300, -300),
+		vec2f(0, 0),
 		vec2f(10000, 10000)
 	);
 	coregame_get_delta_time(coregame);
