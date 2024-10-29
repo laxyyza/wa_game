@@ -76,136 +76,149 @@ waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 }
 
 static void
-waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
+waapp_handle_key(waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
 {
-    waapp_t* app = data;
     wa_state_t* state = wa_window_get_state(window);
 	player_t* player = app->player;
 
-    if (ev->type == WA_EVENT_KEYBOARD)
-    {
-        if (ev->keyboard.pressed)
-        {
-            if (ev->keyboard.key == WA_KEY_F)
-            {
+	switch (ev->key)
+	{
+		case WA_KEY_F:
+			if (ev->pressed)
                 wa_window_set_fullscreen(window, !(state->window.state & WA_STATE_FULLSCREEN));
-            }
-            else if (ev->keyboard.key == WA_KEY_V)
-            {
+			break;
+		case WA_KEY_V:
+			if (ev->pressed)
                 wa_window_vsync(window, !state->window.vsync);
-            }
-			else if (ev->keyboard.key == WA_KEY_W)
-			{
+			break;
+		case WA_KEY_W:
+			if (ev->pressed)
 				player->movement_dir |= PLAYER_DIR_UP;
-			}
-			else if (ev->keyboard.key == WA_KEY_S)
-			{
-				player->movement_dir |= PLAYER_DIR_DOWN;
-			}
-			else if (ev->keyboard.key == WA_KEY_A)
-			{
-				player->movement_dir |= PLAYER_DIR_LEFT;
-			}
-			else if (ev->keyboard.key == WA_KEY_D)
-			{
-				player->movement_dir |= PLAYER_DIR_RIGHT;
-			}
-			else if (ev->keyboard.key == WA_KEY_SPACE)
-			{
-				if ((app->lock_cam = !app->lock_cam))
-					waapp_lock_cam(app);
-			}
-			else if (ev->keyboard.key == WA_KEY_T)
-			{
-				app->trigger_shooting = !app->trigger_shooting;
-			}
-        }
-		else
-		{
-			if (ev->keyboard.key == WA_KEY_W)
-			{
+			else
 				player->movement_dir ^= PLAYER_DIR_UP;
-			}
-			else if (ev->keyboard.key == WA_KEY_S)
-			{
+			break;
+		case WA_KEY_S:
+			if (ev->pressed)
+				player->movement_dir |= PLAYER_DIR_DOWN;
+			else
 				player->movement_dir ^= PLAYER_DIR_DOWN;
-			}
-			else if (ev->keyboard.key == WA_KEY_A)
-			{
+			break;
+		case WA_KEY_A:
+			if (ev->pressed)
+				player->movement_dir |= PLAYER_DIR_LEFT;
+			else
 				player->movement_dir ^= PLAYER_DIR_LEFT;
-			}
-			else if (ev->keyboard.key == WA_KEY_D)
-			{
+			break;
+		case WA_KEY_D:
+			if (ev->pressed)
+				player->movement_dir |= PLAYER_DIR_RIGHT;
+			else
 				player->movement_dir ^= PLAYER_DIR_RIGHT;
-			}
-		}
-    }
-    else if (ev->type == WA_EVENT_RESIZE)
-    {
-        ren_viewport(&app->ren, ev->resize.w, ev->resize.h);
-        // shader_bind(&app->shader);
-        // shader_uniform_mat4f(&app->shader, "mvp", &app->ren.proj);
-    }
-    else if (ev->type == WA_EVENT_POINTER)
-    {
-        app->mouse.x = ev->pointer.x;
-        app->mouse.y = ev->pointer.y;
+			break;
+		case WA_KEY_SPACE:
+			if (ev->pressed && ((app->lock_cam = !app->lock_cam)))
+				waapp_lock_cam(app);
+			break;
+		case WA_KEY_T:
+			if (ev->pressed)
+				app->trigger_shooting = !app->trigger_shooting;
+			break;
+		default:
+			break;
+	}
+}
 
-		if (app->player)
+static void 
+waapp_handle_pointer(waapp_t* app, const wa_event_pointer_t* ev)
+{
+	app->mouse.x = ev->x;
+	app->mouse.y = ev->y;
+
+	if (app->player)
+	{
+		app->player->core->cursor = screen_to_world(app, &app->mouse);
+		ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &app->player->core->cursor);
+	}
+}
+
+static void 
+waapp_handle_mouse_button(waapp_t* app, wa_window_t* window, const wa_event_mouse_t* ev)
+{
+	if (ev->button == WA_MOUSE_RIGHT)
+	{
+		if (ev->pressed)
 		{
-			app->player->core->cursor = screen_to_world(app, &app->mouse);
-			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &app->player->core->cursor);
+			wa_set_cursor_shape(window, WA_CURSOR_ALL_SCROLL);
+			app->mouse_prev = app->mouse;
 		}
-    }
-    else if (ev->type == WA_EVENT_MOUSE_BUTTON)
-    {
-        if (ev->mouse.button == WA_MOUSE_RIGHT)
-        {
-            if (ev->mouse.pressed)
-            {
-                wa_set_cursor_shape(window, WA_CURSOR_ALL_SCROLL);
-                app->mouse_prev = app->mouse;
-            }
-            else
-                wa_set_cursor_shape(window, WA_CURSOR_DEFAULT);
-        }
-		else if (ev->mouse.button == WA_MOUSE_LEFT && ev->mouse.pressed)
-		{
-			client_shoot(app);
-		}
-    }
-    else if (ev->type == WA_EVENT_MOUSE_WHEEL)
-    {
-        f32 dir = (ev->wheel.value > 0) ? -1.0 : 1.0;
+		else
+			wa_set_cursor_shape(window, WA_CURSOR_DEFAULT);
+	}
+	else if (ev->button == WA_MOUSE_LEFT && ev->pressed)
+	{
+		client_shoot(app);
+	}
+}
 
-        gui_scroll(app, 0.0, dir);
+static void
+waapp_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
+{
+	f32 dir = (ev->value > 0) ? -1.0 : 1.0;
 
-		vec2f_t old_wpos = (app->lock_cam) ? app->player->core->pos : screen_to_world(app, &app->mouse);
+	gui_scroll(app, 0.0, dir);
 
-        if (dir > 0)
-        {
-            app->ren.scale.x += 0.1;
-            app->ren.scale.y += 0.1;
-        }
-        else
-        {
-            app->ren.scale.x -= 0.1;
-            app->ren.scale.y -= 0.1;
+	vec2f_t old_wpos = (app->lock_cam) ? app->player->core->pos : screen_to_world(app, &app->mouse);
 
-            if (app->ren.scale.x < 0.1)
-                app->ren.scale.x = 0.1;
-            if (app->ren.scale.y < 0.1)
-                app->ren.scale.y = 0.1;
-        }
-        ren_set_scale(&app->ren, &app->ren.scale);
+	if (dir > 0)
+	{
+		app->ren.scale.x += 0.1;
+		app->ren.scale.y += 0.1;
+	}
+	else
+	{
+		app->ren.scale.x -= 0.1;
+		app->ren.scale.y -= 0.1;
 
-		vec2f_t new_wpos = (app->lock_cam) ? app->player->core->pos : screen_to_world(app, &app->mouse);
+		if (app->ren.scale.x < 0.1)
+			app->ren.scale.x = 0.1;
+		if (app->ren.scale.y < 0.1)
+			app->ren.scale.y = 0.1;
+	}
+	ren_set_scale(&app->ren, &app->ren.scale);
 
-		app->cam.x = app->cam.x - (old_wpos.x - new_wpos.x) * app->ren.scale.x;
-		app->cam.y = app->cam.y - (old_wpos.y - new_wpos.y) * app->ren.scale.y;
+	vec2f_t new_wpos = (app->lock_cam) ? app->player->core->pos : screen_to_world(app, &app->mouse);
 
-		ren_set_view(&app->ren, &app->cam);
-    }
+	app->cam.x = app->cam.x - (old_wpos.x - new_wpos.x) * app->ren.scale.x;
+	app->cam.y = app->cam.y - (old_wpos.y - new_wpos.y) * app->ren.scale.y;
+
+	ren_set_view(&app->ren, &app->cam);
+}
+
+static void
+waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
+{
+    waapp_t* app = data;
+
+	switch (ev->type)
+	{
+		case WA_EVENT_KEYBOARD:
+			waapp_handle_key(app, window, &ev->keyboard);
+			break;
+		case WA_EVENT_RESIZE:
+			ren_viewport(&app->ren, ev->resize.w, ev->resize.h);
+			break;
+		case WA_EVENT_POINTER:
+			waapp_handle_pointer(app, &ev->pointer);
+			break;
+		case WA_EVENT_MOUSE_BUTTON:
+			waapp_handle_mouse_button(app, window, &ev->mouse);
+			break;
+		case WA_EVENT_MOUSE_WHEEL:
+			waapp_handle_mouse_wheel(app, &ev->wheel);
+			break;
+		default:
+			break;
+	}
 }
 
 static void 
