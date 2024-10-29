@@ -22,12 +22,15 @@ src = files(
     'src/loading.c',
     'src/player.c',
     'src/client_net.c',
+    'src/app_wayland.c',
 )
 deps = [m_dep]
 
 if meson.is_cross_build()
     winsock_dep = cc.find_library('ws2_32', required: true)
     deps += winsock_dep
+else
+    deps += wa_deps
 endif
 
 executable('wa_game', src, 

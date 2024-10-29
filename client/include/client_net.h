@@ -90,9 +90,11 @@ typedef struct
 } client_net_t;
 
 i32 client_net_init(waapp_t* app, const char* ipaddr, u16 port);
-void client_net_poll(waapp_t* app, i32 timeout);
+void client_net_poll(waapp_t* app, struct timespec* start_time, struct timespec* end_time);
+// void client_net_poll(waapp_t* app, i32 timeout);
 void client_net_try_udp_flush(waapp_t* app);
 void client_net_get_stats(waapp_t* app);
 void client_net_set_tickrate(waapp_t* app, f64 tickrate);
+void client_net_add_fdevent(waapp_t* app, sock_t fd, fdevent_callback_t read, fdevent_callback_t close, void* data);
 
 #endif // _CLIENT_NET_H_

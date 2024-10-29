@@ -6,10 +6,12 @@
 
 #ifdef __linux__
 #include <sys/epoll.h>
+#include "app_wayland.h"
+#include <errno.h>
 #endif
 
 #define BUFFER_SIZE 4096
-#define MAX_EVENTS 2
+#define MAX_EVENTS 4
 
 static f64 
 get_elapsed_time(const struct timespec* current_time, const struct timespec* start_time)
@@ -32,8 +34,8 @@ session_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 		sessionid->session_id, sessionid->player_id);
 }
 
-static void 
-add_fdevent(waapp_t* app, sock_t fd, fdevent_callback_t read, fdevent_callback_t close, void* data)
+void 
+client_net_add_fdevent(waapp_t* app, sock_t fd, fdevent_callback_t read, fdevent_callback_t close, void* data)
 {
 	client_net_t* net = &app->net;
 	fdevent_t* event = array_add_into(&net->events);
@@ -268,56 +270,143 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 		net->epfd = epoll_create1(EPOLL_CLOEXEC);
 #endif
 
-		add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, &net->tcp.sock);
+		client_net_add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, &net->tcp.sock);
 
 		net->udp.fd = socket(AF_INET, SOCK_DGRAM, 0);
 		net->udp.server.addr.sin_family = AF_INET;
 		net->udp.server.addr.sin_addr.s_addr = inet_addr(ipaddr);
 		net->udp.server.addr_len = sizeof(struct sockaddr_in);
 
-		add_fdevent(app, net->udp.fd, udp_read, NULL, NULL);
+		client_net_add_fdevent(app, net->udp.fd, udp_read, NULL, NULL);
 
 		ssp_segbuff_init(&net->udp.buf, 10, SSP_FOOTER_BIT | SSP_SESSION_BIT | SSP_SEQUENCE_COUNT_BIT);
 
-		client_net_poll(app, -1);
+		client_net_poll(app, NULL, NULL);
+
+#ifdef __linux__
+		waapp_wayland_add_fdevent(app);
+#endif
 	}
 
 	return ret;
 }
 
 #ifdef __linux__
-void
-client_net_poll(waapp_t* app, i32 timeout)
+// void
+// client_net_poll(waapp_t* app, i32 timeout)
+// {
+// 	client_net_t* net = &app->net;
+// 	struct epoll_event events[MAX_EVENTS];
+// 	i32 nfds;
+//
+// 	do {
+// 		if ((nfds = epoll_wait(net->epfd, events, MAX_EVENTS, timeout)) == -1)
+// 		{
+// 			perror("epoll_wait");
+// 			return;
+// 		}
+//
+// 		for (i32 i = 0; i < nfds; i++)
+// 		{
+// 			struct epoll_event* ev = events + i;
+// 			fdevent_t* fdev = ev->data.ptr;
+//
+// 			if (ev->events & (EPOLLERR | EPOLLHUP))
+// 			{
+// 				fdev->close(app, fdev);
+// 			}
+// 			else if (ev->events & EPOLLIN)
+// 			{
+// 				fdev->read(app, fdev);
+// 			}
+// 		}
+// 	} while(nfds && timeout == 0);
+//
+// 	client_net_get_stats(app);
+// }
+
+static inline void
+ns_to_timespec(struct timespec* timespec, i64 ns)
 {
-	client_net_t* net = &app->net;
-	struct epoll_event events[MAX_EVENTS];
+	timespec->tv_sec = ns / 1e9;
+	timespec->tv_nsec = ns % (i64)1e9;
+}
+
+static void 
+handle_event(waapp_t* app, fdevent_t* fdev, u32 events)
+{
+	if (events & (EPOLLERR | EPOLLHUP))
+	{
+		fdev->close(app, fdev);
+	}
+	else if (events & EPOLLIN)
+	{
+		fdev->read(app, fdev);
+	}
+}
+
+void
+client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec* prev_end_time)
+{
 	i32 nfds;
+	i64 prev_frame_time_ns;
+	i64 elapsed_time_ns;
+	i64 timeout_time_ns = 0;
+	u32 errors = 0;
+	client_net_t* net = &app->net;
+	struct timespec timeout = {.tv_nsec = 1, .tv_sec = 0};
+	struct timespec current_time;
+	struct timespec* do_timeout = (prev_start_time == NULL) ? NULL : &timeout;
+	struct epoll_event* event;
+	struct epoll_event events[MAX_EVENTS];
+	wa_state_t* state = wa_window_get_state(app->window);
+
+	if (do_timeout && state->window.vsync == false && app->fps_limit)
+	{
+		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
+							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
+		timeout_time_ns = app->fps_interval - prev_frame_time_ns;
+		if (timeout_time_ns > 0)
+			ns_to_timespec(&timeout, timeout_time_ns);
+	}
 
 	do {
-		if ((nfds = epoll_wait(net->epfd, events, MAX_EVENTS, timeout)) == -1)
+		nfds = epoll_pwait2(net->epfd, events, MAX_EVENTS, do_timeout, NULL);
+		if (nfds == -1)
 		{
-			perror("epoll_wait");
-			return;
+			if (errno == EINTR)
+				continue;
+			perror("epoll_pwait2");
+			errors++;
+			if (errors >= 3)
+				break;
 		}
 
 		for (i32 i = 0; i < nfds; i++)
 		{
-			struct epoll_event* ev = events + i;
-			fdevent_t* fdev = ev->data.ptr;
-
-			if (ev->events & (EPOLLERR | EPOLLHUP))
-			{
-				fdev->close(app, fdev);
-			}
-			else if (ev->events & EPOLLIN)
-			{
-				fdev->read(app, fdev);
-			}
+			event = events + i;
+			handle_event(app, event->data.ptr, event->events);
 		}
-	} while(nfds && timeout == 0);
+
+		if (do_timeout && state->window.vsync == false && app->fps_limit)
+		{
+			clock_gettime(CLOCK_MONOTONIC, &current_time);
+			elapsed_time_ns =	((current_time.tv_sec - prev_end_time->tv_sec) * 1e9) +
+								(current_time.tv_nsec - prev_end_time->tv_nsec);
+			memcpy(prev_end_time, &current_time, sizeof(struct timespec));
+			timeout_time_ns -= elapsed_time_ns;
+			if (timeout_time_ns > 0)
+				ns_to_timespec(&timeout, timeout_time_ns);
+			else
+				timeout.tv_sec = timeout.tv_nsec = 0;
+		}
+		else 
+			break;
+	} while (nfds || timeout_time_ns > 0);
 
 	client_net_get_stats(app);
 }
+
 #endif // __linux__
 
 #ifdef _WIN32

@@ -213,7 +213,6 @@ static void
 waapp_update(_WA_UNUSED wa_window_t* window, waapp_t* app)
 {
 	player_t* player = app->player;
-	client_net_poll(app, 0);
 
 	if (player)
 	{
@@ -311,19 +310,21 @@ waapp_set_max_fps(waapp_t* app, f64 max_fps)
 void 
 waapp_run(waapp_t* app)
 {
-	struct timespec start_time, end_time, sleep_duration, last_time;
+	struct timespec start_time, end_time, last_time;
 	wa_state_t* state = wa_window_get_state(app->window);
 
 	clock_gettime(CLOCK_MONOTONIC, &last_time);
+	start_time = end_time = last_time;
 
 	wa_window_vsync(app->window, true);
 	waapp_set_max_fps(app, 144.0);
 
 	while (wa_window_running(app->window))
 	{
-		clock_gettime(CLOCK_MONOTONIC, &start_time);
+		client_net_poll(app, &start_time, &end_time);
 
-		wa_window_poll(app->window);
+		clock_gettime(CLOCK_MONOTONIC, &start_time);
+		// wa_window_poll(app->window);
 
 		// When VSync is enabled, WA (Window Abstraction) will automatically call waapp_draw().
 		// Only if VSync is disabled, we call it ourself.
@@ -350,20 +351,20 @@ waapp_run(waapp_t* app)
 			app->frames = 0;
 			last_time = end_time;
 		}
-
-		if (app->fps_limit && state->window.vsync == false)
-		{
-			f64 elapsed_time =	((f64)(end_time.tv_sec - start_time.tv_sec) * 1e9) +
-								(f64)(end_time.tv_nsec - start_time.tv_nsec);
-
-			f64 sleep_time = app->fps_interval - elapsed_time;
-			if (sleep_time > 0)
-			{
-				sleep_duration.tv_sec = 0;
-				sleep_duration.tv_nsec = (long)sleep_time - 50000;
-				nanosleep(&sleep_duration, NULL);
-			}
-		}
+		//
+		// if (app->fps_limit && state->window.vsync == false)
+		// {
+		// 	f64 elapsed_time =	((f64)(end_time.tv_sec - start_time.tv_sec) * 1e9) +
+		// 						(f64)(end_time.tv_nsec - start_time.tv_nsec);
+		//
+		// 	f64 sleep_time = app->fps_interval - elapsed_time;
+		// 	if (sleep_time > 0)
+		// 	{
+		// 		sleep_duration.tv_sec = 0;
+		// 		sleep_duration.tv_nsec = (long)sleep_time - 50000;
+		// 		nanosleep(&sleep_duration, NULL);
+		// 	}
+		// }
 	}
 }
 
