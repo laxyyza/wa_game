@@ -296,34 +296,33 @@ ren_draw_rect_norm(ren_t* ren, const rect_t* rect)
     bro->vbo.count += RECT_VERT;
 }
 
-// static bool 
-// rect_in_frustum(ren_t* ren, UNUSED const rect_t* rect)
-// {
-// 	printf("Cam: (%f/%f) -> (%f/%f), scale: %f\n",
-// 		ren->cam.x, ren->cam.y, 
-// 		ren->cam.x * (ren->scale.x / ren->viewport.x), ren->viewport.x, 
-// 		ren->scale.x);
-//
-// 	return true;
-//
-// 	// if (rect->pos.x + rect->size.x < frustum.pos.x ||
-// 	// 	rect->pos.x > frustum.pos.x + frustum.size.x ||
-// 	// 	rect->pos.y + rect->size.y < frustum.pos.y ||
-// 	// 	rect->pos.y > frustum.pos.y + frustum.size.y)
-// 	// {
-// 	// 	return false;
-// 	// }
-//
-// 	return true;
-// }
+static bool 
+rect_in_frustum(ren_t* ren, const rect_t* rect)
+{
+	rect_t frustum = {
+		.pos.x = -ren->cam.x / ren->scale.x,
+		.pos.y = -ren->cam.y / ren->scale.y,
+		.size.x = ren->viewport.x / ren->scale.x,
+		.size.y = ren->viewport.y / ren->scale.y,
+	};
 
+	if (rect->pos.x + rect->size.x < frustum.pos.x ||
+		rect->pos.x > frustum.pos.x + frustum.size.x ||
+		rect->pos.y + rect->size.y < frustum.pos.y ||
+		rect->pos.y > frustum.pos.y + frustum.size.y)
+	{
+		return false;
+	}
+
+	return true;
+}
 
 void 
 ren_draw_rect(ren_t* ren, const rect_t* rect)
 {
-	// if (rect_in_frustum(ren, rect) == false)
-	// 	return;
-	//
+	if (rect_in_frustum(ren, rect) == false)
+		return;
+
 	if (rect->rotation == 0)
 	{
 		ren_draw_rect_norm(ren, rect);

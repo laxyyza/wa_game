@@ -169,6 +169,10 @@ waapp_gui(waapp_t* app)
 		snprintf(udp_in_stat, 256, "Interp Threshold Dist: %f", app->game.interp_threshold_dist);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 		nk_slider_float(ctx, 0.0001, &app->game.interp_threshold_dist, 20.0, 0.0001);
+
+		snprintf(udp_in_stat, 256, "Draw calls: %u", app->ren.draw_calls);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
     }
     nk_end(ctx);
     if (nk_window_is_hidden(ctx, window_name))
