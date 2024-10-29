@@ -351,7 +351,7 @@ waapp_run(waapp_t* app)
 			last_time = end_time;
 		}
 
-		if (state->window.vsync == false)
+		if (app->fps_limit && state->window.vsync == false)
 		{
 			f64 elapsed_time =	((f64)(end_time.tv_sec - start_time.tv_sec) * 1e9) +
 								(f64)(end_time.tv_nsec - start_time.tv_nsec);

@@ -122,10 +122,17 @@ waapp_gui(waapp_t* app)
         nk_layout_row_dynamic(ctx, 20, 1);
 		if (vsync)
 		{
-			snprintf(udp_in_stat, 256, "FPS LIMIT: %u", (u32)app->max_fps);
-			nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
-			if (nk_slider_float(ctx, 10.0, &app->max_fps, 500.0, 1.0))
-				waapp_set_max_fps(app, app->max_fps);
+			nk_bool limit_fps = !app->fps_limit;
+			if (nk_checkbox_label(ctx, "Limit FPS", &limit_fps))
+				app->fps_limit = !limit_fps;
+
+			if (app->fps_limit)
+			{
+				snprintf(udp_in_stat, 256, "FPS LIMIT: %u", (u32)app->max_fps);
+				nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+				if (nk_slider_float(ctx, 10.0, &app->max_fps, 500.0, 1.0))
+					waapp_set_max_fps(app, app->max_fps);
+			}
 		}
 
         nk_label(ctx, "Background Color", NK_TEXT_LEFT);
