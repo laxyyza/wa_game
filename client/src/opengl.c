@@ -82,7 +82,7 @@ waapp_gui(waapp_t* app)
     static nk_flags win_flags = 
         NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | 
         NK_WINDOW_MINIMIZED | NK_WINDOW_TITLE | 
-        NK_WINDOW_CLOSABLE | NK_WINDOW_MOVABLE;
+        NK_WINDOW_CLOSABLE | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE;
     const char* window_name = state->window.title;
     // static struct nk_vec2 window_offset = {10, 10};
     static struct nk_rect window_rect = {
@@ -103,6 +103,30 @@ waapp_gui(waapp_t* app)
 				app->net.udp.ipaddr, app->net.udp.port, app->net.udp.tickrate);
         nk_layout_row_dynamic(ctx, 20, 1);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		snprintf(udp_in_stat, 256, "PING: %f ms", app->net.udp.latency);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+        nk_layout_row_dynamic(ctx, 20, 2);
+		snprintf(udp_in_stat, 256, "CLIENT FPS: %u", app->fps);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		wa_state_t* state = wa_window_get_state(app->window);
+		nk_bool vsync = !state->window.vsync;
+		if (nk_checkbox_label(ctx, "VSync", &vsync))
+		{
+			app->update_vync = true;
+			app->tmp_vsync = !vsync;
+		}
+
+        nk_layout_row_dynamic(ctx, 20, 1);
+		if (vsync)
+		{
+			snprintf(udp_in_stat, 256, "FPS LIMIT: %u", (u32)app->max_fps);
+			nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+			if (nk_slider_float(ctx, 10.0, &app->max_fps, 500.0, 1.0))
+				waapp_set_max_fps(app, app->max_fps);
+		}
 
         nk_label(ctx, "Background Color", NK_TEXT_LEFT);
         nk_layout_row_dynamic(ctx, 25, 1);

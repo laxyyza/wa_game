@@ -224,8 +224,6 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 
 	f64 elapsed_time = get_elapsed_time(&current_time, &pong->start_time);
 	net->udp.latency = elapsed_time * 1000.0;
-
-	printf("Latency: %f\n", net->udp.latency);
 }
 
 i32 

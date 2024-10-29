@@ -39,6 +39,13 @@ typedef struct waapp
     vec3f_t cam;
 	bool	lock_cam;
 	bool	trigger_shooting;
+	u32		fps;
+	u32		frames;
+	f32		max_fps;
+	f64		fps_interval;
+
+	bool update_vync;
+	bool tmp_vsync;
 
     struct nk_wa* nk_wa;
     struct nk_context* nk_ctx;
@@ -47,6 +54,7 @@ typedef struct waapp
 i32 waapp_init(waapp_t* app, i32 argc, const char** argv);
 void waapp_run(waapp_t* app);
 void waapp_cleanup(waapp_t* app);
+void waapp_set_max_fps(waapp_t* app, f64 max_fps);
 
 ALWAYS_INLINE vec2f_t
 screen_to_world(waapp_t* app, const vec2f_t* screen_pos)

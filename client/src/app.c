@@ -45,34 +45,9 @@ static void
 waapp_draw(_WA_UNUSED wa_window_t* window, void* data)
 {
 	waapp_t* app = data;
-	player_t* player = app->player;
-	
-	client_net_poll(app, 0);
 
-	if (player)
-	{
-		coregame_set_player_dir(player->core, player->movement_dir);
-
-		coregame_update(&app->game);
-
-		if (app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y)
-		{
-			if (app->lock_cam)
-				waapp_lock_cam(app);
-			app->prev_pos = player->core->pos;
-		}
-		if (app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y)
-		{
-			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
-			app->prev_dir = player->core->dir;
-		}
-
-		if (app->trigger_shooting)
-			client_shoot(app);
-
-		client_net_try_udp_flush(app);
-	}
     waapp_opengl_draw(app);
+	app->frames++;
 }
 
 static void
@@ -234,6 +209,37 @@ on_player_free(cg_player_t* player, void* data)
 	ght_del(&app->players, player->id);
 }
 
+static void 
+waapp_update(_WA_UNUSED wa_window_t* window, waapp_t* app)
+{
+	player_t* player = app->player;
+	client_net_poll(app, 0);
+
+	if (player)
+	{
+		coregame_set_player_dir(player->core, player->movement_dir);
+
+		coregame_update(&app->game);
+
+		if (app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y)
+		{
+			if (app->lock_cam)
+				waapp_lock_cam(app);
+			app->prev_pos = player->core->pos;
+		}
+		if (app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y)
+		{
+			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
+			app->prev_dir = player->core->dir;
+		}
+
+		if (app->trigger_shooting)
+			client_shoot(app);
+
+		client_net_try_udp_flush(app);
+	}
+}
+
 i32 
 waapp_init(waapp_t* app, i32 argc, const char** argv)
 {
@@ -254,6 +260,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     state->window.wayland.app_id = app_id;
     state->user_data = app;
     state->callbacks.draw = waapp_draw;
+    state->callbacks.update = (void (*)(wa_window_t* window, void* data)) waapp_update;
     state->callbacks.event = waapp_event;
     state->callbacks.close = waapp_close;
 
@@ -295,9 +302,69 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 }
 
 void 
+waapp_set_max_fps(waapp_t* app, f64 max_fps)
+{
+	app->fps_interval = (1.0 / max_fps) * 1e9;
+	app->max_fps = max_fps;
+}
+
+void 
 waapp_run(waapp_t* app)
 {
-    wa_window_mainloop(app->window);
+	struct timespec start_time, end_time, sleep_duration, last_time;
+	wa_state_t* state = wa_window_get_state(app->window);
+
+	clock_gettime(CLOCK_MONOTONIC, &last_time);
+
+	wa_window_vsync(app->window, true);
+	waapp_set_max_fps(app, 144.0);
+
+	while (wa_window_running(app->window))
+	{
+		clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+		wa_window_poll(app->window);
+
+		// When VSync is enabled, WA (Window Abstraction) will automatically call waapp_draw().
+		// Only if VSync is disabled, we call it ourself.
+		if (state->window.vsync == false)
+		{
+			waapp_update(NULL, app);
+			waapp_draw(app->window, app);
+			wa_swap_buffers(app->window);
+		}
+
+		if (app->update_vync)
+		{
+			wa_window_vsync(app->window, app->tmp_vsync);
+			app->update_vync = false;
+		}
+
+		clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+		f64 elapsed_time_sec = (end_time.tv_sec - last_time.tv_sec) + 
+								(end_time.tv_nsec - last_time.tv_nsec) / 1e9;
+		if (elapsed_time_sec > 1.0)
+		{
+			app->fps = app->frames;
+			app->frames = 0;
+			last_time = end_time;
+		}
+
+		if (state->window.vsync == false)
+		{
+			f64 elapsed_time =	((f64)(end_time.tv_sec - start_time.tv_sec) * 1e9) +
+								(f64)(end_time.tv_nsec - start_time.tv_nsec);
+
+			f64 sleep_time = app->fps_interval - elapsed_time;
+			if (sleep_time > 0)
+			{
+				sleep_duration.tv_sec = 0;
+				sleep_duration.tv_nsec = (long)sleep_time - 50000;
+				nanosleep(&sleep_duration, NULL);
+			}
+		}
+	}
 }
 
 void 
