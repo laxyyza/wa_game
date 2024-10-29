@@ -19,6 +19,9 @@ enum segtypes
 	NET_UDP_PLAYER_SHOOT,
 	NET_UDP_PLAYER_HEALTH,
 
+	NET_UDP_PING,
+	NET_UDP_PONG,
+
 	NET_DEBUG_MSG,
 
 	NET_SEGTYPES_LEN
@@ -76,6 +79,11 @@ typedef struct
 	u32 player_id;
 	i32 health;
 } net_udp_player_health_t;
+
+typedef struct 
+{
+	struct timespec start_time;
+} net_udp_pingpong_t;
 
 typedef struct cg_player net_tcp_new_player_t;
 

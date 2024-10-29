@@ -11,6 +11,14 @@
 #define BUFFER_SIZE 4096
 #define MAX_EVENTS 2
 
+static f64 
+get_elapsed_time(const struct timespec* current_time, const struct timespec* start_time)
+{
+	f64 elapsed_time =	(current_time->tv_sec - start_time->tv_sec) +
+						(current_time->tv_nsec - start_time->tv_nsec) / 1e9;
+	return elapsed_time;
+}
+
 static void 
 session_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 {
@@ -205,6 +213,21 @@ player_health(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 		player_set_health(player, health->health);
 }
 
+static void 
+udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	client_net_t* net = &app->net;
+	struct timespec current_time;
+	const net_udp_pingpong_t* pong = (const net_udp_pingpong_t*)segment->data;
+
+	clock_gettime(CLOCK_MONOTONIC, &current_time);
+
+	f64 elapsed_time = get_elapsed_time(&current_time, &pong->start_time);
+	net->udp.latency = elapsed_time * 1000.0;
+
+	printf("Latency: %f\n", net->udp.latency);
+}
+
 i32 
 client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -219,6 +242,7 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
 	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
 	callbacks[NET_UDP_PLAYER_HEALTH] = (ssp_segmap_callback_t)player_health;
+	callbacks[NET_UDP_PONG] = (ssp_segmap_callback_t)udp_pong;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;
@@ -348,12 +372,32 @@ client_net_poll(waapp_t* app, i32 timeout)
 }
 #endif // _WIN32
 
-static f64 
-get_elapsed_time(struct timespec* current_time, struct timespec* start_time)
+static void 
+client_udp_send(waapp_t* app, ssp_packet_t* packet)
 {
-	f64 elapsed_time =	(current_time->tv_sec - start_time->tv_sec) +
-						(current_time->tv_nsec - start_time->tv_nsec) / 1e9;
-	return elapsed_time;
+	client_net_t* net = &app->net;
+
+	u32 packet_size = ssp_packet_size(packet);
+	if (sendto(net->udp.fd, (void*)packet, packet_size, 0, (void*)&net->udp.server.addr, net->udp.server.addr_len) == -1)
+	{
+		perror("sendto");
+	}
+
+	net->udp.out.count++;
+	net->udp.out.bytes += packet_size;
+
+	free(packet);
+}
+
+static void
+client_net_ping_server(waapp_t* app)
+{
+	ssp_packet_t* packet;
+	net_udp_pingpong_t ping;
+	clock_gettime(CLOCK_MONOTONIC, &ping.start_time);
+
+	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &ping, sizeof(net_udp_pingpong_t));
+	client_udp_send(app, packet);
 }
 
 void 
@@ -378,6 +422,8 @@ client_net_get_stats(waapp_t* app)
 		net->udp.out.bytes = 0;
 
 		net->udp.inout_start_time = net->udp.current_time;
+
+		client_net_ping_server(app);
 	}
 }
 
@@ -395,18 +441,8 @@ client_net_try_udp_flush(waapp_t* app)
 		ssp_packet_t* packet = ssp_serialize_packet(&net->udp.buf);
 		if (packet)
 		{
-			u32 packet_size = ssp_packet_size(packet);
-			if (sendto(net->udp.fd, (void*)packet, packet_size, 0, (void*)&net->udp.server.addr, net->udp.server.addr_len) == -1)
-			{
-				perror("sendto");
-			}
-
-			net->udp.out.count++;
-			net->udp.out.bytes += packet_size;
-
+			client_udp_send(app, packet);
 			mmframes_clear(&app->mmf);
-
-			free(packet);
 		}
 		net->udp.send_start_time = net->udp.current_time;
 	}

@@ -33,6 +33,7 @@ typedef struct
 
 	f64 tickrate;
 	f64 interval;
+	f64 latency;
 
 	udp_addr_t server;
 

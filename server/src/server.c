@@ -23,6 +23,7 @@ server_set_tickrate(server_t* server, f64 tickrate)
 {
 	server->tickrate = tickrate;
 	server->interval = 1.0 / tickrate;
+	server->interval_ns = (1.0 / tickrate) * 1e9;
 }
 
 static i32
@@ -304,6 +305,16 @@ player_shoot(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 	});
 }
 
+static void 
+udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	const net_udp_pingpong_t* ping = (const net_udp_pingpong_t*)segment->data;
+
+	// insta send to client. No buffering. 
+	ssp_packet_t* packet = ssp_insta_packet(&source_client->udp_buf, NET_UDP_PONG, ping, sizeof(net_udp_pingpong_t));
+	client_send(server, source_client, packet);
+}
+
 static void
 server_init_netdef(server_t* server)
 {
@@ -312,6 +323,7 @@ server_init_netdef(server_t* server)
 	callbacks[NET_UDP_PLAYER_DIR] = (ssp_segmap_callback_t)player_dir;
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
 	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
+	callbacks[NET_UDP_PING] = (ssp_segmap_callback_t)udp_ping;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_state.user_data = server;
@@ -349,31 +361,6 @@ err:
 }
 
 static void 
-server_poll(server_t* server)
-{
-	i32 nfds;
-	i32 timeout;
-
-	do {
-		timeout = (server->clients.count == 0) ? -1 : 0;
-
-		if ((nfds = epoll_wait(server->epfd, server->events, MAX_EVENTS, timeout)) == -1)
-		{
-			if (errno == EINTR)
-				continue;
-			perror("epoll_wait");
-			server->running = false;
-		}
-
-		for (i32 i = 0; i < nfds; i++)
-		{
-			struct epoll_event* event = server->events + i;
-			server_handle_event(server, event->data.ptr, event->events);
-		}
-	} while (nfds);
-}
-
-static void 
 server_flush_udp_clients(server_t* server)
 {
 	ght_t* clients = &server->clients;
@@ -383,16 +370,99 @@ server_flush_udp_clients(server_t* server)
 		{
 			ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
 			if (packet)
-			{
-				u32 packet_size = ssp_packet_size(packet);
-				if (sendto(server->udp_fd, packet, packet_size, 0, &client->udp.addr, client->udp.addr_len) == -1)
-				{
-					perror("sendto");
-				}
-				free(packet);
-			}
+				client_send(server, client, packet);
 		}
 	});
+}
+
+static inline void
+ns_to_timespec(struct timespec* timespec, i64 ns)
+{
+	timespec->tv_sec = ns / 1e9;
+	timespec->tv_nsec = ns % (i64)1e9;
+}
+
+static void 
+format_ns(char* buf, u64 max, i64 ns)
+{
+	if (ns < 1e6)
+		snprintf(buf, max, "%ld ns", ns);
+	else
+		snprintf(buf, max, "%.3f ms", (f64)ns / 1e6);
+}
+
+static void
+print_frametimes(i64 ns, const char* high_str)
+{
+	char frametime_str[FRAMETIMES_LEN];
+	format_ns(frametime_str, FRAMETIMES_LEN, ns);
+	printf("\rFrame time: %s (highest: %s)       ", frametime_str, high_str);
+}
+
+static void
+server_poll(server_t* server, struct timespec* prev_start_time, struct timespec* prev_end_time)
+{
+	i32 nfds;
+	i64 prev_frame_time_ns;
+	i64 elapsed_time_ns;
+	i64 timeout_time_ns = 0;
+	u32 errors = 0;
+	struct timespec timeout = {0};
+	struct timespec current_time;
+	struct timespec* do_timeout = (server->clients.count == 0) ? NULL : &timeout;
+	struct epoll_event* event;
+
+	if (do_timeout)
+	{
+		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
+							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
+		if (prev_frame_time_ns > server->highest_frametime)
+		{
+			server->highest_frametime = prev_frame_time_ns;
+			format_ns(server->highest_frametime_str, FRAMETIME_LEN, prev_frame_time_ns);
+		}
+		print_frametimes(prev_frame_time_ns, server->highest_frametime_str);
+		timeout_time_ns = server->interval_ns - prev_frame_time_ns;
+		if (timeout_time_ns > 0)
+			ns_to_timespec(&timeout, timeout_time_ns);
+	}
+
+	do {
+		do_timeout = (server->clients.count == 0) ? NULL : &timeout;
+
+		nfds = epoll_pwait2(server->epfd, server->events, MAX_EVENTS, do_timeout, NULL);
+		if (nfds == -1)
+		{
+			if (errno == EINTR)
+				continue;
+			perror("epoll_pwait2");
+			errors++;
+			if (errors >= 3)
+			{
+				server->running = false;
+				break;
+			}
+		}
+
+		for (i32 i = 0; i < nfds; i++)
+		{
+			event = server->events + i;
+			server_handle_event(server, event->data.ptr, event->events);
+		}
+
+		if (do_timeout)
+		{
+			clock_gettime(CLOCK_MONOTONIC, &current_time);
+			elapsed_time_ns =	((current_time.tv_sec - prev_end_time->tv_sec) * 1e9) +
+								(current_time.tv_nsec - prev_end_time->tv_nsec);
+			memcpy(prev_end_time, &current_time, sizeof(struct timespec));
+			timeout_time_ns -= elapsed_time_ns;
+			if (timeout_time_ns > 0)
+				ns_to_timespec(&timeout, timeout_time_ns);
+			else
+				timeout.tv_sec = timeout.tv_nsec = 0;
+		}
+	} while (nfds || timeout_time_ns > 0);
 }
 
 void 
@@ -400,34 +470,23 @@ server_run(server_t* server)
 {
 	printf("server_run()...\n");
 
-	struct timespec start_time, end_time, sleep_duration, prev_time;
+	struct timespec start_time, end_time, prev_time;
+
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
+	memcpy(&end_time, &start_time, sizeof(struct timespec));
+	memcpy(&prev_time, &start_time, sizeof(struct timespec));
 
 	while (server->running)
 	{
+		server_poll(server, &start_time, &end_time);
+
 		clock_gettime(CLOCK_MONOTONIC, &start_time);
 
-		server_poll(server);
 		coregame_update(&server->game);
 		server_flush_udp_clients(server);
 		mmframes_clear(&server->mmf);
 
 		clock_gettime(CLOCK_MONOTONIC, &end_time);
-		f64 elapsed_time =	(end_time.tv_sec - start_time.tv_sec) + 
-							(end_time.tv_nsec - start_time.tv_nsec) / 1e9;
-		// f64 frame_time =	(start_time.tv_sec - prev_time.tv_sec) + 
-		// 					(start_time.tv_nsec - prev_time.tv_nsec) / 1e9;
-		// f64 time_ms = frame_time * 1000.0;
-		// printf("Frame time: %f\n", time_ms);
-
-		memcpy(&prev_time, &start_time, sizeof(struct timespec));
-
-		f64 sleep_time = server->interval - elapsed_time;
-		if (sleep_time > 0)
-		{
-			sleep_duration.tv_sec = (time_t)sleep_time;
-			sleep_duration.tv_nsec = (sleep_time - sleep_duration.tv_sec) * 1e9;
-			nanosleep(&sleep_duration, NULL);
-		}
 	}
 }
 

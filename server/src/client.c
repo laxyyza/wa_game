@@ -28,3 +28,17 @@ accept_client(server_t* server)
 
 	return client;
 }
+
+i64 
+client_send(server_t* server, client_t* client, ssp_packet_t* packet)
+{
+	i64 bytes_sent;
+	u32 packet_size = ssp_packet_size(packet);
+	if ((bytes_sent = sendto(server->udp_fd, packet, packet_size, 0, (struct sockaddr*)&client->udp.addr, client->udp.addr_len)) == -1)
+	{
+		perror("sendto");
+	}
+	free(packet);
+
+	return bytes_sent;
+}

@@ -8,6 +8,8 @@
 #include "mmframes.h"
 
 #define MAX_EVENTS 8
+#define FRAMETIMES_LEN 128
+#define FRAMETIME_LEN 63
 
 typedef struct server
 {
@@ -24,6 +26,10 @@ typedef struct server
 	bool running;
 	f64		tickrate;
 	f64		interval;
+	i64		interval_ns; // Interval Nanoseconds
+
+	i64		highest_frametime;
+	char	highest_frametime_str[FRAMETIME_LEN];
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, const char** argv);

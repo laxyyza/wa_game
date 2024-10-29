@@ -18,5 +18,6 @@ typedef struct
 } client_t;
 
 client_t* accept_client(server_t* server);
+i64 client_send(server_t* server, client_t* client, ssp_packet_t* packet);
 
 #endif // _CLIENT_H_
