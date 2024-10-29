@@ -396,7 +396,9 @@ print_frametimes(i64 ns, const char* high_str)
 {
 	char frametime_str[FRAMETIMES_LEN];
 	format_ns(frametime_str, FRAMETIMES_LEN, ns);
-	printf("\rFrame time: %s (highest: %s)       ", frametime_str, high_str);
+
+	// Go one line up, clear it and print.
+	printf("\033[F\033[KFrame time: %s\t(highest: %s)\n", frametime_str, high_str);
 }
 
 static void
