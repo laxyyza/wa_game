@@ -5,6 +5,7 @@
 #include <time.h>
 #include "main_menu.h"
 #include "state.h"
+#include "gui/gui.h"
 
 #ifdef __linux__
 #include <sys/epoll.h>

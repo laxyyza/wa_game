@@ -186,14 +186,6 @@ waapp_gui(waapp_t* app)
         wa_window_stop(app->window);
         printf("CLOSE!\n");
     }
-    // else
-    // {
-    //     window_rect.x = state->window.w - window_rect.w - window_offset.x;
-    //     window_rect.y = window_offset.y;
-    //     nk_window_set_position(ctx, window_name, nk_vec2(window_rect.x, window_rect.y));
-    // }
-
-    gui_render(app);
 }
 
 static void 

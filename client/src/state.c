@@ -47,6 +47,7 @@ waapp_state_update(wa_window_t* window, waapp_t* app)
 	ren_clear(&app->ren, &app->bg_color);
 
 	sm->current->update(app, sm->current->data);
+	gui_new_frame(app);
 
 	if (sm->switch_appending)
 	{
@@ -58,6 +59,4 @@ waapp_state_update(wa_window_t* window, waapp_t* app)
 
 	if (state->window.vsync == false)
 		wa_swap_buffers(window);
-
-	gui_new_frame(app);
 }
