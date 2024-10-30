@@ -6,6 +6,7 @@
 #include <string.h>
 #include "gui/gui.h"
 #include <time.h>
+#include "nuklear.h"
 
 static void 
 client_shoot(waapp_t* app)
@@ -52,10 +53,66 @@ game_draw(waapp_t* app)
 	app->frames++;
 }
 
+static void 
+nk_handle_input(waapp_t* app, const wa_event_key_t* ev)
+{
+	struct nk_context* ctx = app->nk_ctx;
+	const bool pressed = ev->pressed;
+	wa_state_t* state = wa_window_get_state(app->window);
+	const u8* keymap = state->key_map;
+	// const u8* 
+
+	nk_input_begin(ctx);
+	if (ev->ascii >= 32 && ev->ascii <= 126 && ev->pressed)
+	{
+		nk_input_char(ctx, ev->ascii);
+	}
+	else
+	{
+		switch (ev->key)
+		{
+			case WA_KEY_RSHIFT:
+			case WA_KEY_LSHIFT:	nk_input_key(ctx, NK_KEY_SHIFT, pressed); break;
+			case WA_KEY_ENTER:	nk_input_key(ctx, NK_KEY_ENTER, pressed); break;
+			case WA_KEY_TAB:	nk_input_key(ctx, NK_KEY_TAB,	pressed); break;
+			case WA_KEY_DEL:	nk_input_key(ctx, NK_KEY_DEL,	pressed); break;
+			case WA_KEY_LCTRL:	nk_input_key(ctx, NK_KEY_CTRL,	pressed); break;
+			case WA_KEY_UP:		nk_input_key(ctx, NK_KEY_UP,	pressed); break;
+			case WA_KEY_DOWN:	nk_input_key(ctx, NK_KEY_DOWN,	pressed); break;
+			case WA_KEY_LEFT: 
+				if (keymap[WA_KEY_LCTRL])
+					nk_input_key(ctx, NK_KEY_TEXT_WORD_LEFT, pressed);
+				else
+					nk_input_key(ctx, NK_KEY_LEFT, pressed);
+				break;
+			case WA_KEY_RIGHT: 
+				if (keymap[WA_KEY_LCTRL])
+					nk_input_key(ctx, NK_KEY_TEXT_WORD_RIGHT, pressed);
+				else
+					nk_input_key(ctx, NK_KEY_RIGHT, pressed);
+				break;
+			case WA_KEY_BACKSPACE:	nk_input_key(ctx, NK_KEY_BACKSPACE,	pressed); break;
+			case WA_KEY_HOME:		nk_input_key(ctx, NK_KEY_TEXT_START,pressed); break;
+			case WA_KEY_END:		nk_input_key(ctx, NK_KEY_TEXT_END,	pressed); break;
+			case WA_KEY_Z:			nk_input_key(ctx, NK_KEY_TEXT_UNDO, pressed && keymap[WA_KEY_LCTRL]); break;
+			case WA_KEY_R:			nk_input_key(ctx, NK_KEY_TEXT_REDO, pressed && keymap[WA_KEY_LCTRL]); break;
+			case WA_KEY_C:			nk_input_key(ctx, NK_KEY_COPY,		pressed && keymap[WA_KEY_LCTRL]); break;
+			case WA_KEY_X:			nk_input_key(ctx, NK_KEY_CUT,		pressed && keymap[WA_KEY_LCTRL]); break;
+			case WA_KEY_V:			nk_input_key(ctx, NK_KEY_PASTE,		pressed && keymap[WA_KEY_LCTRL]); break;
+			case WA_KEY_A:			nk_input_key(ctx, NK_KEY_TEXT_SELECT_ALL, pressed && keymap[WA_KEY_LCTRL]); break;
+			default:
+				break;
+		}
+	}
+	nk_input_end(ctx);
+}
+
 static void
-waapp_handle_key(UNUSED waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
+waapp_handle_key(waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
 {
     wa_state_t* state = wa_window_get_state(window);
+
+	nk_handle_input(app, ev);
 
 	switch (ev->key)
 	{

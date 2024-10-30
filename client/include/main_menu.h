@@ -2,12 +2,13 @@
 #define _WAAPP_MAIN_MENU_H_
 
 #include "wa.h"
+#include "netdef.h"
 
 typedef struct waapp waapp_t;
 
 typedef struct 
 {
-
+	char ipaddr[INET6_ADDRSTRLEN];
 } waapp_main_menu_t;
 
 void main_menu_init(waapp_t* app, void* data);

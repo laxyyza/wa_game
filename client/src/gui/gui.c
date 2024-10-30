@@ -272,7 +272,6 @@ nk_wa_new_frame(waapp_t* app)
     wa_window_t* win = app->window;
     wa_state_t* wa_state = wa_window_get_state(win);
     nk_wa_t* nk = app->nk_wa;
-    const u8* key_map = wa_state->key_map;
     const u8* mb_map = wa_state->mouse_map;
 
     nk->w = wa_state->window.w;
@@ -285,20 +284,6 @@ nk_wa_new_frame(waapp_t* app)
     nk_input_begin(ctx);
     for (i = 0; i < nk->text_len; ++i)
         nk_input_unicode(ctx, nk->text[i]);
-
-// #ifdef NK_GLFW_GL3_MOUSE_GRABBING
-//     /* optional grabbing behavior */
-//     if (ctx->input.mouse.grab)
-//         glfwSetInputMode(glfw.win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-//     else if (ctx->input.mouse.ungrab)
-//         glfwSetInputMode(glfw->win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-// #endif
-
-    nk_input_key(ctx, NK_KEY_ENTER, key_map[WA_KEY_ENTER]);
-    nk_input_key(ctx, NK_KEY_TAB, key_map[WA_KEY_TAB]);
-    nk_input_key(ctx, NK_KEY_UP, key_map[WA_KEY_UP]);
-    nk_input_key(ctx, NK_KEY_DOWN, key_map[WA_KEY_DOWN]);
-    nk_input_key(ctx, NK_KEY_SHIFT, key_map[WA_KEY_LSHIFT]);
 
     // if (glfwGetKey(win, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
     //     glfwGetKey(win, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS) {

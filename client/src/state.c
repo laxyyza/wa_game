@@ -9,6 +9,7 @@ waapp_state_manager_init(waapp_t* app)
 {
 	waapp_state_manager_t* sm = &app->sm;
 
+	sm->states.main_menu.data = calloc(1, sizeof(waapp_main_menu_t));
 	sm->states.main_menu.init = main_menu_init;
 	sm->states.main_menu.update = main_menu_update;
 	sm->states.main_menu.event = main_menu_event;
@@ -43,7 +44,6 @@ waapp_state_update(wa_window_t* window, waapp_t* app)
 	waapp_state_manager_t* sm = &app->sm;
 	wa_state_t* state = wa_window_get_state(window);
 
-	gui_new_frame(app);
 	ren_clear(&app->ren, &app->bg_color);
 
 	sm->current->update(app, sm->current->data);
@@ -58,4 +58,6 @@ waapp_state_update(wa_window_t* window, waapp_t* app)
 
 	if (state->window.vsync == false)
 		wa_swap_buffers(window);
+
+	gui_new_frame(app);
 }
