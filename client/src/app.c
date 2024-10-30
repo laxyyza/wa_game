@@ -27,14 +27,18 @@ client_shoot(waapp_t* app)
 	ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
 }
 
-static void
+void
 waapp_lock_cam(waapp_t* app)
 {
 	player_t* player = app->player;
+	vec2f_t origin = vec2f(
+		player->core->pos.x + (player->core->size.x / 2),
+		player->core->pos.y + (player->core->size.y / 2)
+	);
 
 	const vec2f_t* viewport = &app->ren.viewport;
-	app->cam.x = -(player->core->pos.x * app->ren.scale.x - (viewport->x / 2) + (player->core->size.x / 2) );
-	app->cam.y = -(player->core->pos.y * app->ren.scale.y - (viewport->y / 2) + (player->core->size.y / 2) );
+	app->cam.x = -(origin.x * app->ren.scale.x - (viewport->x / 2));
+	app->cam.y = -(origin.y * app->ren.scale.y - (viewport->y / 2));
 	ren_set_view(&app->ren, &app->cam);
 
 	player->core->cursor = screen_to_world(app, &app->mouse);
@@ -150,7 +154,7 @@ waapp_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 		return;
 	}
 
-	vec2f_t old_wpos = (app->lock_cam) ? app->player->core->pos : screen_to_world(app, &app->mouse);
+	vec2f_t old_wpos = screen_to_world(app, &app->mouse);
 
 	if (dir > 0)
 	{
@@ -169,12 +173,25 @@ waapp_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 	}
 	ren_set_scale(&app->ren, &app->ren.scale);
 
-	vec2f_t new_wpos = (app->lock_cam) ? app->player->core->pos : screen_to_world(app, &app->mouse);
+	if (app->lock_cam)
+		waapp_lock_cam(app);
+	else
+	{
+		vec2f_t new_wpos = screen_to_world(app, &app->mouse);
 
-	app->cam.x = app->cam.x - (old_wpos.x - new_wpos.x) * app->ren.scale.x;
-	app->cam.y = app->cam.y - (old_wpos.y - new_wpos.y) * app->ren.scale.y;
+		app->cam.x = app->cam.x - (old_wpos.x - new_wpos.x) * app->ren.scale.x;
+		app->cam.y = app->cam.y - (old_wpos.y - new_wpos.y) * app->ren.scale.y;
 
-	ren_set_view(&app->ren, &app->cam);
+		ren_set_view(&app->ren, &app->cam);
+	}
+}
+
+static void
+waapp_resize(waapp_t* app, const wa_event_resize_t* ev)
+{
+	ren_viewport(&app->ren, ev->w, ev->h);
+	if (app->lock_cam)
+		waapp_lock_cam(app);
 }
 
 static void
@@ -188,7 +205,7 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 			waapp_handle_key(app, window, &ev->keyboard);
 			break;
 		case WA_EVENT_RESIZE:
-			ren_viewport(&app->ren, ev->resize.w, ev->resize.h);
+			waapp_resize(app, &ev->resize);
 			break;
 		case WA_EVENT_POINTER:
 			waapp_handle_pointer(app, &ev->pointer);
@@ -329,7 +346,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 	client_net_init(app, ipaddr, 8080);
 
 	mmframes_init(&app->mmf);
-
+	
     return 0;
 }
 

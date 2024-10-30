@@ -62,6 +62,7 @@ i32 waapp_init(waapp_t* app, i32 argc, const char** argv);
 void waapp_run(waapp_t* app);
 void waapp_cleanup(waapp_t* app);
 void waapp_set_max_fps(waapp_t* app, f64 max_fps);
+void waapp_lock_cam(waapp_t* app);
 
 ALWAYS_INLINE vec2f_t
 screen_to_world(waapp_t* app, const vec2f_t* screen_pos)
