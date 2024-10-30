@@ -10,9 +10,18 @@
 #include <sys/epoll.h>
 #include "app_wayland.h"
 #include <errno.h>
+#include <fcntl.h>
+
+
+#define NET_WOULDBLOCK EINPROGRESS
 #endif
 
-#include <fcntl.h>
+#ifdef _WIN32
+#define WSA_ERROR_STR_MAX 256
+char wsa_error_string[WSA_ERROR_STR_MAX];
+
+#define NET_WOULDBLOCK WSAEWOULDBLOCK
+#endif // _WIN32
 
 #define BUFFER_SIZE 4096
 #define MAX_EVENTS 4
@@ -25,9 +34,81 @@ get_elapsed_time(const struct timespec* current_time, const struct timespec* sta
 	return elapsed_time;
 }
 
+#ifdef _WIN32
+const char*
+win32_err_string(i32 error_code)
+{
+	switch (error_code) 
+	{
+		case WSAEHOSTUNREACH:
+			return "No route to host";
+		case WSAEWOULDBLOCK:
+			return "Resource temporarily unavailable";
+		case WSAEISCONN:
+			return "Already connected";
+		default:
+			return "Unknown error";
+	}
+}
+
+const char* 
+client_net_wsa_err_string(i32 error_code)
+{
+	char* msg;
+
+	i32 ret = FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		error_code,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
+		(LPSTR)&msg,
+		0, NULL
+	);
+
+	if (ret == 0)
+		return win32_err_string(error_code);
+
+	strncpy(wsa_error_string, msg, WSA_ERROR_STR_MAX);
+	LocalFree(msg);
+
+	u32 len = strlen(wsa_error_string);
+	if (wsa_error_string[len - 2] == '\r')
+		wsa_error_string[len - 2] = 0x00;
+
+	return wsa_error_string;
+}
+#endif // _WIN32
+
+static inline const char* 
+client_net_errstr(i32 error_code)
+{
+#ifdef __linux__
+	return strerror(error_code);
+#elif _WIN32
+	return client_net_wsa_err_string(error_code);
+#endif
+}
+
+static inline i32
+client_net_lasterr()
+{
+#ifdef __linux__
+	return errno;
+#elif _WIN32
+	return WSAGetLastError();
+#endif
+}
+
+static inline const char*
+last_errstr()
+{
+	return client_net_errstr(client_net_lasterr());
+}
+
 static void 
 client_net_fd_blocking(sock_t fd, bool block)
 {
+#ifdef __linux__
 	i32 flags;
 
 	if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
@@ -43,6 +124,14 @@ client_net_fd_blocking(sock_t fd, bool block)
 
 	if (fcntl(fd, F_SETFL, flags) == -1)
 		perror("fcntl: F_SETFL");
+#endif // __linux__
+#ifdef _WIN32	
+	u_long mode = (block) ? 0 : 1;
+	if (ioctlsocket(fd, FIONBIO, &mode) != 0)
+	{
+		fprintf(stderr, "Failed to set non-blocking mode: %d\n", WSAGetLastError());
+	}
+#endif
 }
 
 static void 
@@ -134,10 +223,10 @@ client_net_add_fdevent(waapp_t* app, sock_t fd,
 	return event;
 }
 
+#ifdef __linux__
 static void 
 client_net_fdevent_del_write(waapp_t* app, fdevent_t* fdev)
 {
-#ifdef __linux__
 	if (fdev->events & EPOLLOUT)
 	{
 		fdev->events ^= EPOLLOUT;
@@ -148,9 +237,17 @@ client_net_fdevent_del_write(waapp_t* app, fdevent_t* fdev)
 		if (epoll_ctl(app->net.epfd, EPOLL_CTL_MOD, fdev->fd, &ev) == -1)
 			perror("epoll_ctl MOD");
 	}
-#endif
 	fdev->write = NULL;
 }
+#endif // __linux__
+
+#ifdef _WIN32
+static void 
+client_net_fdevent_del_write(UNUSED waapp_t* app, fdevent_t* fdev)
+{
+	fdev->write = NULL;
+}
+#endif // _WIN32
 
 static void
 tcp_close(UNUSED waapp_t* app, fdevent_t* fdev)
@@ -189,11 +286,14 @@ tcp_error(waapp_t* app, fdevent_t* fdev, i32 error_code)
 	client_net_t* net = &app->net;
 	ssp_tcp_sock_t* s = &net->tcp.sock;
 	waapp_main_menu_t* mm;
+	const char* errstr;
 
 	if (s->connected == false)
 	{
 		mm = app->sm.states.main_menu.data;
-		snprintf(mm->state, MM_STATE_STRING_MAX, "Connection FAILED (%s)", strerror(error_code));
+
+		errstr = client_net_errstr(error_code);
+		snprintf(mm->state, MM_STATE_STRING_MAX, "FAILED: %s (%d)", errstr, error_code);
 
 		client_net_del_fdevent(app, fdev);
 		ssp_tcp_sock_close(s);
@@ -243,21 +343,14 @@ client_net_udp_init(waapp_t* app)
 static void
 tcp_write_connect(waapp_t* app, fdevent_t* fdev)
 {
-	i32 ret;
-	client_net_t* net = &app->net;
-	ssp_tcp_sock_t* s = &net->tcp.sock;
+	i32 err;
+	socklen_t len = sizeof(i32);
+	getsockopt(fdev->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
 
-	printf("tcp_write_connect()!\n");
+	printf("tcp_connect: %s (%d)\n", client_net_errstr(err), err);
+	if (err)
+		return;
 
-	ret = connect(fdev->fd, (struct sockaddr*)&s->addr.sockaddr, s->addr.addr_len);
-	if (ret == -1)
-	{
-		perror("write_connect");
-		// if (errno == EINPROGRESS)
-		// 	return;
-		// client_net_fdevent_del_write(app, fdev);
-		// return;
-	}
 	client_net_fd_blocking(fdev->fd, true);
 
 	client_net_on_connect(app);
@@ -440,14 +533,17 @@ client_net_async_connect(waapp_t* app, const char* addr)
 	res = connect(sock->sockfd, (struct sockaddr*)&sock->addr.sockaddr, sock->addr.addr_len);
 	if (res == -1)
 	{
-		fprintf(stderr, "async_connect: '%s' (%d)\n", strerror(errno), errno);
-		if (errno == EINPROGRESS)
+		i32 err = client_net_lasterr();
+		if (err == NET_WOULDBLOCK)
 		{
 			ret = "Connecting...";
 			write_cb = tcp_write_connect;
 		}
 		else
+		{
+			fprintf(stderr, "async_connect: '%s' (%d)\n", client_net_errstr(err), err);
 			return "Connect FAILED.";
+		}
 	}
 
 	fdevent_t* fdev = client_net_add_fdevent(app, sock->sockfd, tcp_read, tcp_close, write_cb, sock);
@@ -488,7 +584,6 @@ client_net_init(waapp_t* app)
 #endif
 
 	ssp_tcp_sock_create(&net->tcp.sock, SSP_IPv4);
-	printf("TCP FD: %d\n", net->tcp.sock.sockfd);
 
 #ifdef __linux__
 	net->epfd = epoll_create1(EPOLL_CLOEXEC);
@@ -629,7 +724,10 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	struct timespec current_time;
 	wa_state_t* state = wa_window_get_state(app->window);
 
-	if (prev_frame_time_ns)
+	if (app->net.events.count == 0)
+		return;
+
+	if (prev_start_time)
 	{
 		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
 							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
@@ -646,19 +744,23 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	do {
 		FD_ZERO(&net->read_fds);
 		FD_ZERO(&net->execpt_fds);
+		FD_ZERO(&net->write_fds);
 		for (u32 i = 0; i < net->events.count; i++)
 		{
 			fdevent_t* fdev = events + i;
-			FD_SET(fdev->fd, &net->read_fds);
+			if (fdev->write)
+				FD_SET(fdev->fd, &net->write_fds);
+			else
+				FD_SET(fdev->fd, &net->read_fds);
 			FD_SET(fdev->fd, &net->execpt_fds);
 			if (fdev->fd > max_fd)
 				max_fd = fdev->fd;
 		}
 
-		ret = select(max_fd + 1, &net->read_fds, NULL, &net->execpt_fds, do_timeout);
+		ret = select(max_fd + 1, &net->read_fds, &net->write_fds, &net->execpt_fds, do_timeout);
 		if (ret == -1)
 		{
-			perror("select");
+			fprintf(stderr, "select error: %s\n", last_errstr());
 			return;
 		}
 		else if (ret > 0)
@@ -666,15 +768,21 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 			for (u32 i = 0; i < net->events.count; i++)
 			{
 				fdevent_t* fdev = events + i;
-				if (FD_ISSET(fdev->fd, &net->execpt_fds))
+				if (fdev->write && FD_ISSET(fdev->fd, &net->write_fds))
+					fdev->write(app, fdev);
+				else if (FD_ISSET(fdev->fd, &net->execpt_fds))
 				{
-					if (fdev->close)
+					i32 err = 0;
+					socklen_t len = sizeof(i32);
+					getsockopt(fdev->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
+
+					if (fdev->error)
+						fdev->error(app, fdev, err);
+					else if (fdev->close)
 						fdev->close(app, fdev);
 				}
 				else if (FD_ISSET(fdev->fd, &net->read_fds))
-				{
 					fdev->read(app, fdev);
-				}
 			}
 		}
 

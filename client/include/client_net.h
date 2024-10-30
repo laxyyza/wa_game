@@ -89,6 +89,7 @@ typedef struct
 #ifdef _WIN32
 	fd_set read_fds;
 	fd_set execpt_fds;
+	fd_set write_fds;
 	WSADATA wsa_data;
 #endif
 } client_net_t;
