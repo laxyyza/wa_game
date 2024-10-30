@@ -18,13 +18,17 @@ typedef struct waapp waapp_t;
 typedef struct fdevent fdevent_t;
 
 typedef void (*fdevent_callback_t)(waapp_t* app, fdevent_t* fdevent);
+typedef void (*fdevent_err_callback_t)(waapp_t* app, fdevent_t* fdevent, i32 error_code);
 
 typedef struct fdevent
 {
 	sock_t fd;
 	void* data;
+	u32 events;
 	fdevent_callback_t read;
+	fdevent_callback_t write;
 	fdevent_callback_t close;
+	fdevent_err_callback_t error;
 } fdevent_t;
 
 typedef struct 
@@ -91,11 +95,17 @@ typedef struct
 
 i32 client_net_init(waapp_t* app);
 i32 client_net_connect(waapp_t* app, const char* ipaddr, u16 port);
+const char* client_net_async_connect(waapp_t* app, const char* addr);
 void client_net_poll(waapp_t* app, struct timespec* start_time, struct timespec* end_time);
 // void client_net_poll(waapp_t* app, i32 timeout);
 void client_net_try_udp_flush(waapp_t* app);
 void client_net_get_stats(waapp_t* app);
 void client_net_set_tickrate(waapp_t* app, f64 tickrate);
-void client_net_add_fdevent(waapp_t* app, sock_t fd, fdevent_callback_t read, fdevent_callback_t close, void* data);
+fdevent_t* client_net_add_fdevent(waapp_t* app, sock_t fd, 
+							fdevent_callback_t read, 
+							fdevent_callback_t close, 
+							fdevent_callback_t write, 
+							void* data);
+void client_net_udp_init(waapp_t* app);
 
 #endif // _CLIENT_NET_H_

@@ -3,12 +3,16 @@
 #include "app.h"
 #include "player.h"
 #include <time.h>
+#include "main_menu.h"
+#include "state.h"
 
 #ifdef __linux__
 #include <sys/epoll.h>
 #include "app_wayland.h"
 #include <errno.h>
 #endif
+
+#include <fcntl.h>
 
 #define BUFFER_SIZE 4096
 #define MAX_EVENTS 4
@@ -19,6 +23,26 @@ get_elapsed_time(const struct timespec* current_time, const struct timespec* sta
 	f64 elapsed_time =	(current_time->tv_sec - start_time->tv_sec) +
 						(current_time->tv_nsec - start_time->tv_nsec) / 1e9;
 	return elapsed_time;
+}
+
+static void 
+client_net_fd_blocking(sock_t fd, bool block)
+{
+	i32 flags;
+
+	if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
+	{
+		perror("fcntl F_GETFL");
+		return;
+	}
+
+	if (block)
+		flags ^= O_NONBLOCK;
+	else
+		flags |= O_NONBLOCK;
+
+	if (fcntl(fd, F_SETFL, flags) == -1)
+		perror("fcntl: F_SETFL");
 }
 
 static void 
@@ -34,25 +58,90 @@ session_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 		sessionid->session_id, sessionid->player_id);
 }
 
-void 
-client_net_add_fdevent(waapp_t* app, sock_t fd, fdevent_callback_t read, fdevent_callback_t close, void* data)
+static void
+client_net_on_connect(waapp_t* app)
+{
+	client_net_t* net = &app->net;
+	waapp_main_menu_t* mm = (waapp_main_menu_t*)app->sm.states.main_menu.data;
+	net->tcp.sock.connected = true;
+
+	net_tcp_connect_t connect;
+	memset(&connect, 9, sizeof(net_tcp_connect_t));
+	strncpy(connect.username, mm->username, PLAYER_NAME_MAX);
+
+	ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
+	ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
+
+	client_net_udp_init(app);
+}
+
+void
+client_net_del_fdevent(waapp_t* app, fdevent_t* fdev)
+{
+	client_net_t* net = &app->net;
+
+#ifdef __linux__
+	if (epoll_ctl(net->epfd, EPOLL_CTL_DEL, fdev->fd, NULL) == -1)
+	{
+		perror("epoll_ctl DEL");
+		return;
+	}
+#endif
+	
+	array_pop(&net->events);
+}
+
+fdevent_t*
+client_net_add_fdevent(waapp_t* app, sock_t fd, 
+					   fdevent_callback_t read, 
+					   fdevent_callback_t close, 
+					   fdevent_callback_t write, 
+					   void* data)
 {
 	client_net_t* net = &app->net;
 	fdevent_t* event = array_add_into(&net->events);
 	event->fd = fd;
 	event->read = read;
 	event->close = close;
+	event->write = write;
+	event->error = NULL;
 	event->data = data;
 
 #ifdef __linux__
+	event->events = EPOLLHUP;
+
+	if (read)
+		event->events |= EPOLLIN;
+	if (write)
+		event->events |= EPOLLOUT;
+
 	struct epoll_event ev = {
 		.data.ptr = event,
-		.events = EPOLLIN | EPOLLHUP
+		.events = event->events
 	};
 
 	if (epoll_ctl(net->epfd, EPOLL_CTL_ADD, fd, &ev) == -1)
 		perror("epoll_ctl ADD");
 #endif
+	return event;
+}
+
+static void 
+client_net_fdevent_del_write(waapp_t* app, fdevent_t* fdev)
+{
+#ifdef __linux__
+	if (fdev->events & EPOLLOUT)
+	{
+		fdev->events ^= EPOLLOUT;
+		struct epoll_event ev = {
+			.data.ptr = fdev,
+			.events = fdev->events
+		};
+		if (epoll_ctl(app->net.epfd, EPOLL_CTL_MOD, fdev->fd, &ev) == -1)
+			perror("epoll_ctl MOD");
+	}
+#endif
+	fdev->write = NULL;
 }
 
 static void
@@ -80,19 +169,91 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 	i64 bytes_read;
 
 	if ((bytes_read = recv(fdev->fd, buf, BUFFER_SIZE, 0)) == -1)
-	{
-		perror("recv");
-		fdev->close(app, fdev);
-	}
-	else if (bytes_read == 0)
-	{
-		fdev->close(app, fdev);
-	}
+		perror("tcp_recv");
 	else
-	{
 		ssp_parse_buf(&app->net.def.ssp_state, NULL, buf, bytes_read, NULL);
-	}
 	free(buf);
+}
+
+static void
+tcp_error(waapp_t* app, fdevent_t* fdev, i32 error_code)
+{
+	client_net_t* net = &app->net;
+	ssp_tcp_sock_t* s = &net->tcp.sock;
+	waapp_main_menu_t* mm;
+
+	if (s->connected == false)
+	{
+		mm = app->sm.states.main_menu.data;
+		snprintf(mm->state, MM_STATE_STRING_MAX, "Connection FAILED (%s)", strerror(error_code));
+
+		client_net_del_fdevent(app, fdev);
+		ssp_tcp_sock_close(s);
+		ssp_tcp_sock_create(s, s->addr.domain);
+	}
+}
+
+static void
+udp_read(waapp_t* app, fdevent_t* fdev)
+{
+	client_net_t* net = &app->net;
+
+	void* buf = malloc(BUFFER_SIZE);
+	i64 bytes_read;
+	udp_addr_t addr = {
+		.addr_len = sizeof(struct sockaddr_in)
+	};
+
+	if ((bytes_read = recvfrom(fdev->fd, buf, BUFFER_SIZE, 0, (struct sockaddr*)&addr.addr, &addr.addr_len)) == -1)
+	{
+		perror("recvfrom");
+		return;
+	}
+
+	net->udp.in.bytes += bytes_read;
+	net->udp.in.count++;
+
+	ssp_parse_buf(&net->def.ssp_state, &net->udp.buf, buf, bytes_read, &addr);
+	free(buf);
+}
+
+void
+client_net_udp_init(waapp_t* app)
+{
+	client_net_t* net = &app->net;
+	const char* ipaddr = net->tcp.sock.ipstr;
+
+	net->udp.fd = socket(AF_INET, SOCK_DGRAM, 0);
+	net->udp.server.addr.sin_family = AF_INET;
+	net->udp.server.addr.sin_addr.s_addr = inet_addr(ipaddr);
+	net->udp.server.addr_len = sizeof(struct sockaddr_in);
+	net->udp.ipaddr = ipaddr;
+
+	client_net_add_fdevent(app, net->udp.fd, udp_read, NULL, NULL, NULL);
+}
+
+static void
+tcp_write_connect(waapp_t* app, fdevent_t* fdev)
+{
+	i32 ret;
+	client_net_t* net = &app->net;
+	ssp_tcp_sock_t* s = &net->tcp.sock;
+
+	printf("tcp_write_connect()!\n");
+
+	ret = connect(fdev->fd, (struct sockaddr*)&s->addr.sockaddr, s->addr.addr_len);
+	if (ret == -1)
+	{
+		perror("write_connect");
+		// if (errno == EINPROGRESS)
+		// 	return;
+		// client_net_fdevent_del_write(app, fdev);
+		// return;
+	}
+	client_net_fd_blocking(fdev->fd, true);
+
+	client_net_on_connect(app);
+	client_net_fdevent_del_write(app, fdev);
 }
 
 static void 
@@ -137,30 +298,8 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	app->net.udp.port = info->port;
 
 	ssp_segbuff_init(&app->net.udp.buf, 10, info->ssp_flags);
-}
 
-static void
-udp_read(waapp_t* app, fdevent_t* fdev)
-{
-	client_net_t* net = &app->net;
-
-	void* buf = malloc(BUFFER_SIZE);
-	i64 bytes_read;
-	udp_addr_t addr = {
-		.addr_len = sizeof(struct sockaddr_in)
-	};
-
-	if ((bytes_read = recvfrom(fdev->fd, buf, BUFFER_SIZE, 0, (struct sockaddr*)&addr.addr, &addr.addr_len)) == -1)
-	{
-		perror("recvfrom");
-		return;
-	}
-
-	net->udp.in.bytes += bytes_read;
-	net->udp.in.count++;
-
-	ssp_parse_buf(&net->def.ssp_state, &net->udp.buf, buf, bytes_read, &addr);
-	free(buf);
+	waapp_state_switch(app, &app->sm.states.game);
 }
 
 static void 
@@ -236,10 +375,8 @@ client_net_connect(waapp_t* app, const char* ipaddr, u16 port)
 	i32 ret;
 	client_net_t* net = &app->net;
 
-	ssp_tcp_sock_create(&net->tcp.sock, SSP_IPv4);
 	if ((ret = ssp_tcp_connect(&net->tcp.sock, ipaddr, port)) == 0)
 	{
-		ssp_segbuff_init(&net->tcp.buf, 10, 0);
 		net->udp.ipaddr = ipaddr;
 
 		net_tcp_connect_t connect = {
@@ -249,18 +386,71 @@ client_net_connect(waapp_t* app, const char* ipaddr, u16 port)
 		ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
 		ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
 
-		client_net_add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, &net->tcp.sock);
-
-		net->udp.fd = socket(AF_INET, SOCK_DGRAM, 0);
-		net->udp.server.addr.sin_family = AF_INET;
-		net->udp.server.addr.sin_addr.s_addr = inet_addr(ipaddr);
-		net->udp.server.addr_len = sizeof(struct sockaddr_in);
-
-		client_net_add_fdevent(app, net->udp.fd, udp_read, NULL, NULL);
+		client_net_add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, NULL, &net->tcp.sock);
 
 		client_net_poll(app, NULL, NULL);
 
 	}
+	return ret;
+}
+
+static bool
+client_net_parse_address(waapp_t* app, const char* addr)
+{
+	client_net_t* net = &app->net;
+	ssp_tcp_sock_t* sock = &net->tcp.sock;
+	char* ip_addr = sock->ipstr;
+	u16 port = 8080;
+	bool ret = true;
+
+	// TODO: Support adding port into address string.
+	strncpy(ip_addr, addr, INET6_ADDRSTRLEN);
+
+	sock->addr.port = port;
+	sock->addr.addr_len = sizeof(struct sockaddr_in);
+	sock->addr.sockaddr.in.sin_family = AF_INET;
+	sock->addr.sockaddr.in.sin_addr.s_addr = inet_addr(ip_addr);
+	sock->addr.sockaddr.in.sin_port = htons(port);
+
+	return ret;
+}
+
+const char* 
+client_net_async_connect(waapp_t* app, const char* addr)
+{
+	const char* ret;
+	i32 res;
+	client_net_t* net = &app->net;
+	ssp_tcp_sock_t* sock = &net->tcp.sock;
+	fdevent_callback_t write_cb = NULL;
+
+	if (client_net_parse_address(app, addr) == false)
+		return "Invalid Address";
+
+	client_net_fd_blocking(sock->sockfd, false);
+
+	res = connect(sock->sockfd, (struct sockaddr*)&sock->addr.sockaddr, sock->addr.addr_len);
+	if (res == -1)
+	{
+		fprintf(stderr, "async_connect: '%s' (%d)\n", strerror(errno), errno);
+		if (errno == EINPROGRESS)
+		{
+			ret = "Connecting...";
+			write_cb = tcp_write_connect;
+		}
+		else
+			return "Connect FAILED.";
+	}
+
+	fdevent_t* fdev = client_net_add_fdevent(app, sock->sockfd, tcp_read, tcp_close, write_cb, sock);
+	fdev->error = tcp_error;
+
+	if (write_cb == NULL)
+	{
+		client_net_on_connect(app);
+		ret = "Connected.";
+	}
+
 	return ret;
 }
 
@@ -289,10 +479,15 @@ client_net_init(waapp_t* app)
 	WSAStartup(MAKEWORD(2, 2), &net->wsa_data);
 #endif
 
+	ssp_tcp_sock_create(&net->tcp.sock, SSP_IPv4);
+	printf("TCP FD: %d\n", net->tcp.sock.sockfd);
+
 #ifdef __linux__
 	net->epfd = epoll_create1(EPOLL_CLOEXEC);
 	waapp_wayland_add_fdevent(app);
 #endif
+
+	ssp_segbuff_init(&net->tcp.buf, 10, 0);
 
 	return ret;
 }
@@ -309,14 +504,28 @@ ns_to_timespec(struct timespec* timespec, i64 ns)
 static void 
 handle_event(waapp_t* app, fdevent_t* fdev, u32 events)
 {
-	if (events & (EPOLLERR | EPOLLHUP))
+	if (events & EPOLLERR)
 	{
+		i32 err = 0;
+		socklen_t len = sizeof(i32);
+		getsockopt(fdev->fd, SOL_SOCKET, SO_ERROR, &err, &len);
+
+		fprintf(stderr, "Socket (%d) error: \"%s\" (%d)\n", fdev->fd, strerror(err), err);
+		if (fdev->error)
+			fdev->error(app, fdev, err);
+		else
+			fdev->close(app, fdev);
+		return;
+	}
+	if (events & EPOLLHUP)
+	{
+		printf("EPOLLHUP\n");
 		fdev->close(app, fdev);
 	}
-	else if (events & EPOLLIN)
-	{
+	if (events & EPOLLIN)
 		fdev->read(app, fdev);
-	}
+	if (events & EPOLLOUT)
+		fdev->write(app, fdev);
 }
 
 void

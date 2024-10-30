@@ -6,9 +6,13 @@
 
 typedef struct waapp waapp_t;
 
+#define MM_STATE_STRING_MAX 128
+
 typedef struct 
 {
 	char ipaddr[INET6_ADDRSTRLEN];
+	char username[PLAYER_NAME_MAX];
+	char state[MM_STATE_STRING_MAX];
 } waapp_main_menu_t;
 
 void main_menu_init(waapp_t* app, void* data);

@@ -16,7 +16,7 @@ wayland_read(UNUSED waapp_t* app, fdevent_t* fdev)
 void 
 waapp_wayland_add_fdevent(waapp_t* app)
 {
-	client_net_add_fdevent(app, app->window->display_fd, wayland_read, NULL, app->window);
+	client_net_add_fdevent(app, app->window->display_fd, wayland_read, NULL, NULL, app->window);
 }
 
 #endif // __linux__

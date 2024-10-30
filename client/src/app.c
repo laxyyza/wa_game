@@ -60,7 +60,6 @@ nk_handle_input(waapp_t* app, const wa_event_key_t* ev)
 	const bool pressed = ev->pressed;
 	wa_state_t* state = wa_window_get_state(app->window);
 	const u8* keymap = state->key_map;
-	// const u8* 
 
 	nk_input_begin(ctx);
 	if (ev->ascii >= 32 && ev->ascii <= 126 && ev->pressed)
@@ -353,6 +352,7 @@ game_init(waapp_t* app, UNUSED void* data)
 
 	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
 	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
+	app->lock_cam = true;
 
 	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
 	ght_init(&app->players, 10, free);
