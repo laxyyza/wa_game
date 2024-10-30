@@ -478,9 +478,7 @@ waapp_run(waapp_t* app)
 	while (wa_window_running(app->window))
 	{
 		client_net_poll(app, &app->start_time, &app->end_time);
-#ifdef _WIN32
-		wa_window_poll_timeout(app->window, 0);
-#endif
+
 		if (state->window.vsync == false)
 			waapp_state_update(app->window, app);
 	}

@@ -726,7 +726,10 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	wa_state_t* state = wa_window_get_state(app->window);
 
 	if (app->net.events.count == 0)
+	{
+		wa_window_poll_timeout(app->window, 0);
 		return;
+	}
 
 	if (prev_start_time)
 	{
@@ -804,6 +807,7 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	} while(ret || timeout_time_ns > 0);
 
 	client_net_get_stats(app);
+	wa_window_poll_timeout(app->window, 0);
 }
 
 #endif // _WIN32
