@@ -87,8 +87,16 @@ client_net_del_fdevent(waapp_t* app, fdevent_t* fdev)
 		return;
 	}
 #endif
-	
-	array_pop(&net->events);
+	fdevent_t* events = (fdevent_t*)net->events.buf;
+
+	for (u32 i = 0; i < net->events.count; i++)
+	{
+		if (events[i].fd == fdev->fd)
+		{
+			array_erase(&net->events, i);
+			return;
+		}
+	}
 }
 
 fdevent_t*
