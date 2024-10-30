@@ -250,15 +250,10 @@ render_players(waapp_t* app)
 void
 waapp_opengl_draw(waapp_t* app)
 {
-    const vec4f_t* bg_color = &app->bg_color;
     ren_t* ren = &app->ren;
     wa_state_t* state = wa_window_get_state(app->window);
 
-    gui_new_frame(app);
-
     ren_bind_bro(ren, ren->default_bro);
-
-    ren_clear(&app->ren, bg_color);
 
     vec3f_t* cam = &app->cam;
 

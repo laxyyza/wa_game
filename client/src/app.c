@@ -46,23 +46,16 @@ waapp_lock_cam(waapp_t* app)
 }
 
 static void
-waapp_draw(wa_window_t* window, void* data)
+game_draw(waapp_t* app)
 {
-	waapp_t* app = data;
-	wa_state_t* state = wa_window_get_state(window);
-
     waapp_opengl_draw(app);
 	app->frames++;
-
-	if (state->window.vsync == false)
-		wa_swap_buffers(app->window);
 }
 
 static void
-waapp_handle_key(waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
+waapp_handle_key(UNUSED waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
 {
     wa_state_t* state = wa_window_get_state(window);
-	player_t* player = app->player;
 
 	switch (ev->key)
 	{
@@ -70,6 +63,19 @@ waapp_handle_key(waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
 			if (ev->pressed)
                 wa_window_set_fullscreen(window, !(state->window.state & WA_STATE_FULLSCREEN));
 			break;
+		default:
+			break;
+	}
+}
+
+static void
+game_handle_key(waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
+{
+    wa_state_t* state = wa_window_get_state(window);
+	player_t* player = app->player;
+
+	switch (ev->key)
+	{
 		case WA_KEY_V:
 			if (ev->pressed)
                 wa_window_vsync(window, !state->window.vsync);
@@ -112,6 +118,16 @@ waapp_handle_key(waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
 }
 
 static void 
+game_handle_pointer(waapp_t* app, UNUSED const wa_event_pointer_t* ev)
+{
+	if (app->player)
+	{
+		app->player->core->cursor = screen_to_world(app, &app->mouse);
+		ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &app->player->core->cursor);
+	}
+}
+
+static void 
 waapp_handle_pointer(waapp_t* app, const wa_event_pointer_t* ev)
 {
 	app->mouse.x = ev->x;
@@ -125,7 +141,7 @@ waapp_handle_pointer(waapp_t* app, const wa_event_pointer_t* ev)
 }
 
 static void 
-waapp_handle_mouse_button(waapp_t* app, wa_window_t* window, const wa_event_mouse_t* ev)
+game_handle_mouse_button(waapp_t* app, wa_window_t* window, const wa_event_mouse_t* ev)
 {
 	if (ev->button == WA_MOUSE_RIGHT)
 	{
@@ -143,16 +159,13 @@ waapp_handle_mouse_button(waapp_t* app, wa_window_t* window, const wa_event_mous
 	}
 }
 
-static void
-waapp_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
+static void 
+game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 {
 	f32 dir = (ev->value > 0) ? -1.0 : 1.0;
 
 	if (app->on_ui)
-	{
-		gui_scroll(app, 0.0, dir);
 		return;
-	}
 
 	vec2f_t old_wpos = screen_to_world(app, &app->mouse);
 
@@ -187,6 +200,14 @@ waapp_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 }
 
 static void
+waapp_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
+{
+	f32 dir = (ev->value > 0) ? -1.0 : 1.0;
+
+	gui_scroll(app, 0.0, dir);
+}
+
+static void
 waapp_resize(waapp_t* app, const wa_event_resize_t* ev)
 {
 	ren_viewport(&app->ren, ev->w, ev->h);
@@ -195,7 +216,7 @@ waapp_resize(waapp_t* app, const wa_event_resize_t* ev)
 }
 
 static void
-waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
+waapp_event(UNUSED wa_window_t* window, const wa_event_t* ev, void* data)
 {
     waapp_t* app = data;
 
@@ -204,20 +225,22 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 		case WA_EVENT_KEYBOARD:
 			waapp_handle_key(app, window, &ev->keyboard);
 			break;
-		case WA_EVENT_RESIZE:
-			waapp_resize(app, &ev->resize);
-			break;
 		case WA_EVENT_POINTER:
 			waapp_handle_pointer(app, &ev->pointer);
 			break;
-		case WA_EVENT_MOUSE_BUTTON:
-			waapp_handle_mouse_button(app, window, &ev->mouse);
+		case WA_EVENT_RESIZE:
+			waapp_resize(app, &ev->resize);
 			break;
 		case WA_EVENT_MOUSE_WHEEL:
 			waapp_handle_mouse_wheel(app, &ev->wheel);
 			break;
 		default:
 			break;
+	}
+
+	if (app->sm.current->event) 
+	{
+		app->sm.current->event(app, ev);
 	}
 }
 
@@ -264,13 +287,29 @@ update_logic(waapp_t* app)
 	}
 }
 
-static void 
-waapp_update(wa_window_t* window, waapp_t* app)
+void 
+game_init(waapp_t* app, UNUSED void* data)
+{
+	coregame_init(&app->game, true);
+	app->game.user_data = app;
+	app->game.player_free_callback = on_player_free;
+
+	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
+	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
+
+	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
+	ght_init(&app->players, 10, free);
+
+	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
+}
+
+void 
+game_update(waapp_t* app, UNUSED void* data)
 {
 	clock_gettime(CLOCK_MONOTONIC, &app->start_time);
 
 	update_logic(app);
-	waapp_draw(window, app);
+	game_draw(app);
 
 	if (app->update_vync)
 	{
@@ -288,6 +327,38 @@ waapp_update(wa_window_t* window, waapp_t* app)
 		app->frames = 0;
 		app->last_time = app->end_time;
 	}
+}
+
+i32
+game_event(waapp_t* app, const wa_event_t* ev)
+{
+	wa_window_t* window = app->window;
+
+	switch (ev->type)
+	{
+		case WA_EVENT_KEYBOARD:
+			game_handle_key(app, window, &ev->keyboard);
+			return 0;
+		case WA_EVENT_POINTER:
+			game_handle_pointer(app, &ev->pointer);
+			return 0;
+		case WA_EVENT_MOUSE_BUTTON:
+			game_handle_mouse_button(app, window, &ev->mouse);
+			return 0;
+		case WA_EVENT_MOUSE_WHEEL:
+			game_handle_mouse_wheel(app, &ev->wheel);
+			return 0;
+		default:
+			return 1;
+	}
+}
+
+void 
+game_exit(waapp_t* app, UNUSED void* data)
+{
+	ren_delete_bro(app->line_bro);
+	ght_destroy(&app->players);
+	coregame_cleanup(&app->game);
 }
 
 i32 
@@ -309,44 +380,23 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     state = wa_window_get_state(app->window);
     state->window.wayland.app_id = app_id;
     state->user_data = app;
-    state->callbacks.update = (void (*)(wa_window_t* window, void* data)) waapp_update;
+    state->callbacks.update = (void (*)(wa_window_t* window, void* data)) waapp_state_update;
     state->callbacks.event = waapp_event;
     state->callbacks.close = waapp_close;
 
     app->bg_color = rgba(0x333333FF);
-	app->lock_cam = true;
 
-    // if (argc == 2 && fullscreen == false)
-    //     app->texture_path = argv[1];
-    // else if (argc == 3)
-    //     app->texture_path = argv[2];
-    // else 
-    //     app->texture_path = "res/test.png";
-    //
     if (waapp_opengl_init(app) == false)
     {
         wa_window_delete(app->window);
         return -1;
     }
-
-	coregame_init(&app->game, true);
-	app->game.user_data = app;
-	app->game.player_free_callback = on_player_free;
-
-	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
-	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
-
-	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
-	ght_init(&app->players, 10, free);
-
-	app->line_bro = ren_new_bro(DRAW_LINES, 4, NULL, NULL, &app->ren.default_bro->shader);
-
-	const char* ipaddr = (argc == 1) ? "127.0.0.1" : argv[1];
-
-	client_net_init(app, ipaddr, 8080);
-
 	mmframes_init(&app->mmf);
-	
+
+	client_net_init(app);
+
+	waapp_state_manager_init(app);	
+
     return 0;
 }
 
@@ -375,7 +425,7 @@ waapp_run(waapp_t* app)
 		wa_window_poll_timeout(app->window, 0);
 #endif
 		if (state->window.vsync == false)
-			waapp_update(app->window, app);
+			waapp_state_update(app->window, app);
 	}
 }
 

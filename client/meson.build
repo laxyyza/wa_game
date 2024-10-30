@@ -23,6 +23,8 @@ src = files(
     'src/player.c',
     'src/client_net.c',
     'src/app_wayland.c',
+    'src/state.c',
+    'src/main_menu.c',
 )
 deps = [m_dep]
 

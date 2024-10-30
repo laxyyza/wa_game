@@ -231,9 +231,43 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 }
 
 i32 
-client_net_init(waapp_t* app, const char* ipaddr, u16 port)
+client_net_connect(waapp_t* app, const char* ipaddr, u16 port)
 {
 	i32 ret;
+	client_net_t* net = &app->net;
+
+	ssp_tcp_sock_create(&net->tcp.sock, SSP_IPv4);
+	if ((ret = ssp_tcp_connect(&net->tcp.sock, ipaddr, port)) == 0)
+	{
+		ssp_segbuff_init(&net->tcp.buf, 10, 0);
+		net->udp.ipaddr = ipaddr;
+
+		net_tcp_connect_t connect = {
+			.username = "Test User"
+		};
+
+		ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
+		ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
+
+		client_net_add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, &net->tcp.sock);
+
+		net->udp.fd = socket(AF_INET, SOCK_DGRAM, 0);
+		net->udp.server.addr.sin_family = AF_INET;
+		net->udp.server.addr.sin_addr.s_addr = inet_addr(ipaddr);
+		net->udp.server.addr_len = sizeof(struct sockaddr_in);
+
+		client_net_add_fdevent(app, net->udp.fd, udp_read, NULL, NULL);
+
+		client_net_poll(app, NULL, NULL);
+
+	}
+	return ret;
+}
+
+i32 
+client_net_init(waapp_t* app)
+{
+	i32 ret = 0;
 	client_net_t* net = &app->net;
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_SESSION_ID] = (ssp_segmap_callback_t)session_id;
@@ -255,75 +289,15 @@ client_net_init(waapp_t* app, const char* ipaddr, u16 port)
 	WSAStartup(MAKEWORD(2, 2), &net->wsa_data);
 #endif
 
-	ssp_tcp_sock_create(&net->tcp.sock, SSP_IPv4);
-	if ((ret = ssp_tcp_connect(&net->tcp.sock, ipaddr, port)) == 0)
-	{
-		ssp_segbuff_init(&net->tcp.buf, 10, 0);
-		net->udp.ipaddr = ipaddr;
-
-		net_tcp_connect_t connect = {
-			.username = "Test User"
-		};
-
-		ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
-		ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
-
 #ifdef __linux__
-		net->epfd = epoll_create1(EPOLL_CLOEXEC);
+	net->epfd = epoll_create1(EPOLL_CLOEXEC);
+	waapp_wayland_add_fdevent(app);
 #endif
-
-		client_net_add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, &net->tcp.sock);
-
-		net->udp.fd = socket(AF_INET, SOCK_DGRAM, 0);
-		net->udp.server.addr.sin_family = AF_INET;
-		net->udp.server.addr.sin_addr.s_addr = inet_addr(ipaddr);
-		net->udp.server.addr_len = sizeof(struct sockaddr_in);
-
-		client_net_add_fdevent(app, net->udp.fd, udp_read, NULL, NULL);
-
-		client_net_poll(app, NULL, NULL);
-
-#ifdef __linux__
-		waapp_wayland_add_fdevent(app);
-#endif
-	}
 
 	return ret;
 }
 
 #ifdef __linux__
-// void
-// client_net_poll(waapp_t* app, i32 timeout)
-// {
-// 	client_net_t* net = &app->net;
-// 	struct epoll_event events[MAX_EVENTS];
-// 	i32 nfds;
-//
-// 	do {
-// 		if ((nfds = epoll_wait(net->epfd, events, MAX_EVENTS, timeout)) == -1)
-// 		{
-// 			perror("epoll_wait");
-// 			return;
-// 		}
-//
-// 		for (i32 i = 0; i < nfds; i++)
-// 		{
-// 			struct epoll_event* ev = events + i;
-// 			fdevent_t* fdev = ev->data.ptr;
-//
-// 			if (ev->events & (EPOLLERR | EPOLLHUP))
-// 			{
-// 				fdev->close(app, fdev);
-// 			}
-// 			else if (ev->events & EPOLLIN)
-// 			{
-// 				fdev->read(app, fdev);
-// 			}
-// 		}
-// 	} while(nfds && timeout == 0);
-//
-// 	client_net_get_stats(app);
-// }
 
 static inline void
 ns_to_timespec(struct timespec* timespec, i64 ns)
@@ -506,53 +480,6 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	client_net_get_stats(app);
 }
 
-// void
-// client_net_poll(waapp_t* app, i32 timeout)
-// {
-// 	client_net_t* net = &app->net;
-// 	sock_t max_fd = 0;
-// 	i32 ret;
-// 	fdevent_t* events = (fdevent_t*)net->events.buf;
-// 	struct timeval timeval = {0, 0};
-//
-// 	do {
-// 		FD_ZERO(&net->read_fds);
-// 		FD_ZERO(&net->execpt_fds);
-// 		for (u32 i = 0; i < net->events.count; i++)
-// 		{
-// 			fdevent_t* fdev = events + i;
-// 			FD_SET(fdev->fd, &net->read_fds);
-// 			FD_SET(fdev->fd, &net->execpt_fds);
-// 			if (fdev->fd > max_fd)
-// 				max_fd = fdev->fd;
-// 		}
-//
-// 		ret = select(max_fd + 1, &net->read_fds, NULL, &net->execpt_fds, (timeout == -1) ? NULL : &timeval);
-// 		if (ret == -1)
-// 		{
-// 			perror("select");
-// 			return;
-// 		}
-// 		else if (ret > 0)
-// 		{
-// 			for (u32 i = 0; i < net->events.count; i++)
-// 			{
-// 				fdevent_t* fdev = events + i;
-// 				if (FD_ISSET(fdev->fd, &net->execpt_fds))
-// 				{
-// 					if (fdev->close)
-// 						fdev->close(app, fdev);
-// 				}
-// 				else if (FD_ISSET(fdev->fd, &net->read_fds))
-// 				{
-// 					fdev->read(app, fdev);
-// 				}
-// 			}
-// 		}
-// 	} while(ret > 0 && timeout == 0);
-//
-// 	client_net_get_stats(app);
-// }
 #endif // _WIN32
 
 static void 
@@ -587,6 +514,9 @@ void
 client_net_get_stats(waapp_t* app)
 {
 	client_net_t* net = &app->net;
+
+	if (net->tcp.sock.connected == false)
+		return;
 
 	clock_gettime(CLOCK_MONOTONIC, &net->udp.current_time);
 

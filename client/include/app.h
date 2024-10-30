@@ -9,6 +9,7 @@
 #include "player.h"
 #include "client_net.h"
 #include "mmframes.h"
+#include "state.h"
 
 struct nk_wa;
 struct nk_conext;
@@ -33,6 +34,7 @@ typedef struct waapp
 
 	client_net_t net;
 	mmframes_t mmf;
+	waapp_state_manager_t sm;
 
     vec2f_t mouse;
     vec2f_t mouse_prev;
@@ -72,5 +74,10 @@ screen_to_world(waapp_t* app, const vec2f_t* screen_pos)
 		(screen_pos->y / app->ren.scale.y) - (app->cam.y / app->ren.scale.y)
 	);
 }
+
+void game_init(waapp_t* app, void* data);
+void game_update(waapp_t* app, void* data);
+i32  game_event(waapp_t* app, const wa_event_t* ev);
+void game_exit(waapp_t* app, void* data);
 
 #endif // _WAAPP_H_
