@@ -16,7 +16,6 @@ map_editor_init(waapp_t* app, waapp_map_editor_t* editor)
 void 
 map_editor_enter(waapp_t* app, waapp_map_editor_t* editor)
 {
-	printf("map_editor_enter()\n");
 	editor->og_zoom_min = app->min_zoom;
 	app->min_zoom = 0.1;
 

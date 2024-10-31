@@ -3,24 +3,22 @@
 #include "nuklear.h"
 
 void 
-main_menu_init(UNUSED waapp_t* app, void* data)
+main_menu_init(UNUSED waapp_t* app, waapp_main_menu_t* mm)
 {
-	waapp_main_menu_t* mm = data;
 	strncpy(mm->ipaddr, "127.0.0.1", INET6_ADDRSTRLEN);
 	strncpy(mm->username, "username", PLAYER_NAME_MAX);
 }
 
 void 
-main_menu_enter(UNUSED waapp_t* app, UNUSED void* data)
+main_menu_enter(UNUSED waapp_t* app, waapp_main_menu_t* mm)
 {
-
+	mm->state[0] = 0x00;
 }
 
 void 
-main_menu_update(waapp_t* app, void* data)
+main_menu_update(waapp_t* app, waapp_main_menu_t* mm)
 {
 	struct nk_context* ctx = app->nk_ctx;
-	waapp_main_menu_t* mm = data;
 
 	nk_flags flags = NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | 
 					NK_WINDOW_TITLE | NK_WINDOW_SCALABLE | NK_WINDOW_CLOSABLE;
@@ -60,13 +58,13 @@ main_menu_event(UNUSED waapp_t* app, UNUSED const wa_event_t* ev)
 }
 
 void 
-main_menu_exit(UNUSED waapp_t* app, UNUSED void* data)
+main_menu_exit(UNUSED waapp_t* app, UNUSED waapp_main_menu_t* mm)
 {
 
 }
 
 void 
-main_menu_cleanup(UNUSED waapp_t* app, UNUSED void* data)
+main_menu_cleanup(UNUSED waapp_t* app, UNUSED waapp_main_menu_t* mm)
 {
 
 }

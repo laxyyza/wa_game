@@ -15,11 +15,11 @@ typedef struct
 	char state[MM_STATE_STRING_MAX];
 } waapp_main_menu_t;
 
-void main_menu_init(waapp_t* app, void* data);
-void main_menu_enter(waapp_t* app, void* data);
-void main_menu_update(waapp_t* app, void* data);
+void main_menu_init(waapp_t* app, waapp_main_menu_t* mm);
+void main_menu_enter(waapp_t* app, waapp_main_menu_t* mm);
+void main_menu_update(waapp_t* app, waapp_main_menu_t* mm);
 i32 main_menu_event(waapp_t* app, const wa_event_t* ev);
-void main_menu_exit(waapp_t* app, void* data);
-void main_menu_cleanup(waapp_t* app, void* data);
+void main_menu_exit(waapp_t* app, waapp_main_menu_t* mm);
+void main_menu_cleanup(waapp_t* app, waapp_main_menu_t* mm);
 
 #endif // _WAAPP_MAIN_MENU_H_
