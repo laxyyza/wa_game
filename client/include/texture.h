@@ -16,6 +16,7 @@ typedef struct
     i32 w;
     i32 h;
     i32 bpp;    // Bits Per Pixel
+	const char* name;
 } texture_t;
 
 texture_t* texture_load(const char* filename, enum filter);

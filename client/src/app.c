@@ -357,7 +357,9 @@ game_init(waapp_t* app, UNUSED void* data)
 	app->game.player_free_callback = on_player_free;
 
 	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
+	app->tank_bottom_tex->name = "Tank Bottom";
 	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
+	app->tank_top_tex->name = "Tank Top";
 	app->lock_cam = true;
 
 	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
@@ -486,6 +488,11 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 	waapp_state_manager_init(app);	
 
 	app->keybind.cam_move = WA_MOUSE_RIGHT;
+
+	app->grass_tex = texture_load("res/grass.png", TEXTURE_NEAREST);
+	app->grass_tex->name = "Grass";
+	app->block_tex = texture_load("res/block.png", TEXTURE_NEAREST);
+	app->block_tex->name = "Block";
 
     return 0;
 }

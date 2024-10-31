@@ -19,7 +19,6 @@ src = files(
     'src/file.c',
     'src/gui/gui.c',
     'src/util.c',
-    'src/loading.c',
     'src/player.c',
     'src/client_net.c',
     'src/app_wayland.c',

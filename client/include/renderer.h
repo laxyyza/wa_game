@@ -9,7 +9,7 @@
 #include "rect.h"
 
 #define TRIA_VERT 3
-#define NO_TEXTURE -1.0
+#define NO_TEXTURE -1
 
 enum draw_mode
 {
@@ -32,9 +32,9 @@ typedef struct batch_render_obj
     vertlayout_t layout;
     idxbuf_t ibo;
     shader_t shader;
-    ght_t textures;
     bool textures_changed;
 	bool shared_shader;
+	array_t current_textures;
 
     u32 draw_mode;
 } bro_t;
@@ -65,8 +65,6 @@ typedef struct renderer
     // bool textures_changed;
 
     u32     max_texture_units;
-    u32*    texture_slots;
-    u32     texture_idx;
 
 	vec2f_t viewport;
 	vec2f_t cam;
@@ -75,7 +73,7 @@ typedef struct renderer
 void ren_init(ren_t* ren);
 void ren_del(ren_t* ren);
 void ren_viewport(ren_t* ren, i32 w, i32 h);
-void bro_bind_submit(ren_t* ren, bro_t* bro);
+void bro_bind_submit(bro_t* bro);
 bro_t* ren_new_bro(enum draw_mode mode, u32 max_vb_count, const char* vert_shader, const char* frad_shader, const shader_t* shared_shader);
 void ren_bind_bro(ren_t* ren, bro_t* bro);
 void ren_delete_bro(bro_t* bro);

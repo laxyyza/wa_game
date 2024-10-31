@@ -23,6 +23,8 @@ typedef struct waapp
 
 	texture_t* tank_bottom_tex;
 	texture_t* tank_top_tex;
+	texture_t* grass_tex;
+	texture_t* block_tex;
 
 	rect_t world_border;
 	coregame_t game;

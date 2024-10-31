@@ -12,7 +12,7 @@
 #include <math.h>
 
 #define INITIAL_IBO 16
-#define MAX_VERTICES 1024
+#define MAX_VERTICES 4096
 
 static void 
 enable_blending(void)
@@ -23,23 +23,27 @@ enable_blending(void)
 }
 
 static void
-set_uniform_textures(ren_t* ren, bro_t* bro)
+set_uniform_textures(bro_t* bro)
 {
-    if (ren->texture_idx == 0)
+    if (bro->current_textures.count == 0)
+	{
         return;
+	}
 
-    u32* ids = malloc(ren->texture_idx * sizeof(u32));
+	u32 tex_count = bro->current_textures.count;
+    i32* indexes = malloc(tex_count * sizeof(u32));
+	i32* texture_ids = (i32*)bro->current_textures.buf;
 
-    for (u32 i = 0; i < ren->texture_idx; i++)
+    for (u32 i = 0; i < tex_count; i++)
     {
-        glBindTextureUnit(i, ren->texture_slots[i]);
-        ids[i] = i;
+        glBindTextureUnit(i, texture_ids[i]);
+        indexes[i] = i;
     }
 
-    shader_uniform1iv(&bro->shader, "u_textures", (i32*)ids, ren->texture_idx);
+    shader_uniform1iv(&bro->shader, "u_textures", (i32*)indexes, tex_count);
 
-    free(ids);
-    ren->texture_idx = 0;
+    free(indexes);
+	array_clear(&bro->current_textures, false);
 }
 
 static void
@@ -52,7 +56,7 @@ ren_def_bro(ren_t* ren)
 }
 
 void
-bro_bind_submit(ren_t* ren, bro_t* bro)
+bro_bind_submit(bro_t* bro)
 {
     vertarray_bind(&bro->vao);
 
@@ -64,7 +68,7 @@ bro_bind_submit(ren_t* ren, bro_t* bro)
 
     shader_bind(&bro->shader);
 
-    set_uniform_textures(ren, bro);
+    set_uniform_textures(bro);
 }
 
 bro_t*
@@ -110,7 +114,7 @@ ren_new_bro(enum draw_mode draw_mode, u32 max_vb_count, const char* vert_shader,
 		bro->shared_shader = false;
 	}
 
-    ght_init(&bro->textures, 8, (ght_free_t)texture_del);
+	array_init(&bro->current_textures, sizeof(u32), 10);
 
     return bro;
 }
@@ -118,16 +122,16 @@ ren_new_bro(enum draw_mode draw_mode, u32 max_vb_count, const char* vert_shader,
 void 
 ren_delete_bro(bro_t* bro)
 {
-    if (bro == NULL)
-        return;
+	if (bro == NULL)
+		return;
 
-    ght_destroy(&bro->textures);
 	if (bro->shared_shader == false)
 		shader_del(&bro->shader);
     idxbuf_del(&bro->ibo);
     vertlayout_del(&bro->layout);
     vertbuf_del(&bro->vbo);
     vertarray_del(&bro->vao);
+	array_del(&bro->current_textures);
 }
 
 void 
@@ -142,16 +146,12 @@ ren_init(ren_t* ren)
     ren_set_scale(ren, &ren->scale);
 
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, (i32*)&ren->max_texture_units);
-    ren->texture_slots = calloc(ren->max_texture_units, sizeof(u32));
-    ren->texture_idx = 0;
 }
 
 static void
 ren_set_mvp(ren_t* ren)
 {
-    // mat4_t tmp;
     mat4_mul(&ren->mvp, &ren->view, &ren->proj);
-    // mat4_mul(&ren->mvp, &tmp, &ren->model);
     shader_bind(&ren->current_bro->shader);
     shader_uniform_mat4f(&ren->current_bro->shader, "mvp", &ren->mvp);
 }
@@ -232,20 +232,21 @@ ren_add_rect_indices(bro_t* bro, u32 v)
 }
 
 static f32 
-ren_texture_idx(ren_t* ren, texture_t* texture)
+bro_texture_idx(bro_t* bro, texture_t* texture)
 {
     if (texture == NULL)
         return NO_TEXTURE;
 
     f32 ret;
+	u32* texture_ids = (u32*)bro->current_textures.buf;
 
-    for (u32 i = 0; i < ren->texture_idx; i++)
-        if (ren->texture_slots[i] == texture->id)
+    for (u32 i = 0; i < bro->current_textures.count; i++)
+	{
+        if (texture_ids[i] == texture->id)
             return (f32)i;
-
-    ren->texture_slots[ren->texture_idx] = texture->id;
-    ret = ren->texture_idx;
-    ren->texture_idx++;
+	}
+	ret = (f32)bro->current_textures.count;
+	array_add_i32(&bro->current_textures, texture->id);
     return ret;
 }
 
@@ -263,7 +264,7 @@ ren_draw_rect_norm(ren_t* ren, const rect_t* rect)
     const u32 v = bro->vbo.count;
     vertex_t* vertices = bro->vbo.buf + v;
 
-    f32 texture_idx = ren_texture_idx(ren, rect->texture);
+    i32 texture_idx = bro_texture_idx(bro, rect->texture);
 
     if (bro->draw_mode == GL_LINES)
         texture_idx = NO_TEXTURE;
@@ -332,7 +333,7 @@ ren_draw_rect(ren_t* ren, const rect_t* rect)
     bro_t* bro = ren->current_bro;
 
     if (bro->vbo.count + RECT_VERT > bro->vbo.max_count || 
-        ren->texture_idx >= ren->max_texture_units)
+        bro->current_textures.count >= ren->max_texture_units)
         ren_draw_batch(ren);
 
     const vec2f_t* size = (vec2f_t*)&rect->size;
@@ -341,7 +342,7 @@ ren_draw_rect(ren_t* ren, const rect_t* rect)
     const u32 v = bro->vbo.count;
     vertex_t* vertices = bro->vbo.buf + v;
 
-    f32 texture_idx = ren_texture_idx(ren, rect->texture);
+    f32 texture_idx = bro_texture_idx(bro, rect->texture);
 
     // f32 texture_id = (rect->texture) ? rect->texture->id: NO_TEXTURE;
     if (bro->draw_mode == GL_LINES)
@@ -447,7 +448,7 @@ ren_draw_batch(ren_t* ren)
 {
     bro_t* bro = ren->current_bro;
 
-    bro_bind_submit(ren, bro);
+    bro_bind_submit(bro);
     const idxbuf_t* ib = &bro->ibo;
 
     glDrawElements(bro->draw_mode, ib->array.count, ib->type, NULL);
@@ -461,5 +462,4 @@ ren_del(ren_t* ren)
 {
     // vertbuf_unmap(&ren->vertbuf);
     ren_delete_bro(ren->default_bro);
-    free(ren->texture_slots);
 }
