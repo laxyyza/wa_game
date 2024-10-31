@@ -260,7 +260,8 @@ waapp_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 {
 	f32 dir = (ev->value > 0) ? -1.0 : 1.0;
 
-	gui_scroll(app, 0.0, dir);
+	if (app->on_ui)
+		gui_scroll(app, 0.0, dir);
 }
 
 static void

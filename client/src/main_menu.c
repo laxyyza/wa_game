@@ -37,7 +37,10 @@ main_menu_update(waapp_t* app, void* data)
 		}
 
 		nk_label(ctx, mm->state, NK_TEXT_CENTERED);
+		app->on_ui = true;
 	}
+	else 
+		app->on_ui = false;
 	nk_end(ctx);
 }
 
