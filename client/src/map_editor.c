@@ -7,14 +7,19 @@ void
 map_editor_init(waapp_t* app, waapp_map_editor_t* editor)
 {
 	wa_state_t* state = wa_window_get_state(app->window);
-
-	editor->og_zoom_min = app->min_zoom;
-	app->min_zoom = 0.1;
+	editor->mouse_map = state->mouse_map;
 
 	if ((editor->map = cg_map_load("res/test.cgmap")) == NULL)
 		editor->map = cg_map_new(100, 100, 100);
+}
 
-	editor->mouse_map = state->mouse_map;
+void 
+map_editor_enter(waapp_t* app, waapp_map_editor_t* editor)
+{
+	printf("map_editor_enter()\n");
+	editor->og_zoom_min = app->min_zoom;
+	app->min_zoom = 0.1;
+
 	app->keybind.cam_move = WA_MOUSE_MIDDLE;
 }
 
@@ -62,11 +67,17 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 
 	waapp_render_map(app, editor->map, true);
 
-	nk_flags flags = NK_WINDOW_TITLE;
+	nk_flags flags = NK_WINDOW_TITLE | NK_WINDOW_BORDER;
 
 	if (nk_begin(ctx, "Map Editor", nk_rect(0, 0, 300, app->ren.viewport.y), flags))
 	{
 		nk_layout_row_dynamic(ctx, 30, 1);
+
+		if (nk_button_label(ctx, "Main Menu"))
+		{
+			waapp_state_switch(app, &app->sm.states.main_menu);
+		}
+
 		if (nk_button_label(ctx, "Save"))
 		{
 			if (cg_map_save(editor->map, "res/test.cgmap"))
@@ -92,4 +103,10 @@ void
 map_editor_exit(waapp_t* app, waapp_map_editor_t* editor)
 {
 	app->min_zoom = editor->og_zoom_min;
+}
+
+void 
+map_editor_cleanup(UNUSED waapp_t* app, UNUSED waapp_map_editor_t* editor)
+{
+	printf("TODO: Implement map_editor_cleanup().\n");
 }

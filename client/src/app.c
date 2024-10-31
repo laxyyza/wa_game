@@ -422,11 +422,15 @@ game_event(waapp_t* app, const wa_event_t* ev)
 }
 
 void 
-game_exit(waapp_t* app, UNUSED void* data)
+game_cleanup(waapp_t* app, UNUSED void* data)
 {
-	ren_delete_bro(app->line_bro);
+	texture_del(app->tank_bottom_tex);
+	texture_del(app->tank_top_tex);
+
 	ght_destroy(&app->players);
 	coregame_cleanup(&app->game);
+	client_net_disconnect(app);
+	app->player = NULL;
 }
 
 void
@@ -534,7 +538,6 @@ void
 waapp_cleanup(waapp_t* app)
 {
 	mmframes_free(&app->mmf);
-	coregame_cleanup(&app->game);
 	ren_delete_bro(app->line_bro);
     waapp_opengl_cleanup(app);
     wa_window_delete(app->window);

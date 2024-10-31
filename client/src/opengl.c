@@ -175,6 +175,11 @@ waapp_gui(waapp_t* app)
 		snprintf(udp_in_stat, 256, "Draw calls: %u", app->ren.draw_calls);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
+		if (nk_button_label(ctx, "Main Menu"))
+		{
+			waapp_state_switch(app, &app->sm.states.main_menu);
+		}
+
     }
     nk_end(ctx);
     if (nk_window_is_hidden(ctx, window_name))

@@ -65,6 +65,8 @@ typedef struct
 
 	const char* ipaddr;
 	u16 port;
+
+	fdevent_t* fdev;
 } client_udp_t;
 
 typedef struct 
@@ -80,6 +82,7 @@ typedef struct
 	struct {
 		ssp_tcp_sock_t	sock;
 		ssp_segbuff_t	buf;
+		fdevent_t*		fdev;
 	} tcp;
 
 	client_udp_t udp;
@@ -96,6 +99,7 @@ typedef struct
 
 i32 client_net_init(waapp_t* app);
 i32 client_net_connect(waapp_t* app, const char* ipaddr, u16 port);
+void client_net_disconnect(waapp_t* app);
 const char* client_net_async_connect(waapp_t* app, const char* addr);
 void client_net_poll(waapp_t* app, struct timespec* start_time, struct timespec* end_time);
 // void client_net_poll(waapp_t* app, i32 timeout);

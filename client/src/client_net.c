@@ -166,27 +166,42 @@ client_net_on_connect(waapp_t* app)
 }
 
 void
-client_net_del_fdevent(waapp_t* app, fdevent_t* fdev)
+client_net_del_fdevent(waapp_t* app, sock_t fd)
 {
 	client_net_t* net = &app->net;
 
-#ifdef __linux__
-	if (epoll_ctl(net->epfd, EPOLL_CTL_DEL, fdev->fd, NULL) == -1)
-	{
-		perror("epoll_ctl DEL");
-		return;
-	}
-#endif
 	fdevent_t* events = (fdevent_t*)net->events.buf;
 
 	for (u32 i = 0; i < net->events.count; i++)
 	{
-		if (events[i].fd == fdev->fd)
+		if (events[i].fd == fd)
 		{
 			array_erase(&net->events, i);
-			return;
+			break;
 		}
 	}
+
+#ifdef __linux__
+	if (epoll_ctl(net->epfd, EPOLL_CTL_DEL, fd, NULL) == -1)
+	{
+		perror("epoll_ctl DEL");
+		return;
+	}
+
+	// Update pointers.
+	for (u32 i = 0; i < net->events.count; i++)
+	{
+		fdevent_t* fdev = events + i;
+
+		struct epoll_event ev = {
+			.data.ptr = fdev,
+			.events = fdev->events
+		};
+
+		if (epoll_ctl(net->epfd, EPOLL_CTL_MOD, fdev->fd, &ev) == -1)
+			perror("del_fdevent epoll_ctl MOD");
+	}
+#endif
 }
 
 fdevent_t*
@@ -251,21 +266,12 @@ client_net_fdevent_del_write(UNUSED waapp_t* app, fdevent_t* fdev)
 #endif // _WIN32
 
 static void
-tcp_close(UNUSED waapp_t* app, fdevent_t* fdev)
+tcp_close(waapp_t* app, fdevent_t* fdev)
 {
 	ssp_tcp_sock_t* sock = fdev->data;
 
-#ifdef __linux__
-	if (epoll_ctl(app->net.epfd, EPOLL_CTL_DEL, fdev->fd, NULL) == -1)
-		perror("epoll_ctl DEL");
-#endif
-
+	client_net_del_fdevent(app, fdev->fd);
 	ssp_tcp_sock_close(sock);
-	// TODO: Remove fdevent_t from app->net.events
-	// free(fdev);
-
-	printf("TCP Socket Disconnected.\n");
-
 }
 
 static void
@@ -296,7 +302,7 @@ tcp_error(waapp_t* app, fdevent_t* fdev, i32 error_code)
 		errstr = client_net_errstr(error_code);
 		snprintf(mm->state, MM_STATE_STRING_MAX, "FAILED: %s (%d)", errstr, error_code);
 
-		client_net_del_fdevent(app, fdev);
+		client_net_del_fdevent(app, fdev->fd);
 		ssp_tcp_sock_close(s);
 		ssp_tcp_sock_create(s, s->addr.domain);
 	}
@@ -326,6 +332,23 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 	free(buf);
 }
 
+static void
+udp_close(waapp_t* app)
+{
+	client_net_t* net = &app->net;
+
+	if (net->udp.fdev == NULL)
+		return;
+
+	client_net_del_fdevent(app, net->udp.fd);
+#ifdef __linux__
+	close(net->udp.fd);
+#elif _WIN32
+	closesocket(net->udp.fd);
+#endif
+	memset(&net->udp, 0, sizeof(client_udp_t));
+}
+
 void
 client_net_udp_init(waapp_t* app)
 {
@@ -338,7 +361,7 @@ client_net_udp_init(waapp_t* app)
 	net->udp.server.addr_len = sizeof(struct sockaddr_in);
 	net->udp.ipaddr = ipaddr;
 
-	client_net_add_fdevent(app, net->udp.fd, udp_read, NULL, NULL, NULL);
+	net->udp.fdev = client_net_add_fdevent(app, net->udp.fd, udp_read, NULL, NULL, NULL);
 }
 
 static void
@@ -547,8 +570,8 @@ client_net_async_connect(waapp_t* app, const char* addr)
 		}
 	}
 
-	fdevent_t* fdev = client_net_add_fdevent(app, sock->sockfd, tcp_read, tcp_close, write_cb, sock);
-	fdev->error = tcp_error;
+	net->tcp.fdev = client_net_add_fdevent(app, sock->sockfd, tcp_read, tcp_close, write_cb, sock);
+	net->tcp.fdev->error = tcp_error;
 
 	if (write_cb == NULL)
 	{
@@ -594,6 +617,20 @@ client_net_init(waapp_t* app)
 	ssp_segbuff_init(&net->tcp.buf, 10, 0);
 
 	return ret;
+}
+
+void 
+client_net_disconnect(waapp_t* app)
+{
+	client_net_t* net = &app->net;
+
+	if (net->tcp.fdev)
+	{
+		tcp_close(app, net->tcp.fdev);
+		net->tcp.fdev = NULL;
+		ssp_tcp_sock_create(&net->tcp.sock, net->tcp.sock.addr.domain);
+	}
+	udp_close(app);
 }
 
 #ifdef __linux__
@@ -832,6 +869,9 @@ client_udp_send(waapp_t* app, ssp_packet_t* packet)
 static void
 client_net_ping_server(waapp_t* app)
 {
+	if (app->net.udp.port == 0)
+		return;
+
 	ssp_packet_t* packet;
 	net_udp_pingpong_t ping;
 	clock_gettime(CLOCK_MONOTONIC, &ping.start_time);

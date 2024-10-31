@@ -11,6 +11,12 @@ main_menu_init(UNUSED waapp_t* app, void* data)
 }
 
 void 
+main_menu_enter(UNUSED waapp_t* app, UNUSED void* data)
+{
+
+}
+
+void 
 main_menu_update(waapp_t* app, void* data)
 {
 	struct nk_context* ctx = app->nk_ctx;
@@ -55,6 +61,12 @@ main_menu_event(UNUSED waapp_t* app, UNUSED const wa_event_t* ev)
 
 void 
 main_menu_exit(UNUSED waapp_t* app, UNUSED void* data)
+{
+
+}
+
+void 
+main_menu_cleanup(UNUSED waapp_t* app, UNUSED void* data)
 {
 
 }

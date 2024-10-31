@@ -88,7 +88,7 @@ screen_to_world(waapp_t* app, const vec2f_t* screen_pos)
 void game_init(waapp_t* app, void* data);
 void game_update(waapp_t* app, void* data);
 i32  game_event(waapp_t* app, const wa_event_t* ev);
-void game_exit(waapp_t* app, void* data);
+void game_cleanup(waapp_t* app, void* data);
 void game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev);
 
 #endif // _WAAPP_H_
