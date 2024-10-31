@@ -64,6 +64,9 @@ typedef struct waapp
 	struct {
 		wa_mouse_butt_t cam_move;
 	} keybind;
+
+	f32 min_zoom;
+	f32 max_zoom;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, const char** argv);

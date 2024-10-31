@@ -205,6 +205,12 @@ game_handle_mouse_button(waapp_t* app, const wa_event_mouse_t* ev)
 	}
 }
 
+static f32
+clampf(f32 val, f32 min, f32 max)
+{
+	return fmaxf(min, fminf(val, max));
+}
+
 void 
 game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 {
@@ -224,12 +230,9 @@ game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 	{
 		app->ren.scale.x -= 0.1;
 		app->ren.scale.y -= 0.1;
-
-		if (app->ren.scale.x < 0.1)
-			app->ren.scale.x = 0.1;
-		if (app->ren.scale.y < 0.1)
-			app->ren.scale.y = 0.1;
 	}
+	app->ren.scale.x = app->ren.scale.y = clampf(app->ren.scale.x, app->min_zoom, app->max_zoom);
+
 	ren_set_scale(&app->ren, &app->ren.scale);
 
 	if (app->lock_cam)
@@ -493,6 +496,9 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 	app->grass_tex->name = "Grass";
 	app->block_tex = texture_load("res/block.png", TEXTURE_NEAREST);
 	app->block_tex->name = "Block";
+
+	app->min_zoom = 0.4;
+	app->max_zoom = 4.0;
 
     return 0;
 }

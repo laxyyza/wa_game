@@ -10,6 +10,7 @@ typedef struct
 {
 	cg_map_t* map;
 	const u8* mouse_map;
+	f32 og_zoom_min;
 } waapp_map_editor_t;
 
 void map_editor_init(waapp_t* app, waapp_map_editor_t* editor);

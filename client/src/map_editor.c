@@ -8,6 +8,9 @@ map_editor_init(waapp_t* app, waapp_map_editor_t* editor)
 {
 	wa_state_t* state = wa_window_get_state(app->window);
 
+	editor->og_zoom_min = app->min_zoom;
+	app->min_zoom = 0.1;
+
 	if ((editor->map = cg_map_load("res/test.cgmap")) == NULL)
 		editor->map = cg_map_new(100, 100, 100);
 
@@ -86,6 +89,7 @@ map_editor_event(waapp_t* app, const wa_event_t* ev)
 }
 
 void 
-map_editor_exit(UNUSED waapp_t* app, UNUSED waapp_map_editor_t* editor)
+map_editor_exit(waapp_t* app, waapp_map_editor_t* editor)
 {
+	app->min_zoom = editor->og_zoom_min;
 }
