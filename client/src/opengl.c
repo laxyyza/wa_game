@@ -239,6 +239,75 @@ render_players(waapp_t* app)
 	});
 }
 
+static void
+render_cell(waapp_t* app, const cg_map_t* map, const cg_cell_t* cell)
+{
+	const u32 grid_size = map->header.grid_size;
+	ren_t* ren = &app->ren;
+
+	if (cell->type == CG_CELL_BLOCK)
+	{
+		rect_t cell_rect = {0};
+		rect_init(&cell_rect, 
+			vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size), 
+			vec2f(grid_size, grid_size), 0x00FF00FF, NULL);
+		ren_draw_rect(ren, &cell_rect);
+	}
+}
+
+static void
+render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h)
+{
+	ren_t* ren = &app->ren;
+	vec2f_t start;
+	vec2f_t end;
+
+	ren_bind_bro(ren, app->line_bro);
+	u32 line_color = 0x000000FF;
+	u32 edge_color = 0xFF0000FF;
+	u32 color;
+
+	for (u32 x = 0; x <= w; x++)
+	{
+		start = vec2f(x * cell_size_w, 0);
+		end	  = vec2f(start.x, h * cell_size_h);
+
+		if (x == 0 || x == w)
+			color = edge_color;
+		else
+			color = line_color;
+
+		ren_draw_line(ren, &start, &end, color);
+	}
+
+	for (u32 y = 0; y <= h; y++)
+	{
+		start = vec2f(0,	y * cell_size_h);
+		end   =	vec2f(w * cell_size_w, start.y);
+
+		if (y == 0 || y == h)
+			color = edge_color;
+		else
+			color = line_color;
+		
+		ren_draw_line(ren, &start, &end, color);
+	}
+	ren_draw_batch(ren);
+	ren_bind_bro(ren, app->ren.default_bro);
+}
+
+static void
+render_map(waapp_t* app)
+{
+	cg_map_t* map = app->game.map;
+
+	for (u32 x = 0; x < map->header.w; x++)
+		for (u32 y = 0; y < map->header.h; y++)
+			render_cell(app, map, cg_map_at(map, x, y));
+
+	render_grid(app, map->header.w, map->header.h, map->header.grid_size, map->header.grid_size);
+}
+
 void
 waapp_opengl_draw(waapp_t* app)
 {
@@ -266,14 +335,15 @@ waapp_opengl_draw(waapp_t* app)
         app->mouse_prev = app->mouse;
     }
 
+	render_map(app);
 	render_projectiles(app);
 	render_players(app);
 
     ren_draw_batch(ren);
 
-	ren_bind_bro(ren, app->line_bro);
-	ren_draw_rect(ren, &app->world_border);
-	ren_draw_batch(ren);
+	// ren_bind_bro(ren, app->line_bro);
+	// ren_draw_rect(ren, &app->world_border);
+	// ren_draw_batch(ren);
 
     waapp_gui(app);
 }

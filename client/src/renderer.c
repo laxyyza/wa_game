@@ -400,7 +400,7 @@ ren_draw_line(ren_t* ren, const vec2f_t* a, const vec2f_t* b, u32 color32)
 {
     bro_t* bro = ren->current_bro;
 
-    if (bro->vbo.count + RECT_VERT > bro->vbo.max_count)
+    if (bro->vbo.count + 2 > bro->vbo.max_count)
         ren_draw_batch(ren);
 
     const vec4f_t color = rgba(color32);
@@ -420,7 +420,8 @@ ren_draw_line(ren_t* ren, const vec2f_t* a, const vec2f_t* b, u32 color32)
     vertices->tex_cords = vec2f(1.0, 0.0);
     vertices->texture_id = texture_id;
 
-    ren_add_rect_indices(bro, v);
+	array_add_i16(&bro->ibo.array, 0 + v);
+	array_add_i16(&bro->ibo.array, 1 + v);
 
     bro->vbo.count += 2;
 }
