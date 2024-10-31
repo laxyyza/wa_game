@@ -19,7 +19,7 @@ main_menu_update(waapp_t* app, void* data)
 	nk_flags flags = NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | 
 					NK_WINDOW_TITLE | NK_WINDOW_SCALABLE | NK_WINDOW_CLOSABLE;
 
-	if (nk_begin(ctx, "Connect to Game Server", nk_rect(50, 50, 300, 300), flags))
+	if (nk_begin(ctx, "Connect to Game Server", nk_rect(50, 50, 300, 400), flags))
 	{
 		nk_layout_row_dynamic(ctx, 30, 1);
 		nk_label(ctx, "Username:", NK_TEXT_LEFT);
@@ -37,10 +37,13 @@ main_menu_update(waapp_t* app, void* data)
 		}
 
 		nk_label(ctx, mm->state, NK_TEXT_CENTERED);
-		app->on_ui = true;
+
+
+		if (nk_button_label(ctx, "Map Editor"))
+		{
+			waapp_state_switch(app, &app->sm.states.map_editor);
+		}
 	}
-	else 
-		app->on_ui = false;
 	nk_end(ctx);
 }
 

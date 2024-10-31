@@ -99,8 +99,6 @@ waapp_gui(waapp_t* app)
         if (win_flags & NK_WINDOW_MINIMIZED)
             win_flags ^= NK_WINDOW_MINIMIZED;
 
-		app->on_ui = nk_window_is_any_hovered(ctx);
-
 		snprintf(udp_in_stat, 256, "Game Server: %s:%u (%.1f/s)",
 				app->net.udp.ipaddr, app->net.udp.port, app->net.udp.tickrate);
         nk_layout_row_dynamic(ctx, 20, 1);
@@ -178,8 +176,6 @@ waapp_gui(waapp_t* app)
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
     }
-    else 
-		app->on_ui = false;
     nk_end(ctx);
     if (nk_window_is_hidden(ctx, window_name))
     {
@@ -296,11 +292,9 @@ render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h)
 	ren_bind_bro(ren, app->ren.default_bro);
 }
 
-static void
-render_map(waapp_t* app)
+void
+waapp_render_map(waapp_t* app, cg_map_t* map)
 {
-	cg_map_t* map = app->game.map;
-
 	for (u32 x = 0; x < map->header.w; x++)
 		for (u32 y = 0; y < map->header.h; y++)
 			render_cell(app, map, cg_map_at(map, x, y));
@@ -312,30 +306,12 @@ void
 waapp_opengl_draw(waapp_t* app)
 {
     ren_t* ren = &app->ren;
-    wa_state_t* state = wa_window_get_state(app->window);
 
     ren_bind_bro(ren, ren->default_bro);
 
-    vec3f_t* cam = &app->cam;
+	waapp_move_cam(app);
 
-    if (app->mouse.x != app->mouse_prev.x || app->mouse.y != app->mouse_prev.y)
-    {
-        if (state->mouse_map[WA_MOUSE_RIGHT])
-        {
-			app->lock_cam = false;
-            vec2f_t diff = vec2f(
-                app->mouse_prev.x - app->mouse.x,
-                app->mouse_prev.y - app->mouse.y
-            );
-            cam->x -= diff.x;
-            cam->y -= diff.y;
-            ren_set_view(ren, cam);
-        }
-
-        app->mouse_prev = app->mouse;
-    }
-
-	render_map(app);
+	waapp_render_map(app, app->game.map);
 	render_projectiles(app);
 	render_players(app);
 

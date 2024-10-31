@@ -197,25 +197,15 @@ waapp_handle_pointer(waapp_t* app, const wa_event_pointer_t* ev)
 }
 
 static void 
-game_handle_mouse_button(waapp_t* app, wa_window_t* window, const wa_event_mouse_t* ev)
+game_handle_mouse_button(waapp_t* app, const wa_event_mouse_t* ev)
 {
-	if (ev->button == WA_MOUSE_RIGHT)
-	{
-		if (ev->pressed)
-		{
-			wa_set_cursor_shape(window, WA_CURSOR_ALL_SCROLL);
-			app->mouse_prev = app->mouse;
-		}
-		else
-			wa_set_cursor_shape(window, WA_CURSOR_DEFAULT);
-	}
-	else if (ev->button == WA_MOUSE_LEFT && ev->pressed)
+	if (ev->button == WA_MOUSE_LEFT && ev->pressed)
 	{
 		client_shoot(app);
 	}
 }
 
-static void 
+void 
 game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 {
 	f32 dir = (ev->value > 0) ? -1.0 : 1.0;
@@ -272,8 +262,20 @@ waapp_resize(waapp_t* app, const wa_event_resize_t* ev)
 		waapp_lock_cam(app);
 }
 
+static void 
+waapp_handle_mouse(waapp_t* app, wa_window_t* window, const wa_event_mouse_t* ev)
+{
+	if (ev->button == app->keybind.cam_move)
+	{
+		if (ev->pressed)
+			wa_set_cursor_shape(window, WA_CURSOR_ALL_SCROLL);
+		else
+			wa_set_cursor_shape(window, WA_CURSOR_DEFAULT);
+	}
+}
+
 static void
-waapp_event(UNUSED wa_window_t* window, const wa_event_t* ev, void* data)
+waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 {
     waapp_t* app = data;
 
@@ -287,6 +289,9 @@ waapp_event(UNUSED wa_window_t* window, const wa_event_t* ev, void* data)
 			break;
 		case WA_EVENT_RESIZE:
 			waapp_resize(app, &ev->resize);
+			break;
+		case WA_EVENT_MOUSE_BUTTON:
+			waapp_handle_mouse(app, window, &ev->mouse);
 			break;
 		case WA_EVENT_MOUSE_WHEEL:
 			waapp_handle_mouse_wheel(app, &ev->wheel);
@@ -358,7 +363,7 @@ game_init(waapp_t* app, UNUSED void* data)
 	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
 	ght_init(&app->players, 10, free);
 
-	app->line_bro = ren_new_bro(DRAW_LINES, 1024, NULL, NULL, &app->ren.default_bro->shader);
+	app->keybind.cam_move = WA_MOUSE_RIGHT;
 }
 
 void 
@@ -401,7 +406,7 @@ game_event(waapp_t* app, const wa_event_t* ev)
 			game_handle_pointer(app, &ev->pointer);
 			return 0;
 		case WA_EVENT_MOUSE_BUTTON:
-			game_handle_mouse_button(app, window, &ev->mouse);
+			game_handle_mouse_button(app, &ev->mouse);
 			return 0;
 		case WA_EVENT_MOUSE_WHEEL:
 			game_handle_mouse_wheel(app, &ev->wheel);
@@ -417,6 +422,30 @@ game_exit(waapp_t* app, UNUSED void* data)
 	ren_delete_bro(app->line_bro);
 	ght_destroy(&app->players);
 	coregame_cleanup(&app->game);
+}
+
+void
+waapp_move_cam(waapp_t* app)
+{
+    wa_state_t* state = wa_window_get_state(app->window);
+    vec3f_t* cam = &app->cam;
+
+    if (app->mouse.x != app->mouse_prev.x || app->mouse.y != app->mouse_prev.y)
+    {
+        if (state->mouse_map[app->keybind.cam_move])
+        {
+			app->lock_cam = false;
+            vec2f_t diff = vec2f(
+                app->mouse_prev.x - app->mouse.x,
+                app->mouse_prev.y - app->mouse.y
+            );
+            cam->x -= diff.x;
+            cam->y -= diff.y;
+            ren_set_view(&app->ren, cam);
+        }
+
+        app->mouse_prev = app->mouse;
+    }
 }
 
 i32 
@@ -449,11 +478,14 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
         wa_window_delete(app->window);
         return -1;
     }
+	app->line_bro = ren_new_bro(DRAW_LINES, 1024, NULL, NULL, &app->ren.default_bro->shader);
 	mmframes_init(&app->mmf);
 
 	client_net_init(app);
 
 	waapp_state_manager_init(app);	
+
+	app->keybind.cam_move = WA_MOUSE_RIGHT;
 
     return 0;
 }

@@ -27,6 +27,7 @@ typedef struct
 	struct {
 		waapp_state_t main_menu;
 		waapp_state_t game;
+		waapp_state_t map_editor;
 	} states;
 } waapp_state_manager_t;
 

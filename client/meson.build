@@ -25,6 +25,7 @@ src = files(
     'src/app_wayland.c',
     'src/state.c',
     'src/main_menu.c',
+    'src/map_editor.c',
 )
 deps = [m_dep]
 
