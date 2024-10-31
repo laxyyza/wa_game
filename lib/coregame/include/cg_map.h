@@ -36,5 +36,6 @@ cg_map_t*	cg_map_load(const char* path);
 cg_map_t*	cg_map_new(u32 w, u32 h, u32 grid_size);
 bool		cg_map_save(cg_map_t* map, const char* path);
 cg_cell_t*	cg_map_at(cg_map_t* map, u32 x, u32 y);
+cg_cell_t*	cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos);
 
 #endif // _COREGAME_MAP_H_

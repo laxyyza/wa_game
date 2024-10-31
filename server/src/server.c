@@ -203,7 +203,7 @@ server_init_coregame(server_t* server)
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 	server->game.player_damaged = (cg_player_changed_callback_t)on_player_damaged;
 
-	f32 offset = 200.0;
+	f32 offset = 100.0;
 	const cg_rect_t* wb = &server->game.world_border;
 
 	// Top Left

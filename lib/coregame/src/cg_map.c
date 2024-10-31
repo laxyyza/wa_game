@@ -1,6 +1,7 @@
 #include "cg_map.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 cg_map_t*	
 cg_map_load(const char* path);
@@ -61,4 +62,13 @@ cg_map_at(cg_map_t* map, u32 x, u32 y)
 		return NULL;
 
 	return &map->cells[(y * map->header.w) + x];
+}
+
+cg_cell_t*
+cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos)
+{
+	u32 x = (u32)pos->x / map->header.grid_size;
+	u32 y = (u32)pos->y / map->header.grid_size;
+
+	return cg_map_at(map, x, y);
 }

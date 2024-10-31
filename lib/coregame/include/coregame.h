@@ -7,6 +7,7 @@
 #include "rect.h"
 #include <time.h>
 #include "cg_map.h"
+#include "mmframes.h"
 
 #define INTERPOLATE_FACTOR			0.2
 #define INTERPOLATE_THRESHOLD_DIST	0.001
@@ -79,6 +80,8 @@ typedef struct coregame
 
 	f32 interp_factor;
 	f32 interp_threshold_dist;
+
+	mmframes_t mmf;
 
 	bool client;
 } coregame_t;

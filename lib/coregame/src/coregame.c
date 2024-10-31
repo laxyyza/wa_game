@@ -40,6 +40,7 @@ coregame_init(coregame_t* coregame, bool client)
 	coregame->client = client;
 
 	coregame->map = cg_map_new(100, 100, 100);
+	mmframes_init(&coregame->mmf);
 }
 
 static inline bool 
@@ -49,16 +50,6 @@ rect_aabb_test(const cg_rect_t* a, const cg_rect_t* b)
 			(a->pos.x + a->size.x > b->pos.x) &&
 			(a->pos.y < b->pos.y + b->size.y) && 
 			(a->pos.y + a->size.y > b->pos.y);
-}
-
-static inline bool
-rect_world_border_test(const coregame_t* coregame, const cg_rect_t* rect)
-{
-	const cg_rect_t* wb = &coregame->world_border;
-	return (rect->pos.x < wb->pos.x ||
-			rect->pos.x + rect->size.x > wb->pos.x + wb->size.x ||
-			rect->pos.y < wb->pos.y ||
-			rect->pos.y + rect->size.y > wb->pos.y + wb->size.y);
 }
 
 f32 
@@ -86,6 +77,48 @@ coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
 	}
 }
 
+static bool 
+rect_collide_cell(cg_map_t* map, const cg_rect_t* rect, const cg_cell_t* cell)
+{
+	if (cell->type != CG_CELL_BLOCK)
+		return false;
+
+	const cg_rect_t cell_rect = {
+		.pos.x = cell->pos.x * map->header.grid_size,
+		.pos.y = cell->pos.y * map->header.grid_size,
+		.size.x = map->header.grid_size,
+		.size.y = map->header.grid_size
+	};
+	return rect_aabb_test(rect, &cell_rect);
+}
+
+static bool
+rect_collide_map(coregame_t* cg, const cg_rect_t* rect)
+{
+	cg_map_t* map = cg->map;
+	vec2f_t bot_right = vec2f(rect->pos.x + rect->size.x, rect->pos.y + rect->size.y);
+	cg_cell_t* c_left = cg_map_at_wpos(map, &rect->pos);
+	cg_cell_t* c_right = cg_map_at_wpos(map, &bot_right);
+	cg_cell_t* cell;
+
+	if (c_left == NULL || c_right == NULL)
+		return true;
+	if (c_left == c_right)
+		return rect_collide_cell(map, rect, c_left);
+
+	for (i32 x = c_left->pos.x; x <= c_right->pos.x; x++)
+	{
+		for (i32 y = c_left->pos.y; y <= c_right->pos.y; y++)
+		{
+			if ((cell = cg_map_at(map, x, y)) == NULL)
+				return true;
+			if (rect_collide_cell(map, rect, cell))
+				return true;
+		}
+	}
+	return false;
+}
+
 static void 
 coregame_move_player(coregame_t* coregame, cg_player_t* player)
 {
@@ -99,7 +132,7 @@ coregame_move_player(coregame_t* coregame, cg_player_t* player)
 			player->size
 		);
 
-		if (!rect_world_border_test(coregame, &new_rect))
+		if (!rect_collide_map(coregame, &new_rect))
 			memcpy(&player->pos, &new_rect, sizeof(vec2f_t));
 	}
 
@@ -163,7 +196,7 @@ coregame_update_projectiles(coregame_t* coregame)
 		proj->rect.pos.y += proj->dir.y * PROJ_SPEED * coregame->delta;
 
 		if (coregame_proj_hit_player_test(coregame, proj) || 
-			rect_world_border_test(coregame, &proj->rect))
+			rect_collide_map(coregame, &proj->rect))
 		{
 			coregame_free_projectile(coregame, proj);
 		}
@@ -172,18 +205,20 @@ coregame_update_projectiles(coregame_t* coregame)
 }
 
 void 
-coregame_update(coregame_t* coregame)
+coregame_update(coregame_t* cg)
 {
-	coregame_get_delta_time(coregame);
+	coregame_get_delta_time(cg);
 
-	coregame_update_players(coregame);
-	coregame_update_projectiles(coregame);
+	coregame_update_players(cg);
+	coregame_update_projectiles(cg);
+	mmframes_clear(&cg->mmf);
 }
 
 void 
-coregame_cleanup(coregame_t* coregame)
+coregame_cleanup(coregame_t* cg)
 {
-	ght_destroy(&coregame->players);
+	ght_destroy(&cg->players);
+	mmframes_free(&cg->mmf);
 }
 
 cg_player_t* 
