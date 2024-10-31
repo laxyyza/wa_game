@@ -16,17 +16,17 @@
 
 typedef struct 
 {
-	vec2i_t pos;
-	u64		data;
-	u8		type;
+	vec2u16_t	pos;
+	u64			data;
+	u8			type;
 } CG_PACKED cg_cell_t;
 
 typedef struct 
 {
 	char magic[CG_MAP_MAGIC_LEN];
-	u32 w;
-	u32 h;
-	u32 grid_size;
+	u16 w;
+	u16 h;
+	u16 grid_size;
 } CG_PACKED cg_map_header_t;
 
 typedef struct 
@@ -36,9 +36,9 @@ typedef struct
 } CG_PACKED cg_map_t;
 
 cg_map_t*	cg_map_load(const char* path);
-cg_map_t*	cg_map_new(u32 w, u32 h, u32 grid_size);
+cg_map_t*	cg_map_new(u16 w, u16 h, u16 grid_size);
 bool		cg_map_save(const cg_map_t* map, const char* path);
-cg_cell_t*	cg_map_at(cg_map_t* map, u32 x, u32 y);
+cg_cell_t*	cg_map_at(cg_map_t* map, u16 x, u16 y);
 cg_cell_t*	cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos);
 
 u64			file_size(FILE* f);

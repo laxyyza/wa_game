@@ -63,9 +63,9 @@ cg_map_set_cells_pos(cg_map_t* map)
 {
 	cg_cell_t* cell;
 
-	for (u32 x = 0; x < map->header.w; x++)
+	for (u16 x = 0; x < map->header.w; x++)
 	{
-		for (u32 y = 0; y < map->header.h; y++)
+		for (u16 y = 0; y < map->header.h; y++)
 		{
 			cell = &map->cells[(y * map->header.w) + x];
 			cell->pos.x = x;
@@ -76,7 +76,7 @@ cg_map_set_cells_pos(cg_map_t* map)
 }
 
 cg_map_t*	
-cg_map_new(u32 w, u32 h, u32 grid_size)
+cg_map_new(u16 w, u16 h, u16 grid_size)
 {
 	cg_map_t* map;
 	u32 size = ((w * h) * sizeof(cg_cell_t)) + sizeof(cg_map_header_t);
@@ -151,7 +151,7 @@ cg_map_save(const cg_map_t* map, const char* path)
 }
 
 cg_cell_t*	
-cg_map_at(cg_map_t* map, u32 x, u32 y)
+cg_map_at(cg_map_t* map, u16 x, u16 y)
 {
 	if (x >= map->header.w || y >= map->header.h)
 		return NULL;
@@ -162,8 +162,8 @@ cg_map_at(cg_map_t* map, u32 x, u32 y)
 cg_cell_t*
 cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos)
 {
-	u32 x = (u32)pos->x / map->header.grid_size;
-	u32 y = (u32)pos->y / map->header.grid_size;
+	u16 x = (u16)pos->x / map->header.grid_size;
+	u16 y = (u16)pos->y / map->header.grid_size;
 
 	return cg_map_at(map, x, y);
 }

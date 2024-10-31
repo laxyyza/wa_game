@@ -31,6 +31,12 @@ typedef struct
     i32 y;
 } vec2i_t;
 
+typedef struct 
+{
+    u16 x;
+    u16 y;
+} vec2u16_t;
+
 ALWAYS_INLINE inline vec2f_t
 vec2f(f32 x, f32 y)
 {
