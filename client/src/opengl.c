@@ -252,7 +252,7 @@ render_cell(waapp_t* app, const cg_map_t* map, const cg_cell_t* cell)
 }
 
 static void
-render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h)
+render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h, bool show_grid)
 {
 	ren_t* ren = &app->ren;
 	vec2f_t start;
@@ -270,6 +270,8 @@ render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h)
 
 		if (x == 0 || x == w)
 			color = edge_color;
+		else if (show_grid == false)
+			continue;
 		else
 			color = line_color;
 
@@ -283,6 +285,8 @@ render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h)
 
 		if (y == 0 || y == h)
 			color = edge_color;
+		else if (show_grid == false)
+			continue;
 		else
 			color = line_color;
 		
@@ -293,13 +297,13 @@ render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h)
 }
 
 void
-waapp_render_map(waapp_t* app, cg_map_t* map)
+waapp_render_map(waapp_t* app, cg_map_t* map, bool show_grid)
 {
 	for (u32 x = 0; x < map->header.w; x++)
 		for (u32 y = 0; y < map->header.h; y++)
 			render_cell(app, map, cg_map_at(map, x, y));
 
-	render_grid(app, map->header.w, map->header.h, map->header.grid_size, map->header.grid_size);
+	render_grid(app, map->header.w, map->header.h, map->header.grid_size, map->header.grid_size, show_grid);
 }
 
 void
@@ -311,7 +315,7 @@ waapp_opengl_draw(waapp_t* app)
 
 	waapp_move_cam(app);
 
-	waapp_render_map(app, app->game.map);
+	waapp_render_map(app, app->game.map, false);
 	render_projectiles(app);
 	render_players(app);
 

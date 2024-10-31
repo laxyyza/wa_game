@@ -57,7 +57,7 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 
 	map_editor_handle_building(app, editor);
 
-	waapp_render_map(app, editor->map);
+	waapp_render_map(app, editor->map, true);
 
 	nk_flags flags = NK_WINDOW_TITLE;
 
