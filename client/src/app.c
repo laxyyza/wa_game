@@ -480,7 +480,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     state->callbacks.event = waapp_event;
     state->callbacks.close = waapp_close;
 
-    app->bg_color = rgba(0x333333FF);
+    app->bg_color = rgba(0x000000FF);
 
     if (waapp_opengl_init(app) == false)
     {
