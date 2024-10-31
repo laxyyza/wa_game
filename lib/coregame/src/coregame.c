@@ -39,7 +39,8 @@ coregame_init(coregame_t* coregame, bool client)
 	coregame->interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
 	coregame->client = client;
 
-	coregame->map = cg_map_new(100, 100, 100);
+	// coregame->map = cg_map_new(100, 100, 100);
+	coregame->map = cg_map_load("res/test.cgmap");
 	mmframes_init(&coregame->mmf);
 }
 

@@ -2,6 +2,7 @@
 #define _COREGAME_MAP_H_
 
 #include "rect.h"
+#include <stdio.h>
 
 #define CG_MAP_MAGIC ".cgmap"
 #define CG_MAP_MAGIC_LEN sizeof(CG_MAP_MAGIC)
@@ -11,12 +12,14 @@
 #define CG_CELL_SPAWN 2
 #define CG_CELL_DEADZ 3
 
+#define CG_PACKED __attribute__((packed))
+
 typedef struct 
 {
 	vec2i_t pos;
 	u64		data;
 	u8		type;
-} cg_cell_t;
+} CG_PACKED cg_cell_t;
 
 typedef struct 
 {
@@ -24,18 +27,20 @@ typedef struct
 	u32 w;
 	u32 h;
 	u32 grid_size;
-} cg_map_header_t;
+} CG_PACKED cg_map_header_t;
 
 typedef struct 
 {
 	cg_map_header_t header;
 	cg_cell_t cells[];
-} cg_map_t;
+} CG_PACKED cg_map_t;
 
 cg_map_t*	cg_map_load(const char* path);
 cg_map_t*	cg_map_new(u32 w, u32 h, u32 grid_size);
-bool		cg_map_save(cg_map_t* map, const char* path);
+bool		cg_map_save(const cg_map_t* map, const char* path);
 cg_cell_t*	cg_map_at(cg_map_t* map, u32 x, u32 y);
 cg_cell_t*	cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos);
+
+u64			file_size(FILE* f);
 
 #endif // _COREGAME_MAP_H_

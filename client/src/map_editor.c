@@ -7,7 +7,10 @@ void
 map_editor_init(waapp_t* app, waapp_map_editor_t* editor)
 {
 	wa_state_t* state = wa_window_get_state(app->window);
-	editor->map = cg_map_new(100, 100, 100);
+
+	if ((editor->map = cg_map_load("res/test.cgmap")) == NULL)
+		editor->map = cg_map_new(100, 100, 100);
+
 	editor->mouse_map = state->mouse_map;
 	app->keybind.cam_move = WA_MOUSE_MIDDLE;
 }
@@ -61,7 +64,13 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 	if (nk_begin(ctx, "Map Editor", nk_rect(0, 0, 300, app->ren.viewport.y), flags))
 	{
 		nk_layout_row_dynamic(ctx, 30, 1);
-		nk_label(ctx, "Label", NK_TEXT_LEFT);
+		if (nk_button_label(ctx, "Save"))
+		{
+			if (cg_map_save(editor->map, "res/test.cgmap"))
+				printf("Saved\n");
+			else
+				printf("Failed Save\n");
+		}
 	}
 	nk_end(ctx);
 

@@ -4,16 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static u64
-file_size(FILE* f)
-{
-    u64 ret;
-    fseek(f, 0, SEEK_END);
-    ret = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    return ret;
-}
-
 static const char*
 shader_readfile(const char* path)
 {
