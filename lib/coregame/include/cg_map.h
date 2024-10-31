@@ -40,6 +40,7 @@ cg_map_t*	cg_map_new(u16 w, u16 h, u16 grid_size);
 bool		cg_map_save(const cg_map_t* map, const char* path);
 cg_cell_t*	cg_map_at(cg_map_t* map, u16 x, u16 y);
 cg_cell_t*	cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos);
+cg_cell_t*	cg_map_at_wpos_clamp(cg_map_t* map, const vec2f_t* pos);
 
 u64			file_size(FILE* f);
 

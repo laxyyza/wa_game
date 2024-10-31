@@ -300,10 +300,20 @@ render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h, bool s
 }
 
 void
-waapp_render_map(waapp_t* app, cg_map_t* map, UNUSED bool show_grid)
+waapp_render_map(waapp_t* app, cg_map_t* map, bool show_grid)
 {
-	for (u32 x = 0; x < map->header.w; x++)
-		for (u32 y = 0; y < map->header.h; y++)
+	const ren_t* ren = &app->ren;
+	const vec2f_t cam = vec2f(-app->cam.x / ren->scale.x, -app->cam.y / ren->scale.y);
+	const vec2f_t* viewport = &app->ren.viewport;
+	const vec2f_t bot_right = vec2f(cam.x + viewport->x / ren->scale.x, cam.y + viewport->y / ren->scale.y);
+	const cg_cell_t* c_left;
+	const cg_cell_t* c_right;
+
+	c_left = cg_map_at_wpos_clamp(map, &cam);
+	c_right = cg_map_at_wpos_clamp(map, &bot_right);
+
+	for (u32 x = c_left->pos.x; x <= c_right->pos.x; x++)
+		for (u32 y = c_left->pos.y; y <= c_right->pos.y; y++)
 			render_cell(app, map, cg_map_at(map, x, y));
 
 	render_grid(app, map->header.w, map->header.h, map->header.grid_size, map->header.grid_size, show_grid);

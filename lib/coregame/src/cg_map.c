@@ -167,3 +167,23 @@ cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos)
 
 	return cg_map_at(map, x, y);
 }
+
+static i32 
+clampi(i32 val, i32 min, i32 max)
+{
+	if (val < min) return min;
+	if (val > max) return max;
+	return val;
+}
+
+cg_cell_t*
+cg_map_at_wpos_clamp(cg_map_t* map, const vec2f_t* pos)
+{
+	i32 x = (i32)pos->x / map->header.grid_size;
+	i32 y = (i32)pos->y / map->header.grid_size;
+
+	x = clampi(x, 0, map->header.w - 1);
+	y = clampi(y, 0, map->header.h - 1);
+
+	return cg_map_at(map, x, y);
+}
