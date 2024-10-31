@@ -289,7 +289,7 @@ coregame_add_projectile(coregame_t* coregame, cg_player_t* player)
 	proj->rect.pos = player->pos;
 	proj->rect.pos.x += player->size.x / 2;
 	proj->rect.pos.y += player->size.y / 2;
-	proj->rect.size = vec2f(5, 30);
+	proj->rect.size = vec2f(20, 20);
 
 	if (coregame->proj.tail == NULL)
 	{
