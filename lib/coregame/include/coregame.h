@@ -6,6 +6,7 @@
 #include <ght.h>
 #include "rect.h"
 #include <time.h>
+#include "cg_map.h"
 
 #define INTERPOLATE_FACTOR			0.2
 #define INTERPOLATE_THRESHOLD_DIST	0.001
@@ -65,6 +66,7 @@ typedef struct coregame
 		cg_projectile_t* tail;
 	} proj;
 	cg_rect_t world_border;
+	cg_map_t* map;
 
 	struct timespec last_time;
 	f64 delta;

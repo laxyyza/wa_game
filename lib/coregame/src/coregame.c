@@ -38,6 +38,8 @@ coregame_init(coregame_t* coregame, bool client)
 	coregame->interp_factor = INTERPOLATE_FACTOR;
 	coregame->interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
 	coregame->client = client;
+
+	coregame->map = cg_map_new(100, 100, 100);
 }
 
 static inline bool 
