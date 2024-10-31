@@ -162,8 +162,11 @@ cg_map_at(cg_map_t* map, u16 x, u16 y)
 cg_cell_t*
 cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos)
 {
-	u16 x = (u16)pos->x / map->header.grid_size;
-	u16 y = (u16)pos->y / map->header.grid_size;
+	if (pos->x < 0 || pos->y < 0)
+		return NULL;
+
+	i32 x = (i32)pos->x / map->header.grid_size;
+	i32 y = (i32)pos->y / map->header.grid_size;
 
 	return cg_map_at(map, x, y);
 }
