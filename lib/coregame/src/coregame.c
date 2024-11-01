@@ -12,15 +12,15 @@
 #endif // _WIN32
 
 static void
-coregame_get_delta_time(coregame_t* coregame)
+coregame_get_delta_time(coregame_t* cg)
 {
 	struct timespec current_time;
 	clock_gettime(CLOCK_MONOTONIC, &current_time);
 
-	coregame->delta =	(current_time.tv_sec - coregame->last_time.tv_sec) + 
-						(current_time.tv_nsec - coregame->last_time.tv_nsec) / 1e9;
+	cg->delta =	((current_time.tv_sec - cg->last_time.tv_sec) + 
+				(current_time.tv_nsec - cg->last_time.tv_nsec) / 1e9) * cg->time_scale;
 
-	memcpy(&coregame->last_time, &current_time, sizeof(struct timespec));
+	memcpy(&cg->last_time, &current_time, sizeof(struct timespec));
 }
 
 
@@ -28,6 +28,7 @@ void
 coregame_init(coregame_t* coregame, bool client)
 {
 	ght_init(&coregame->players, 10, free);
+	coregame->time_scale = 1.0;
 
 	coregame->world_border = cg_rect(
 		vec2f(0, 0),

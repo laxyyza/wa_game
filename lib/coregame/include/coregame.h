@@ -80,6 +80,7 @@ typedef struct coregame
 
 	f32 interp_factor;
 	f32 interp_threshold_dist;
+	f32 time_scale;
 
 	mmframes_t mmf;
 
