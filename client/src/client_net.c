@@ -529,7 +529,7 @@ client_net_parse_address(waapp_t* app, const char* addr)
 	bool ret = true;
 
 	// TODO: Support adding port into address string.
-	strncpy(ip_addr, addr, INET6_ADDRSTRLEN);
+	strncpy(ip_addr, addr, INET6_ADDRSTRLEN - 1);
 
 	sock->addr.port = port;
 	sock->addr.addr_len = sizeof(struct sockaddr_in);

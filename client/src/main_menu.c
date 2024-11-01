@@ -37,7 +37,7 @@ main_menu_update(waapp_t* app, waapp_main_menu_t* mm)
 		if (nk_button_label(ctx, "Connect"))
 		{
 			const char* ret = client_net_async_connect(app, mm->ipaddr);
-			strncpy(mm->state, ret, MM_STATE_STRING_MAX);
+			strncpy(mm->state, ret, MM_STATE_STRING_MAX - 1);
 		}
 
 		nk_label(ctx, mm->state, NK_TEXT_CENTERED);
