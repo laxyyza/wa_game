@@ -52,6 +52,7 @@ waapp_opengl_init(waapp_t* app)
     gladLoadGL();
     waapp_enable_debug(app);
     print_gl_version();
+	glLineWidth(2.0);
 
     ren_init(&app->ren);
 
@@ -260,54 +261,35 @@ render_cell(waapp_t* app, const cg_map_t* map, const cg_cell_t* cell)
 }
 
 static void
-render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h, bool show_grid)
+render_grid(waapp_t* app, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h)
 {
 	ren_t* ren = &app->ren;
 	vec2f_t start;
 	vec2f_t end;
 
-	ren_bind_bro(ren, app->line_bro);
 	u32 line_color = 0x000000FF;
-	u32 edge_color = 0xFF0000FF;
-	u32 color;
 
-	for (u32 x = 0; x <= w; x++)
+	for (u32 x = 1; x < w; x++)
 	{
 		start = vec2f(x * cell_size_w, 0);
 		end	  = vec2f(start.x, h * cell_size_h);
 
-		if (x == 0 || x == w)
-			color = edge_color;
-		else if (show_grid == false)
-			continue;
-		else
-			color = line_color;
-
-		ren_draw_line(ren, &start, &end, color);
+		ren_draw_line(ren, &start, &end, line_color);
 	}
 
-	for (u32 y = 0; y <= h; y++)
+	for (u32 y = 1; y < h; y++)
 	{
 		start = vec2f(0,	y * cell_size_h);
 		end   =	vec2f(w * cell_size_w, start.y);
 
-		if (y == 0 || y == h)
-			color = edge_color;
-		else if (show_grid == false)
-			continue;
-		else
-			color = line_color;
-		
-		ren_draw_line(ren, &start, &end, color);
+		ren_draw_line(ren, &start, &end, line_color);
 	}
-	ren_draw_batch(ren);
-	ren_bind_bro(ren, app->ren.default_bro);
 }
 
 void
 waapp_render_map(waapp_t* app, cg_map_t* map, bool show_grid)
 {
-	const ren_t* ren = &app->ren;
+	ren_t* ren = &app->ren;
 	const vec2f_t cam = vec2f(-app->cam.x / ren->scale.x, -app->cam.y / ren->scale.y);
 	const vec2f_t* viewport = &app->ren.viewport;
 	const vec2f_t bot_right = vec2f(cam.x + viewport->x / ren->scale.x, cam.y + viewport->y / ren->scale.y);
@@ -321,7 +303,13 @@ waapp_render_map(waapp_t* app, cg_map_t* map, bool show_grid)
 		for (u32 y = c_left->pos.y; y <= c_right->pos.y; y++)
 			render_cell(app, map, cg_map_at(map, x, y));
 
-	render_grid(app, map->header.w, map->header.h, map->header.grid_size, map->header.grid_size, show_grid);
+	ren_bind_bro(ren, app->line_bro);
+
+	if (show_grid)
+		render_grid(app, map->header.w, map->header.h, map->header.grid_size, map->header.grid_size);
+	ren_draw_rect(&app->ren, &app->map_border);
+
+	ren_bind_bro(ren, app->ren.default_bro);
 }
 
 void
@@ -338,6 +326,9 @@ waapp_opengl_draw(waapp_t* app)
 	render_projectiles(app);
 	render_players(app);
 
+    ren_draw_batch(ren);
+
+	ren_bind_bro(ren, app->line_bro);
     ren_draw_batch(ren);
 
 	// ren_bind_bro(ren, app->line_bro);

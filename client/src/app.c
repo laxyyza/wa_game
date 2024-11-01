@@ -365,10 +365,20 @@ game_init(waapp_t* app, UNUSED void* data)
 	app->tank_top_tex->name = "Tank Top";
 	app->lock_cam = true;
 
-	rect_init(&app->world_border, app->game.world_border.pos, app->game.world_border.size, 0xFF0000FF, NULL);
 	ght_init(&app->players, 10, free);
 
 	app->keybind.cam_move = WA_MOUSE_RIGHT;
+
+	const cg_map_header_t* maph = &app->game.map->header;
+
+	rect_init(&app->map_border, vec2f(0, 0), 
+		vec2f(
+			maph->w * maph->grid_size,
+			maph->h * maph->grid_size
+		), 
+		0xFF0000FF, 
+		NULL
+	);
 }
 
 void 

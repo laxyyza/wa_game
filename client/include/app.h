@@ -26,7 +26,6 @@ typedef struct waapp
 	texture_t* grass_tex;
 	texture_t* block_tex;
 
-	rect_t world_border;
 	coregame_t game;
 	ght_t players;
 	player_t* player;
@@ -67,6 +66,8 @@ typedef struct waapp
 
 	f32 min_zoom;
 	f32 max_zoom;
+
+	rect_t map_border;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, const char** argv);

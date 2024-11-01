@@ -64,7 +64,6 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 
 	map_editor_handle_building(app, editor);
 
-	waapp_render_map(app, editor->map, true);
 
 	nk_flags flags = NK_WINDOW_TITLE | NK_WINDOW_BORDER;
 
@@ -87,7 +86,12 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 	}
 	nk_end(ctx);
 
+	waapp_render_map(app, editor->map, true);
 	ren_draw_batch(&app->ren);
+
+	ren_bind_bro(&app->ren, app->line_bro);
+	ren_draw_batch(&app->ren);
+	ren_bind_bro(&app->ren, app->ren.default_bro);
 }
 
 i32  
