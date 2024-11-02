@@ -21,6 +21,8 @@ enum segtypes
 	NET_UDP_PLAYER_CURSOR,
 	NET_UDP_PLAYER_SHOOT,
 	NET_UDP_PLAYER_HEALTH,
+	NET_UDP_PLAYER_STATS,
+	NET_UDP_PLAYER_DIED,
 
 	NET_UDP_PING,
 	NET_UDP_PONG,
@@ -83,6 +85,19 @@ typedef struct
 	u32 player_id;
 	i32 health;
 } net_udp_player_health_t;
+
+typedef struct 
+{
+	u32 player_id;
+	u16 kills;
+	u16 deaths;
+} net_udp_player_stats_t;
+
+typedef struct 
+{
+	u32 target_player_id;
+	u32 attacker_player_id;
+} net_udp_player_died_t;
 
 typedef struct 
 {

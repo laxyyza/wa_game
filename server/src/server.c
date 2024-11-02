@@ -204,27 +204,54 @@ on_player_changed(cg_player_t* player, server_t* server)
 }
 
 static void
-on_player_damaged(cg_player_t* player, server_t* server)
+on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, server_t* server)
 {
 	ght_t* clients = &server->clients;
 	net_udp_player_health_t* health = mmframes_alloc(&server->mmf, sizeof(net_udp_player_health_t));
 	net_udp_player_move_t* move = NULL;
-	health->player_id = player->id;
-	health->health = player->health;
+	net_udp_player_stats_t* target_stats;
+	net_udp_player_stats_t* attacker_stats;
+	net_udp_player_died_t* player_died;
+	health->player_id = target_player->id;
+	health->health = target_player->health;
 
-	if (player->health <= 0)
+	if (target_player->health <= 0)
 	{
 		move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
-		move->player_id = player->id;
-		player->pos = move->pos = server_next_spawn(server);
-		player->dir = move->dir = vec2f(0, 0);
-		player->health = health->health = player->max_health;
+		move->player_id = target_player->id;
+		target_player->pos = move->pos = server_next_spawn(server);
+		target_player->dir = move->dir = vec2f(0, 0);
+		target_player->health = health->health = target_player->max_health;
+
+		attacker_player->stats.kills++;
+		target_player->stats.deaths++;
+
+		player_died = mmframes_alloc(&server->mmf, sizeof(net_udp_player_died_t));
+		player_died->target_player_id = target_player->id;
+		player_died->attacker_player_id = attacker_player->id;
+
+		target_stats = mmframes_alloc(&server->mmf, sizeof(net_udp_player_stats_t));
+		target_stats->player_id = target_player->id;
+		target_stats->kills = target_player->stats.kills;
+		target_stats->deaths = target_player->stats.deaths;
+
+		attacker_stats = mmframes_alloc(&server->mmf, sizeof(net_udp_player_stats_t));
+		attacker_stats->player_id = attacker_player->id;
+		attacker_stats->kills = attacker_player->stats.kills;
+		attacker_stats->deaths = attacker_player->stats.deaths;
+
+		printf("Player \"%s\" killed \"%s\".\n", attacker_player->username, target_player->username);
 	}
 
 	GHT_FOREACH(client_t* client, clients, {
 		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_HEALTH, sizeof(net_udp_player_health_t), health);
 		if (move)
+		{
 			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_DIED, sizeof(net_udp_player_died_t), player_died);
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), target_stats);
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), attacker_stats);
+		}
 	});
 }
 
@@ -234,7 +261,7 @@ server_init_coregame(server_t* server)
 	coregame_init(&server->game, false);
 	server->game.user_data = server;
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
-	server->game.player_damaged = (cg_player_changed_callback_t)on_player_damaged;
+	server->game.player_damaged = (cg_player_damaged_callback_t)on_player_damaged;
 
 	f32 offset = 100.0;
 	const cg_rect_t* wb = &server->game.world_border;

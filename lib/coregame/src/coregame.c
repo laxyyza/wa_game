@@ -162,20 +162,26 @@ coregame_update_players(coregame_t* coregame)
 static bool
 coregame_proj_hit_player_test(coregame_t* coregame, cg_projectile_t* proj)
 {
-	const ght_t* players = &coregame->players;
+	ght_t* players = &coregame->players;
+	cg_player_t* attacker_player;
 
-	GHT_FOREACH(cg_player_t* player, players, {
-		if (player->id != proj->owner && player->health > 0)
+	GHT_FOREACH(cg_player_t* target_player, players, {
+		if (target_player->id != proj->owner && target_player->health > 0)
 		{
-			cg_rect_t rect = cg_rect(player->pos, player->size);
+			cg_rect_t rect = cg_rect(target_player->pos, target_player->size);
 			if (rect_aabb_test(&proj->rect, &rect))
 			{
 				if (coregame->player_damaged)
 				{
-					player->health -= PROJ_DMG;
-					if (player->health < 0)
-						player->health = 0;
-						coregame->player_damaged(player, coregame->user_data);
+					attacker_player = ght_get(players, proj->owner);
+					if (attacker_player == NULL)
+						return true;
+
+					target_player->health -= PROJ_DMG;
+					if (target_player->health < 0)
+						target_player->health = 0;
+
+					coregame->player_damaged(target_player, attacker_player, coregame->user_data);
 				}
 				return true;
 			}

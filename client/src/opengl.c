@@ -1,8 +1,10 @@
+#define _GNU_SOURCE
 #include "opengl.h"
 #include <stdio.h>
 #include "gui/gui.h"
 #include <nuklear.h>
 #include <string.h>
+#include "client_net.h"
 
 static bool failed = false;
 
@@ -75,6 +77,18 @@ waapp_opengl_cleanup(waapp_t* app)
 static void
 ui_kills_window(waapp_t* app, struct nk_context* ctx)
 {
+	array_t* player_deaths = &app->player_deaths;
+	struct timespec current_time;
+	u32 delete_count = 0;
+
+	if (player_deaths->count == 0)
+		return;
+
+	player_kill_t* kills = (player_kill_t*)player_deaths->buf;
+	player_kill_t* kill;
+
+	clock_gettime(CLOCK_MONOTONIC, &current_time);
+
     static struct nk_rect kill_window_rect = {
         .w = 500,
         .h = 200
@@ -86,10 +100,23 @@ ui_kills_window(waapp_t* app, struct nk_context* ctx)
 	{
 		nk_layout_row_dynamic(ctx, 30, 1);
 
-		// for kill in recent_kills
-		nk_label(ctx, "killer -> victim", NK_TEXT_RIGHT);
+		for (u32 i = 0; i < player_deaths->count; i++)
+		{
+			kill = kills + i;
+			char label[256];
+			snprintf(label, 256, "%s -> %s", kill->attacker_name, kill->target_name); 
+			nk_label(ctx, label, NK_TEXT_RIGHT);
+
+			f64 elapsed_time = get_elapsed_time(&current_time, &kill->timestamp);
+
+			if (elapsed_time >= app->death_kill_time)
+				delete_count++;
+		}
 	}
 	nk_end(ctx);
+
+	for (u32 i = 0; i < delete_count; i++)
+		array_erase(player_deaths, 0);
 }
 
 static void
@@ -105,7 +132,9 @@ ui_score_window(waapp_t* app, struct nk_context* ctx)
 	if (nk_begin(ctx, "score", score_window_rect, NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR))
 	{
 		nk_layout_row_dynamic(ctx, score_window_rect.h, 1);
-		nk_label(ctx, "Kills: 69", NK_TEXT_CENTERED);
+		char label[64];
+		snprintf(label, 64, "Kills: %u", app->player->core->stats.kills);
+		nk_label(ctx, label, NK_TEXT_CENTERED);
 	}
 	nk_end(ctx);
 }

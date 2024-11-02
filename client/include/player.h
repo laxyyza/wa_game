@@ -24,6 +24,13 @@ typedef struct
 
 typedef struct 
 {
+	char target_name[PLAYER_NAME_MAX];
+	char attacker_name[PLAYER_NAME_MAX];
+	struct timespec timestamp;
+} player_kill_t;
+
+typedef struct 
+{
 	cg_projectile_t* core;
 	rect_t rect;
 } projectile_t;

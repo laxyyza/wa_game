@@ -71,6 +71,10 @@ typedef struct waapp
 
 	struct nk_font* font;
 	struct nk_font* font_big;
+
+	array_t player_deaths;
+
+	f64 death_kill_time;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, const char** argv);

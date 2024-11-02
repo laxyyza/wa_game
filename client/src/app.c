@@ -379,6 +379,8 @@ game_init(waapp_t* app, UNUSED void* data)
 		0xFF0000FF, 
 		NULL
 	);
+
+	array_init(&app->player_deaths, sizeof(player_kill_t), 10);
 }
 
 void 
@@ -437,6 +439,7 @@ game_cleanup(waapp_t* app, UNUSED void* data)
 	texture_del(app->tank_bottom_tex);
 	texture_del(app->tank_top_tex);
 
+	array_del(&app->player_deaths);
 	ght_destroy(&app->players);
 	coregame_cleanup(&app->game);
 	client_net_disconnect(app);
@@ -476,6 +479,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     i32 h = 480;
     bool fullscreen = false;
     wa_state_t* state;
+	app->death_kill_time = 10.0;
 
     if (argc >= 2 && strcmp(argv[1], "fullscreen") == 0)
         fullscreen = true;

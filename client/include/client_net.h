@@ -112,5 +112,6 @@ fdevent_t* client_net_add_fdevent(waapp_t* app, sock_t fd,
 							fdevent_callback_t write, 
 							void* data);
 void client_net_udp_init(waapp_t* app);
+f64  get_elapsed_time(const struct timespec* current_time, const struct timespec* start_time);
 
 #endif // _CLIENT_NET_H_

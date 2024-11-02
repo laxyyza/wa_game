@@ -27,6 +27,14 @@
 typedef struct cg_player cg_player_t;
 
 typedef void (*cg_player_changed_callback_t)(cg_player_t* player, void* user_data);
+typedef void (*cg_player_damaged_callback_t)(cg_player_t* target_player, 
+											 cg_player_t* attacker_player, void* user_data);
+
+typedef struct 
+{
+	u16 kills;
+	u16 deaths;
+} cg_player_stats_t;
 
 typedef struct cg_player
 {
@@ -46,6 +54,7 @@ typedef struct cg_player
 		vec2f_t server_pos;
 		bool	interpolate;
 	};
+	cg_player_stats_t stats;
 } cg_player_t;
 
 typedef struct cg_projectile
@@ -76,7 +85,7 @@ typedef struct coregame
 	void (*proj_free_callback)(cg_projectile_t* proj, void* data);
 	void (*player_free_callback)(cg_player_t* proj, void* data);
 	cg_player_changed_callback_t player_changed;
-	cg_player_changed_callback_t player_damaged;
+	cg_player_damaged_callback_t player_damaged;
 
 	f32 interp_factor;
 	f32 interp_threshold_dist;

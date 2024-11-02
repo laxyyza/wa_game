@@ -27,7 +27,7 @@ char wsa_error_string[WSA_ERROR_STR_MAX];
 #define BUFFER_SIZE 4096
 #define MAX_EVENTS 4
 
-static f64 
+f64 
 get_elapsed_time(const struct timespec* current_time, const struct timespec* start_time)
 {
 	f64 elapsed_time =	(current_time->tv_sec - start_time->tv_sec) +
@@ -494,6 +494,49 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	net->udp.latency = elapsed_time * 1000.0;
 }
 
+static void 
+player_died(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	const net_udp_player_died_t* died = (const net_udp_player_died_t*)segment->data;
+	player_t* target;
+	player_t* attacker;
+	player_kill_t* kill;
+
+	target = ght_get(&app->players, died->target_player_id);
+	if (target == NULL)
+	{
+		fprintf(stderr, "player_died: target player %u not found.\n",
+			died->target_player_id);
+		return;
+	}
+	attacker = ght_get(&app->players, died->attacker_player_id);
+	if (attacker == NULL)
+	{
+		fprintf(stderr, "player_died: attacker player %u not found.\n",
+			died->attacker_player_id);
+		return;
+	}
+
+	kill = array_add_into(&app->player_deaths);
+	strncpy(kill->target_name, target->core->username, PLAYER_NAME_MAX);
+	strncpy(kill->attacker_name, attacker->core->username, PLAYER_NAME_MAX);
+	clock_gettime(CLOCK_MONOTONIC, &kill->timestamp);
+}
+
+static void 
+player_stats(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	const net_udp_player_stats_t* stats = (const net_udp_player_stats_t*)segment->data;
+	player_t* player;
+
+	player = ght_get(&app->players, stats->player_id);
+	if (player)
+	{
+		player->core->stats.kills = stats->kills;
+		player->core->stats.deaths = stats->deaths;
+	}
+}
+
 i32 
 client_net_connect(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -597,6 +640,8 @@ client_net_init(waapp_t* app)
 	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
 	callbacks[NET_UDP_PLAYER_HEALTH] = (ssp_segmap_callback_t)player_health;
 	callbacks[NET_UDP_PONG] = (ssp_segmap_callback_t)udp_pong;
+	callbacks[NET_UDP_PLAYER_DIED] = (ssp_segmap_callback_t)player_died;
+	callbacks[NET_UDP_PLAYER_STATS] = (ssp_segmap_callback_t)player_stats;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;
