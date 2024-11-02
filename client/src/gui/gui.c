@@ -332,7 +332,7 @@ gui_init(waapp_t* app)
 
     nk_wa_font_stash_begin(app->nk_wa, &atlas);
 	app->font = nk_font_atlas_add_from_file(atlas, "res/font.ttf", 16, &config);
-	app->font_big = nk_font_atlas_add_from_file(atlas, "res/font.ttf", 32, &config);
+	app->font_big = nk_font_atlas_add_from_file(atlas, "res/font.ttf", 28, &config);
     nk_wa_font_stash_end(app->nk_wa);
 
     app->nk_ctx = &app->nk_wa->ctx;
@@ -370,4 +370,10 @@ gui_render(waapp_t* app)
 
     nk_wa_render(app->nk_wa, NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER,
                  MAX_ELEMENT_BUFFER);
+}
+
+void 
+gui_set_font(waapp_t* app, const struct nk_font* font)
+{
+	nk_style_set_font(app->nk_ctx, &font->handle);
 }

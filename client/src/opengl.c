@@ -73,6 +73,44 @@ waapp_opengl_cleanup(waapp_t* app)
 }
 
 static void
+ui_kills_window(waapp_t* app, struct nk_context* ctx)
+{
+    static struct nk_rect kill_window_rect = {
+        .w = 500,
+        .h = 200
+    };
+	kill_window_rect.x = (app->ren.viewport.x - kill_window_rect.w);
+	static nk_flags flags = NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_BACKGROUND | NK_WINDOW_NO_SCROLLBAR;
+
+	if (nk_begin(ctx, "kills", kill_window_rect, flags))
+	{
+		nk_layout_row_dynamic(ctx, 30, 1);
+
+		// for kill in recent_kills
+		nk_label(ctx, "killer -> victim", NK_TEXT_RIGHT);
+	}
+	nk_end(ctx);
+}
+
+static void
+ui_score_window(waapp_t* app, struct nk_context* ctx)
+{
+	static struct nk_rect score_window_rect = {
+		.w = 200,
+		.h = 50,
+		.y = 0
+	};
+	score_window_rect.x = (app->ren.viewport.x / 2 - (score_window_rect.w / 2));
+
+	if (nk_begin(ctx, "score", score_window_rect, NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR))
+	{
+		nk_layout_row_dynamic(ctx, score_window_rect.h, 1);
+		nk_label(ctx, "Kills: 69", NK_TEXT_CENTERED);
+	}
+	nk_end(ctx);
+}
+
+static void
 waapp_gui(waapp_t* app)
 {
     struct nk_context* ctx = app->nk_ctx;
@@ -188,6 +226,17 @@ waapp_gui(waapp_t* app)
         wa_window_stop(app->window);
         printf("CLOSE!\n");
     }
+
+
+	gui_set_font(app, app->font_big);
+	struct nk_style_item og_bg = ctx->style.window.fixed_background;
+	ctx->style.window.fixed_background = nk_style_item_color(nk_rgba(0, 0, 0, 0));
+
+	ui_kills_window(app, ctx);
+	ui_score_window(app, ctx);
+
+	ctx->style.window.fixed_background = og_bg;
+	gui_set_font(app, app->font);
 }
 
 static void 
