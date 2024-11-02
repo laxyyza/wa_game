@@ -42,7 +42,6 @@ coregame_init(coregame_t* coregame, bool client)
 
 	// coregame->map = cg_map_new(100, 100, 100);
 	coregame->map = cg_map_load("res/test.cgmap");
-	mmframes_init(&coregame->mmf);
 }
 
 static inline bool 
@@ -213,14 +212,13 @@ coregame_update(coregame_t* cg)
 
 	coregame_update_players(cg);
 	coregame_update_projectiles(cg);
-	mmframes_clear(&cg->mmf);
 }
 
 void 
 coregame_cleanup(coregame_t* cg)
 {
+	free(cg->map);
 	ght_destroy(&cg->players);
-	mmframes_free(&cg->mmf);
 }
 
 cg_player_t* 
