@@ -11,6 +11,7 @@ mkdir -p $SHADERS_DIR
 
 cp -rv res $STAG_DIR
 cp -v client/src/shaders/* $SHADERS_DIR
+strip $EXE_PATH
 cp -v $EXE_PATH $PTHREAD_PATH $STAG_DIR
 
 touch $STAG_DIR/wa_game_win32.tar.zst
