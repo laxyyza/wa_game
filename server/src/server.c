@@ -329,7 +329,7 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 			connect->username, client->tcp_sock.ipstr, session->session_id);
 
 	ssp_segbuff_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), session);
-	ssp_segbuff_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), &udp_info);
+	ssp_segbuff_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), udp_info);
 	broadcast_new_player(server, client);
 }
 
