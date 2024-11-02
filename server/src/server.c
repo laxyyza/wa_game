@@ -8,7 +8,6 @@
 #include <signal.h>
 
 #define RECV_BUFFER_SIZE 4096
-#define PORT 8080
 #define TICKRATE 64.0
 
 static i32
@@ -515,8 +514,8 @@ server_init_signalfd(server_t* server)
 i32 
 server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 {
-	server->port = PORT;
-	server->udp_port = PORT + 1;
+	server->port = DEFAULT_PORT;
+	server->udp_port = DEFAULT_PORT + 1;
 
 	ght_init(&server->clients, 10, free);
 

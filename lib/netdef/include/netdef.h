@@ -5,6 +5,8 @@
 #include "ssp.h"
 #include "ssp_tcp.h"
 
+#define DEFAULT_PORT 49420
+
 enum segtypes
 {
 	NET_TCP_CONNECT,

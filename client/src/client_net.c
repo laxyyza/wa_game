@@ -525,7 +525,7 @@ client_net_parse_address(waapp_t* app, const char* addr)
 	client_net_t* net = &app->net;
 	ssp_tcp_sock_t* sock = &net->tcp.sock;
 	char* ip_addr = sock->ipstr;
-	u16 port = 8080;
+	u16 port = DEFAULT_PORT;
 	bool ret = true;
 
 	// TODO: Support adding port into address string.
