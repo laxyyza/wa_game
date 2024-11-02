@@ -64,6 +64,7 @@ read_client(server_t* server, event_t* event)
 {
 	client_t* client = event->data;
 	void* buf = malloc(RECV_BUFFER_SIZE);
+	i32 ret;
 
 	i64 bytes_read;
 
@@ -75,7 +76,15 @@ read_client(server_t* server, event_t* event)
 	else if (bytes_read == 0)
 		server_close_event(server, event);
 	else
-		ssp_parse_buf(&server->netdef.ssp_state, &client->udp_buf, buf, bytes_read, client);
+	{
+		ret = ssp_parse_buf(&server->netdef.ssp_state, &client->udp_buf, buf, bytes_read, client);
+		if (ret == SSP_FAILED)
+		{
+			printf("Client (%s) sent invalid packet. Closing client.\n",
+				client->tcp_sock.ipstr);
+			server_close_event(server, event);
+		}
+	}
 
 	free(buf);
 }
@@ -98,7 +107,7 @@ close_client(server_t* server, client_t* client)
 	u32 player_id = 0;
 
 	ssp_tcp_sock_close(&client->tcp_sock);
-	printf("Client '%s' closed.\n", client->tcp_sock.ipstr);
+	printf("Client (%s) closed.\n", client->tcp_sock.ipstr);
 
 	if (client->player)
 	{
@@ -130,11 +139,19 @@ handle_new_connection(server_t* server, UNUSED event_t* event)
 	server_add_event(server, client->tcp_sock.sockfd, client, read_client, event_close_client);
 }
 
+static void
+set_udp_info(udp_addr_t* info)
+{
+	inet_ntop(AF_INET, &info->addr.sin_addr, info->ipaddr, INET6_ADDRSTRLEN);
+	info->port = ntohs(info->addr.sin_port);
+}
+
 static void 
 read_udp_packet(server_t* server, event_t* event)
 {
 	void* buf = malloc(RECV_BUFFER_SIZE);
 	i64 bytes_read;
+	i32 ret;
 	udp_addr_t info = {
 		.addr_len = sizeof(struct sockaddr_in)
 	};
@@ -146,7 +163,13 @@ read_udp_packet(server_t* server, event_t* event)
 		return;
 	}
 
-	ssp_parse_buf(&server->netdef.ssp_state, NULL, buf, bytes_read, &info);
+	set_udp_info(&info);
+
+	ret = ssp_parse_buf(&server->netdef.ssp_state, NULL, buf, bytes_read, &info);
+	if (ret == SSP_FAILED)
+	{
+		printf("Invalid UDP packet (%zu bytes) from %s:%u.\n", bytes_read, info.ipaddr, info.port);
+	}
 	free(buf);
 }
 
@@ -321,16 +344,33 @@ verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void**
 		return false;
 	}
 
-	if (client->tcp_sock.addr.sockaddr.in.sin_addr.s_addr != source_data->addr.sin_addr.s_addr)
+	if (client->udp_connected)
 	{
-		printf("Client TCP address != source_data\n");
+		if (client->udp.addr.sin_addr.s_addr != source_data->addr.sin_addr.s_addr)
+		{
+			printf("UDP \"connected\" client IP Address dones't match from new packet. (og: %s != new: %s)...\n",
+					client->udp.ipaddr, source_data->ipaddr);
+		}
+
+		if (client->udp.addr.sin_port != source_data->addr.sin_port)
+		{
+			printf("UDP \"connected\" client source port dones't match from new packet. (og: %u != new: %u)...\n",
+					client->udp.port, source_data->port);
+		}
+	}
+	else if (client->tcp_sock.addr.sockaddr.in.sin_addr.s_addr != source_data->addr.sin_addr.s_addr)
+	{
+		printf("Client TCP IP Address (%s) != to UDP Address (%s)!\n",
+				client->tcp_sock.ipstr, source_data->ipaddr);
 		return false;
 	}
-
+	else
+	{
+		memcpy(&client->udp, source_data, sizeof(udp_addr_t));
+		client->udp_connected = true;
+	}
 	*new_source = client;
 	*segbuf = &client->udp_buf;
-	memcpy(&client->udp, source_data, sizeof(udp_addr_t));
-	client->udp_connected = true;
 
 	return true;
 }

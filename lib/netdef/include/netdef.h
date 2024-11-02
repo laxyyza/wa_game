@@ -99,6 +99,8 @@ typedef struct
 {
 	struct sockaddr_in addr;
 	socklen_t addr_len;
+	char ipaddr[INET6_ADDRSTRLEN];
+	u16 port;
 } udp_addr_t;
 
 void netdef_init(netdef_t* netdef, coregame_t* coregame, 
