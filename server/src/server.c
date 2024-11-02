@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <sys/signalfd.h>
 #include <signal.h>
+#include <getopt.h>
 
 #define RECV_BUFFER_SIZE 4096
 #define TICKRATE 64.0
@@ -511,11 +512,100 @@ server_init_signalfd(server_t* server)
 	return 0;
 }
 
+static void
+server_print_help(const char* exe_path)
+{
+	printf(
+		"Usage:\n\t%s [options]\n\n"\
+		"  -p, --port=PORT\t\tPort number for TCP and UDP + 1. (Default 49420 TCP, 49421 UDP)\n"
+		"  --tcp-port=PORT\t\tTCP Port. (Default 49420)\n"
+		"  --udp-port=PORT\t\tUDP Port. (Default 49421)\n"
+		"  -t, --tickrate=TICKRATE\tTickrate. (Default 64)\n"
+		"  -h, --help\t\t\tPrint this message\n\n"
+	, exe_path);
+}
+
+static i32
+server_set_port(u16* dest_port, const char* str)
+{
+	i32 port = atoi(str);
+	if (port <= 0 || port > UINT16_MAX)
+	{
+		fprintf(stderr, "Invalid port number.\n");
+		return -1;
+	}
+
+	*dest_port = (u16)port;
+	return 0;
+}
+
+static i32
+server_argv(server_t* server, i32 argc, char* const* argv)
+{
+	i32 opt;
+
+	struct option long_options[] = {
+		{"port", required_argument, 0, 'p'},
+		{"udp-port", required_argument, 0, 0},
+		{"tcp-port", required_argument, 0, 0},
+		{"tickrate", required_argument, 0, 't'},
+		{"help", no_argument, 0, 'h'},
+		{0, 0, 0, 0}
+	};
+	char* endptr;
+	i32 opt_idx;
+
+	while ((opt = getopt_long(argc, argv, "p:t:h", long_options, &opt_idx)) != -1)
+	{
+		switch (opt) 
+		{
+			case 'p':
+			{
+				if (server_set_port(&server->port, optarg) == -1)
+					return -1;
+				server->udp_port = server->port + 1;
+				break;
+			}
+			case 't':
+			{
+				i16 tickrate = strtol(optarg, &endptr, 10);
+				if (endptr == optarg || *endptr != 0x00 || tickrate >= INT16_MAX || tickrate <= 0)
+				{
+					fprintf(stderr, "Invalid tickrate.\n");
+					return -1;
+				}
+				server_set_tickrate(server, (f64)tickrate);
+				break;
+			}
+			case 'h':
+				server_print_help(argv[0]);
+				return -1;
+			case 0:
+			{
+				if (strcmp(long_options[opt_idx].name, "udp-port") == 0)
+					server_set_port(&server->udp_port, optarg);
+				else if (strcmp(long_options[opt_idx].name, "tcp-port") == 0)
+					server_set_port(&server->port, optarg);
+				break;
+			}
+			default:
+				return -1;
+				break;
+		}
+	}
+
+	return 0;
+}
+
 i32 
-server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
+server_init(server_t* server, i32 argc, char* const* argv)
 {
 	server->port = DEFAULT_PORT;
 	server->udp_port = DEFAULT_PORT + 1;
+	server_set_tickrate(server, TICKRATE);
+
+	if (server_argv(server, argc, argv) == -1)
+		return -1;
 
 	ght_init(&server->clients, 10, free);
 
@@ -530,8 +620,6 @@ server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 	server_init_netdef(server);
 	server_init_coregame(server);
 	mmframes_init(&server->mmf);
-
-	server_set_tickrate(server, TICKRATE);
 
 	server->running = true;
 
@@ -641,8 +729,14 @@ void
 server_run(server_t* server)
 {
 	if (server->running)
-		printf("Server is up & running.\n\tTCP port: %u  -  UDP port: %u.\n\tConnect to the TCP port.\n\n", 
-				server->port, server->udp_port);
+	{
+		printf("Server is up & running!\n\t");
+		printf("Tick rate: %.1f     (%fms interval).\n\t",
+				server->tickrate, server->interval * 1000.0);
+		printf("TCP port:  %u\n\t", server->port);
+		printf("UDP port:  %u\n\t", server->udp_port);
+		printf("Connect to TCP port.\n\n");
+	}
 
 	struct timespec start_time, end_time, prev_time;
 

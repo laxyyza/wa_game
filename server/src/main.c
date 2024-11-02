@@ -3,7 +3,7 @@
 static server_t server = {0};
 
 i32
-main(i32 argc, const char** argv)
+main(i32 argc, char* const* argv)
 {
 	if (server_init(&server, argc, argv) == -1)
 		return -1;

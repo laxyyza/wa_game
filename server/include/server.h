@@ -44,7 +44,7 @@ typedef struct server
 	} events;
 } server_t;
 
-i32 server_init(server_t* server, i32 argc, const char** argv);
+i32 server_init(server_t* server, i32 argc, char* const* argv);
 void server_run(server_t* server);
 void server_cleanup(server_t* server);
 
