@@ -4,7 +4,10 @@
 #include <time.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/signalfd.h>
+#include <signal.h>
 
+#define RECV_BUFFER_SIZE 4096
 #define PORT 8080
 #define TICKRATE 64.0
 
@@ -60,23 +63,21 @@ static void
 read_client(server_t* server, event_t* event)
 {
 	client_t* client = event->data;
-	char buffer[1024] = {0};
+	void* buf = malloc(RECV_BUFFER_SIZE);
 
-	ssize_t bytes_read;
+	i64 bytes_read;
 
-	if ((bytes_read = recv(event->fd, buffer, 1024, 0)) == -1)
+	if ((bytes_read = recv(event->fd, buf, RECV_BUFFER_SIZE, 0)) == -1)
 	{
 		perror("recv");
 		server_close_event(server, event);
 	}
 	else if (bytes_read == 0)
-	{
 		server_close_event(server, event);
-	}
 	else
-	{
-		ssp_parse_buf(&server->netdef.ssp_state, &client->udp_buf, buffer, bytes_read, client);
-	}
+		ssp_parse_buf(&server->netdef.ssp_state, &client->udp_buf, buf, bytes_read, client);
+
+	free(buf);
 }
 
 static void 
@@ -92,10 +93,9 @@ broadcast_delete_player(server_t* server, u32 id)
 }
 
 static void
-close_client(server_t* server, event_t* event)
+close_client(server_t* server, client_t* client)
 {
 	u32 player_id = 0;
-	client_t* client = event->data;
 
 	ssp_tcp_sock_close(&client->tcp_sock);
 	printf("Client '%s' closed.\n", client->tcp_sock.ipstr);
@@ -106,10 +106,18 @@ close_client(server_t* server, event_t* event)
 		coregame_free_player(&server->game, client->player);
 	}
 
+	ssp_segbuff_destroy(&client->udp_buf);
+	ssp_segbuff_destroy(&client->tcp_buf);
 	ght_del(&server->clients, client->session_id);
 
 	if (player_id)
 		broadcast_delete_player(server, player_id);
+}
+
+static void
+event_close_client(server_t* server, event_t* event)
+{
+	close_client(server, event->data);
 }
 
 static void
@@ -119,21 +127,22 @@ handle_new_connection(server_t* server, UNUSED event_t* event)
 	if (client == NULL)
 		return;
 
-	server_add_event(server, client->tcp_sock.sockfd, client, read_client, close_client);
+	server_add_event(server, client->tcp_sock.sockfd, client, read_client, event_close_client);
 }
 
 static void 
 read_udp_packet(server_t* server, event_t* event)
 {
-	void* buf = malloc(1024);
+	void* buf = malloc(RECV_BUFFER_SIZE);
 	i64 bytes_read;
 	udp_addr_t info = {
 		.addr_len = sizeof(struct sockaddr_in)
 	};
 
-	if ((bytes_read = recvfrom(event->fd, buf, 1024, 0, &info.addr, &info.addr_len)) == -1)
+	if ((bytes_read = recvfrom(event->fd, buf, RECV_BUFFER_SIZE, 0, &info.addr, &info.addr_len)) == -1)
 	{
 		perror("recvfrom");
+		free(buf);
 		return;
 	}
 
@@ -277,22 +286,25 @@ broadcast_new_player(server_t* server, client_t* new_client)
 static void 
 client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* client)
 {
-	net_tcp_sessionid_t sessionid;
-	net_tcp_udp_info_t udp_info = {
-		.port = server->udp_port,
-		.tickrate = server->tickrate,
-		.ssp_flags = SSP_FLAGS
-	};
+	net_tcp_sessionid_t* session = mmframes_alloc(&server->mmf, sizeof(net_tcp_sessionid_t));
+	net_tcp_udp_info_t* udp_info = mmframes_alloc(&server->mmf, sizeof(net_tcp_udp_info_t));
+
+	udp_info->port = server->udp_port;
+	udp_info->tickrate = server->tickrate;
+	udp_info->ssp_flags = SSP_FLAGS;
+
 	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
 	client->player = coregame_add_player(&server->game, connect->username);
 	client->player->pos = server_next_spawn(server);
-	sessionid.session_id = client->session_id;
-	sessionid.player_id = client->player->id;
 
-	printf("Client '%s' (%s) got %u for session ID.\n", connect->username, client->tcp_sock.ipstr, sessionid.session_id);
+	session->session_id = client->session_id;
+	session->player_id = client->player->id;
 
-	ssp_segbuff_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), &sessionid);
+	printf("Client '%s' (%s) got %u for session ID.\n", 
+			connect->username, client->tcp_sock.ipstr, session->session_id);
+
+	ssp_segbuff_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), session);
 	ssp_segbuff_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), &udp_info);
 	broadcast_new_player(server, client);
 }
@@ -394,6 +406,71 @@ server_init_netdef(server_t* server)
 	server->netdef.ssp_state.verify_session = (ssp_session_verify_callback_t)verify_session;
 }
 
+static void
+signalfd_read(server_t* server, event_t* event)
+{
+	struct signalfd_siginfo siginfo;
+	const i64 size = sizeof(struct signalfd_siginfo);
+	i32 sig;
+
+	if (read(event->fd, &siginfo, size) != size)
+	{
+		perror("signalfd_read");
+		server->running = false;
+		return;
+	}
+	sig = siginfo.ssi_signo;
+
+	printf("\nSignal recieved: %d (%s)\n", sig, strsignal(sig));
+
+	switch (sig)
+	{
+		case SIGINT:
+		case SIGTERM:
+			server->running = false;
+			break;
+		default:
+			break;
+	}
+}
+
+static void
+signalfd_close(server_t* server)
+{
+	if (server->signalfd >= 0)
+		return;
+
+	if (close(server->signalfd) == -1)
+		perror("signalfd_close");
+}
+
+static void
+event_signalfd_close(server_t* server, UNUSED event_t* ev)
+{
+	signalfd_close(server);
+}
+
+static i32
+server_init_signalfd(server_t* server)
+{
+	sigset_t mask;
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGINT);
+	sigaddset(&mask, SIGTERM);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
+
+	server->signalfd = signalfd(-1, &mask, 0);
+	if (server->signalfd == -1)
+	{
+		perror("signalfd");
+		return -1;
+	}
+
+	server_add_event(server, server->signalfd, NULL, signalfd_read, event_signalfd_close);
+
+	return 0;
+}
+
 i32 
 server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 {
@@ -409,6 +486,8 @@ server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 	if (server_init_udp(server) == -1)
 		goto err;
 	if (server_init_epoll(server) == -1)
+		goto err;
+	if (server_init_signalfd(server) == -1)
 		goto err;
 	server_init_netdef(server);
 	server_init_coregame(server);
@@ -496,7 +575,7 @@ server_poll(server_t* server, struct timespec* prev_start_time, struct timespec*
 	do {
 		do_timeout = (server->clients.count == 0) ? NULL : &timeout;
 
-		nfds = epoll_pwait2(server->epfd, server->events, MAX_EVENTS, do_timeout, NULL);
+		nfds = epoll_pwait2(server->epfd, server->ep_events, MAX_EVENTS, do_timeout, NULL);
 		if (nfds == -1)
 		{
 			if (errno == EINTR)
@@ -512,7 +591,7 @@ server_poll(server_t* server, struct timespec* prev_start_time, struct timespec*
 
 		for (i32 i = 0; i < nfds; i++)
 		{
-			event = server->events + i;
+			event = server->ep_events + i;
 			server_handle_event(server, event->data.ptr, event->events);
 		}
 
@@ -528,7 +607,7 @@ server_poll(server_t* server, struct timespec* prev_start_time, struct timespec*
 			else
 				timeout.tv_sec = timeout.tv_nsec = 0;
 		}
-	} while (nfds || timeout_time_ns > 0);
+	} while ((nfds || timeout_time_ns > 0) && server->running);
 }
 
 void 
@@ -556,8 +635,40 @@ server_run(server_t* server)
 	}
 }
 
-void 
-server_cleanup(UNUSED server_t* server)
+static void
+server_cleanup_clients(server_t* server)
 {
-	printf("server_cleanup()...\n");
+	ght_t* clients = &server->clients;
+
+	GHT_FOREACH(client_t* client, clients, {
+		if (client->player)
+		{
+			ssp_segbuff_add(&client->tcp_buf, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
+			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+		}
+		close_client(server, client);
+	});
+
+	ght_destroy(&server->clients);
+}
+
+void 
+server_cleanup(server_t* server)
+{
+	server_cleanup_clients(server);
+
+	server_close_all_events(server);
+
+	ssp_tcp_sock_close(&server->tcp_sock);
+	signalfd_close(server);
+
+	if (server->udp_fd > 0 && close(server->udp_fd) == -1)
+		perror("close udp fd");
+
+	if (server->epfd > 0 && close(server->epfd) == -1)
+		perror("close epoll");
+
+	coregame_cleanup(&server->game);
+	mmframes_free(&server->mmf);
+	netdef_destroy(&server->netdef);
 }

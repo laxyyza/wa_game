@@ -18,10 +18,11 @@ typedef struct server
 	i32 udp_fd;
 	ssp_tcp_sock_t tcp_sock;
 	i32 epfd;
+	i32 signalfd;
 	u16 port;
 	u16 udp_port;
 	ght_t clients;
-	struct epoll_event events[MAX_EVENTS];
+	struct epoll_event ep_events[MAX_EVENTS];
 	netdef_t netdef;
 	coregame_t game;
 
@@ -36,6 +37,11 @@ typedef struct server
 
 	i64		highest_frametime;
 	char	highest_frametime_str[FRAMETIME_LEN];
+
+	struct {
+		event_t* head;
+		event_t* tail;
+	} events;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, const char** argv);

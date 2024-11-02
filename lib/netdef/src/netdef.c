@@ -28,3 +28,9 @@ netdef_init(netdef_t* netdef, coregame_t* coregame,
 		}
 	}
 }
+
+void 
+netdef_destroy(netdef_t* netdef)
+{
+	ssp_state_destroy(&netdef->ssp_state);
+}

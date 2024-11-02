@@ -12,6 +12,7 @@ enum segtypes
 	NET_TCP_NEW_PLAYER,
 	NET_TCP_DELETE_PLAYER,
 	NET_TCP_UDP_INFO,
+	NET_TCP_SERVER_SHUTDOWN,
 
 	NET_UDP_PLAYER_MOVE,
 	NET_UDP_PLAYER_DIR,
@@ -102,6 +103,7 @@ typedef struct
 
 void netdef_init(netdef_t* netdef, coregame_t* coregame, 
 				 const ssp_segmap_callback_t callbacks_override[NET_SEGTYPES_LEN]);
+void netdef_destroy(netdef_t* netdef);
 
 #endif // _NETDEF_H_
 
