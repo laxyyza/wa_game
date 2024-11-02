@@ -17,14 +17,15 @@ accept_client(server_t* server)
 
 	inet_ntop(AF_INET, &client->tcp_sock.addr.sockaddr.in.sin_addr.s_addr, client->tcp_sock.ipstr, client->tcp_sock.addr.addr_len);
 
-	printf("New client '%s' (%d) connected.\n", client->tcp_sock.ipstr, client->tcp_sock.sockfd);
-
 	ssp_segbuff_init(&client->tcp_buf, 10, 0);
 	ssp_segbuff_init(&client->udp_buf, 10, SSP_FLAGS);
 
 	getrandom(&client->session_id, sizeof(u32), 0);
 
 	ght_insert(&server->clients, client->session_id, client);
+
+	printf("Client '%s' (fd:%d) connected. (%zu total clients connected)\n\n", 
+			client->tcp_sock.ipstr, client->tcp_sock.sockfd, server->clients.count);
 
 	return client;
 }

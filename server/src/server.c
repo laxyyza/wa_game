@@ -107,7 +107,8 @@ close_client(server_t* server, client_t* client)
 	u32 player_id = 0;
 
 	ssp_tcp_sock_close(&client->tcp_sock);
-	printf("Client (%s) closed.\n", client->tcp_sock.ipstr);
+	printf("Client (%s) closed. (%zu connected clients)\n\n", 
+			client->tcp_sock.ipstr, server->clients.count - 1);
 
 	if (client->player)
 	{
@@ -514,8 +515,6 @@ server_init_signalfd(server_t* server)
 i32 
 server_init(server_t* server, UNUSED i32 argc, UNUSED const char** argv)
 {
-	printf("server_init()...\n");
-
 	server->port = PORT;
 	server->udp_port = PORT + 1;
 
@@ -653,7 +652,9 @@ server_poll(server_t* server, struct timespec* prev_start_time, struct timespec*
 void 
 server_run(server_t* server)
 {
-	printf("server_run()...\n");
+	if (server->running)
+		printf("Server is up & running.\n\tTCP port: %u, UDP port: %u.\n\tConnect to the TCP port.\n\n", 
+				server->port, server->udp_port);
 
 	struct timespec start_time, end_time, prev_time;
 
@@ -695,10 +696,8 @@ server_cleanup_clients(server_t* server)
 void 
 server_cleanup(server_t* server)
 {
-	server_cleanup_clients(server);
-
 	server_close_all_events(server);
-
+	server_cleanup_clients(server);
 	ssp_tcp_sock_close(&server->tcp_sock);
 	signalfd_close(server);
 
