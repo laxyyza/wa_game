@@ -17,7 +17,6 @@
 typedef struct 
 {
 	vec2u16_t	pos;
-	u64			data;
 	u8			type;
 } CG_PACKED cg_cell_t;
 
