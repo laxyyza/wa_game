@@ -11,6 +11,9 @@
 static void 
 client_shoot(waapp_t* app)
 {
+	if (app->on_ui)
+		return;
+
 	const player_t* player = app->player;
 
 	const vec2f_t mpos = screen_to_world(app, &app->mouse);
