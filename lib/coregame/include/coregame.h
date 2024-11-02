@@ -34,6 +34,7 @@ typedef struct
 {
 	u16 kills;
 	u16 deaths;
+	f32 ping;
 } cg_player_stats_t;
 
 typedef struct cg_player

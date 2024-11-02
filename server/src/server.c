@@ -459,6 +459,22 @@ udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client
 	client_send(server, source_client, packet);
 }
 
+static void 
+player_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	const net_udp_player_ping_t* og_client_ping = (const net_udp_player_ping_t*)segment->data;
+	net_udp_player_ping_t* client_ping = mmframes_alloc(&server->mmf, sizeof(net_udp_player_ping_t));
+	ght_t* clients = &server->clients;
+
+	client_ping->ms = og_client_ping->ms;
+	client_ping->player_id = source_client->player->id;
+
+	GHT_FOREACH(client_t* client, clients, {
+		if (client != source_client)
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), client_ping);
+	});
+}
+
 static void
 server_init_netdef(server_t* server)
 {
@@ -468,6 +484,7 @@ server_init_netdef(server_t* server)
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
 	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
 	callbacks[NET_UDP_PING] = (ssp_segmap_callback_t)udp_ping;
+	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)player_ping;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_state.user_data = server;

@@ -150,6 +150,9 @@ ui_tab_display_player(struct nk_context* ctx, cg_player_t* player)
 
 	snprintf(player_stats, 64, "%u", player->stats.deaths);
 	nk_label(ctx, player_stats, NK_TEXT_CENTERED);
+
+	snprintf(player_stats, 64, "%.2f", player->stats.ping);
+	nk_label(ctx, player_stats, NK_TEXT_CENTERED);
 }
 
 static f32
@@ -175,13 +178,14 @@ ui_tab_window(waapp_t* app, struct nk_context* ctx)
 
 	if (nk_begin(ctx, "Scoreboard", rect, NK_WINDOW_TITLE))
 	{
-		nk_layout_row_dynamic(ctx, 50, 3);
+		nk_layout_row_dynamic(ctx, 50, 4);
 		
-		nk_label(ctx, "Players", NK_TEXT_CENTERED);
-		nk_label(ctx, "Kills", NK_TEXT_CENTERED);
-		nk_label(ctx, "Deaths", NK_TEXT_CENTERED);
+		nk_label(ctx, "PLAYERS", NK_TEXT_CENTERED);
+		nk_label(ctx, "KILLS", NK_TEXT_CENTERED);
+		nk_label(ctx, "DEATHS", NK_TEXT_CENTERED);
+		nk_label(ctx, "PING", NK_TEXT_CENTERED);
 
-		nk_layout_row_dynamic(ctx, 20, 3);
+		nk_layout_row_dynamic(ctx, 20, 4);
 
 		ui_tab_display_player(ctx, app->player->core);
 

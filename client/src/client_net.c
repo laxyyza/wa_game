@@ -487,11 +487,14 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	client_net_t* net = &app->net;
 	struct timespec current_time;
 	const net_udp_pingpong_t* pong = (const net_udp_pingpong_t*)segment->data;
+	net_udp_player_ping_t* player_ping = mmframes_alloc(&app->mmf, sizeof(net_udp_player_ping_t));
 
 	clock_gettime(CLOCK_MONOTONIC, &current_time);
 
 	f64 elapsed_time = get_elapsed_time(&current_time, &pong->start_time);
-	net->udp.latency = elapsed_time * 1000.0;
+	app->player->core->stats.ping = player_ping->ms = net->udp.latency = elapsed_time * 1000.0;
+
+	ssp_segbuff_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
 }
 
 static void 
@@ -535,6 +538,16 @@ player_stats(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 		player->core->stats.kills = stats->kills;
 		player->core->stats.deaths = stats->deaths;
 	}
+}
+
+static void 
+player_ping(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	const net_udp_player_ping_t* ping = (const net_udp_player_ping_t*)segment->data;
+	cg_player_t* player;
+
+	if ((player = ght_get(&app->game.players, ping->player_id)))
+		player->stats.ping = ping->ms;
 }
 
 i32 
@@ -642,6 +655,7 @@ client_net_init(waapp_t* app)
 	callbacks[NET_UDP_PONG] = (ssp_segmap_callback_t)udp_pong;
 	callbacks[NET_UDP_PLAYER_DIED] = (ssp_segmap_callback_t)player_died;
 	callbacks[NET_UDP_PLAYER_STATS] = (ssp_segmap_callback_t)player_stats;
+	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)player_ping;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;
