@@ -1,11 +1,16 @@
+#define _GNU_SOURCE
 #include "main_menu.h"
 #include "app.h"
 #include "nuklear.h"
+#include <string.h>
+#include <stdlib.h>
+
+#define MM_STATE_NAME_REQUIRED "Username required."
+#define MM_STATE_IP_REQUIRED "IP Address required."
 
 void 
-main_menu_init(UNUSED waapp_t* app, waapp_main_menu_t* mm)
+main_menu_init(UNUSED waapp_t* app, UNUSED waapp_main_menu_t* mm)
 {
-	strncpy(mm->username, "username", PLAYER_NAME_MAX);
 }
 
 void 
@@ -35,8 +40,17 @@ main_menu_update(waapp_t* app, waapp_main_menu_t* mm)
 
 		if (nk_button_label(ctx, "Connect"))
 		{
-			const char* ret = client_net_async_connect(app, mm->ipaddr);
-			strncpy(mm->state, ret, MM_STATE_STRING_MAX - 1);
+			u32 name_len = strnlen(mm->username, PLAYER_NAME_MAX);
+			u32 ip_len = strnlen(mm->ipaddr, INET6_ADDRSTRLEN);
+			if (name_len == 0)
+				strncpy(mm->state, MM_STATE_NAME_REQUIRED, MM_STATE_STRING_MAX - 1);
+			else if (ip_len == 0)
+				strncpy(mm->state, MM_STATE_IP_REQUIRED, MM_STATE_STRING_MAX - 1);
+			else
+			{
+				const char* ret = client_net_async_connect(app, mm->ipaddr);
+				strncpy(mm->state, ret, MM_STATE_STRING_MAX - 1);
+			}
 		}
 
 		nk_label(ctx, mm->state, NK_TEXT_CENTERED);
