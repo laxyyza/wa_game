@@ -50,8 +50,6 @@ cg_map_load(const char* path)
 		cell = cg_map_at(ret, disk_cell->pos.x, disk_cell->pos.y);
 		memcpy(cell, disk_cell, sizeof(cg_cell_t));
 	}
-	printf("cgmap (%s) loaded. disk_size: %zu, disk_cells_count: %zu\n",
-				path, disk_size, disk_cells_count);
 err:
 	fclose(f);
 	free(disk_map);
