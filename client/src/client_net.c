@@ -157,7 +157,7 @@ client_net_on_connect(waapp_t* app)
 
 	net_tcp_connect_t connect;
 	memset(&connect, 9, sizeof(net_tcp_connect_t));
-	strncpy(connect.username, mm->username, PLAYER_NAME_MAX);
+	strncpy(connect.username, mm->sd.username, PLAYER_NAME_MAX);
 
 	ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
 	ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);

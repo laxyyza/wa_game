@@ -12,6 +12,11 @@ typedef struct
 {
 	char ipaddr[INET6_ADDRSTRLEN];
 	char username[PLAYER_NAME_MAX];
+} main_menu_save_data_t;
+
+typedef struct 
+{
+	main_menu_save_data_t sd;
 	char state[MM_STATE_STRING_MAX];
 } waapp_main_menu_t;
 
