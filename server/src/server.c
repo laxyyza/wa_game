@@ -107,8 +107,8 @@ close_client(server_t* server, client_t* client)
 	u32 player_id = 0;
 
 	ssp_tcp_sock_close(&client->tcp_sock);
-	printf("Client (%s) closed. (%zu connected clients)\n\n", 
-			client->tcp_sock.ipstr, server->clients.count - 1);
+	printf("Client (%s) (fd:%d) closed.\t(%zu connected clients)\n", 
+			client->tcp_sock.ipstr, client->tcp_sock.sockfd, server->clients.count - 1);
 
 	if (client->player)
 	{
@@ -574,16 +574,6 @@ format_ns(char* buf, u64 max, i64 ns)
 }
 
 static void
-print_frametimes(i64 ns, const char* high_str)
-{
-	char frametime_str[FRAMETIMES_LEN];
-	format_ns(frametime_str, FRAMETIMES_LEN, ns);
-
-	// Go one line up, clear it and print.
-	printf("\033[F\033[KFrame time: %s\t(highest: %s)\n", frametime_str, high_str);
-}
-
-static void
 server_poll(server_t* server, struct timespec* prev_start_time, struct timespec* prev_end_time)
 {
 	i32 nfds;
@@ -605,7 +595,6 @@ server_poll(server_t* server, struct timespec* prev_start_time, struct timespec*
 			server->highest_frametime = prev_frame_time_ns;
 			format_ns(server->highest_frametime_str, FRAMETIME_LEN, prev_frame_time_ns);
 		}
-		print_frametimes(prev_frame_time_ns, server->highest_frametime_str);
 		timeout_time_ns = server->interval_ns - prev_frame_time_ns;
 		if (timeout_time_ns > 0)
 			ns_to_timespec(&timeout, timeout_time_ns);
@@ -653,7 +642,7 @@ void
 server_run(server_t* server)
 {
 	if (server->running)
-		printf("Server is up & running.\n\tTCP port: %u, UDP port: %u.\n\tConnect to the TCP port.\n\n", 
+		printf("Server is up & running.\n\tTCP port: %u  -  UDP port: %u.\n\tConnect to the TCP port.\n\n", 
 				server->port, server->udp_port);
 
 	struct timespec start_time, end_time, prev_time;

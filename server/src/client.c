@@ -24,7 +24,7 @@ accept_client(server_t* server)
 
 	ght_insert(&server->clients, client->session_id, client);
 
-	printf("Client '%s' (fd:%d) connected. (%zu total clients connected)\n\n", 
+	printf("Client (%s) (fd:%d) connected.\t(%zu connected clients)\n", 
 			client->tcp_sock.ipstr, client->tcp_sock.sockfd, server->clients.count);
 
 	return client;
