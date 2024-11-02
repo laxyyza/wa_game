@@ -129,8 +129,6 @@ nk_wa_init(void)
     nk_init_default(&nk->ctx, 0);
     nk_wa_dev_create(nk);
 
-    // TODO: Add scrolling
-
     return nk;
 }
 
@@ -330,11 +328,23 @@ gui_init(waapp_t* app)
 {
     app->nk_wa = nk_wa_init();
     struct nk_font_atlas* atlas;
+	struct nk_font_config config = nk_font_config(0);
 
     nk_wa_font_stash_begin(app->nk_wa, &atlas);
+	app->font = nk_font_atlas_add_from_file(atlas, "res/font.ttf", 16, &config);
+	app->font_big = nk_font_atlas_add_from_file(atlas, "res/font.ttf", 32, &config);
     nk_wa_font_stash_end(app->nk_wa);
 
     app->nk_ctx = &app->nk_wa->ctx;
+
+	nk_style_set_font(app->nk_ctx, &app->font->handle);
+
+	app->nk_ctx->style.window.fixed_background = nk_style_item_color(nk_rgba(10, 10, 10, 225));
+	app->nk_ctx->style.window.header.active = nk_style_item_color(nk_rgba(0, 0, 0, 255));
+	app->nk_ctx->style.window.header.normal = nk_style_item_color(nk_rgba(0, 0, 0, 255));
+	app->nk_ctx->style.window.header.close_button.hover = nk_style_item_color(nk_rgb(255, 0, 0));
+	app->nk_ctx->style.window.header.close_button.text_hover = nk_rgb(0, 0, 0);
+	app->nk_ctx->style.window.header.minimize_button.hover = nk_style_item_color(nk_rgba(100, 100, 100, 200));
 }
 
 void 

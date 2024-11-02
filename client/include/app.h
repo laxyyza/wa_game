@@ -68,6 +68,9 @@ typedef struct waapp
 	f32 max_zoom;
 
 	rect_t map_border;
+
+	struct nk_font* font;
+	struct nk_font* font_big;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, const char** argv);

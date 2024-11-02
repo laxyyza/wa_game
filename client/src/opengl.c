@@ -82,15 +82,15 @@ waapp_gui(waapp_t* app)
 
     static nk_flags win_flags = 
         NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | 
-         NK_WINDOW_TITLE | 
+         NK_WINDOW_TITLE | NK_WINDOW_MINIMIZED |
         NK_WINDOW_CLOSABLE | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE;
     const char* window_name = state->window.title;
     // static struct nk_vec2 window_offset = {10, 10};
     static struct nk_rect window_rect = {
         .x = 0,
         .y = 0,
-        .w = 300,
-        .h = 300
+        .w = 340,
+        .h = 500
     };
 
     if (nk_begin(ctx, window_name, window_rect, win_flags))
