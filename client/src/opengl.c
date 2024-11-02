@@ -139,6 +139,60 @@ ui_score_window(waapp_t* app, struct nk_context* ctx)
 	nk_end(ctx);
 }
 
+static void 
+ui_tab_display_player(struct nk_context* ctx, cg_player_t* player)
+{
+	char player_stats[64];
+	nk_label(ctx, player->username, NK_TEXT_CENTERED);
+
+	snprintf(player_stats, 64, "%u", player->stats.kills);
+	nk_label(ctx, player_stats, NK_TEXT_CENTERED);
+
+	snprintf(player_stats, 64, "%u", player->stats.deaths);
+	nk_label(ctx, player_stats, NK_TEXT_CENTERED);
+}
+
+static f32
+percent(f32 per, f32 max)
+{
+	return (per / 100.0) * max;
+}
+
+static void
+ui_tab_window(waapp_t* app, struct nk_context* ctx)
+{
+	wa_state_t* state = wa_window_get_state(app->window);
+	if (state->key_map[WA_KEY_TAB] == 0)
+		return;
+
+	struct nk_rect rect = {
+		.x = percent(20, app->ren.viewport.x),
+		.y = percent(20, app->ren.viewport.y),
+	};
+	rect.w = percent(70, app->ren.viewport.x) - rect.x / 2;
+	rect.h = percent(70, app->ren.viewport.y) - rect.y / 2;
+	const ght_t* players = &app->game.players;
+
+	if (nk_begin(ctx, "Scoreboard", rect, NK_WINDOW_TITLE))
+	{
+		nk_layout_row_dynamic(ctx, 50, 3);
+		
+		nk_label(ctx, "Players", NK_TEXT_CENTERED);
+		nk_label(ctx, "Kills", NK_TEXT_CENTERED);
+		nk_label(ctx, "Deaths", NK_TEXT_CENTERED);
+
+		nk_layout_row_dynamic(ctx, 20, 3);
+
+		ui_tab_display_player(ctx, app->player->core);
+
+		GHT_FOREACH(cg_player_t* player, players, {
+			if (player->id != app->player->core->id)
+				ui_tab_display_player(ctx, player);
+		});
+	}
+	nk_end(ctx);
+}
+
 static void
 waapp_gui(waapp_t* app)
 {
@@ -266,6 +320,8 @@ waapp_gui(waapp_t* app)
 
 	ctx->style.window.fixed_background = og_bg;
 	gui_set_font(app, app->font);
+
+	ui_tab_window(app, ctx);
 }
 
 static void 
