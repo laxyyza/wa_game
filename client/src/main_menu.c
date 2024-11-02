@@ -5,7 +5,6 @@
 void 
 main_menu_init(UNUSED waapp_t* app, waapp_main_menu_t* mm)
 {
-	strncpy(mm->ipaddr, "127.0.0.1", INET6_ADDRSTRLEN);
 	strncpy(mm->username, "username", PLAYER_NAME_MAX);
 }
 
