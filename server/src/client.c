@@ -18,6 +18,8 @@ accept_client(server_t* server)
 	inet_ntop(AF_INET, &client->tcp_sock.addr.sockaddr.in.sin_addr.s_addr, client->tcp_sock.ipstr, client->tcp_sock.addr.addr_len);
 
 	ssp_segbuff_init(&client->tcp_buf, 10, 0);
+	client->tcp_buf.auto_compression = true;
+	client->tcp_buf.auto_compression_threshold = 1000; // Only do compression over this.
 	ssp_segbuff_init(&client->udp_buf, 10, SSP_FLAGS);
 
 	getrandom(&client->session_id, sizeof(u32), 0);
