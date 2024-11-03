@@ -27,7 +27,7 @@ map_editor_read_header(waapp_map_editor_t* editor, const char* path)
 		goto err;
 
 	strncpy(map_header->path, path, MAP_PATH_MAX);
-	char* filename = basename(path);
+	 char* filename = strrchr(path, '/') + 1;
 	filename = strtok(filename, ".");
 
 	strncpy(map_header->name, filename, MAP_NAME_MAX);
