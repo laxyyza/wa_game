@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "array.h"
+#include "cutils.h"
 
 u64
 file_size(FILE* f)
@@ -167,14 +168,6 @@ cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos)
 	i32 y = (i32)pos->y / map->header.grid_size;
 
 	return cg_map_at(map, x, y);
-}
-
-static i32 
-clampi(i32 val, i32 min, i32 max)
-{
-	if (val < min) return min;
-	if (val > max) return max;
-	return val;
 }
 
 cg_cell_t*
