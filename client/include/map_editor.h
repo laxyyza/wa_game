@@ -26,6 +26,8 @@ typedef struct
 	f32 og_zoom_min;
 	ght_t   maps;
 	editor_map_header_t* map_selected;
+	const char* cell_types[2];
+	i32 selected_cell_type;
 } waapp_map_editor_t;
 
 void map_editor_init(waapp_t* app, waapp_map_editor_t* editor);

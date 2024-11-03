@@ -24,10 +24,17 @@ server_init_tcp(server_t* server)
 static vec2f_t 
 server_next_spawn(server_t* server)
 {
-	vec2f_t ret = server->spawn_points[server->spawn_idx];
+	vec2f_t ret;
+	const cg_map_header_t* map = &server->game.map->header;
+	const cg_cell_t* spawn_cell = *(const cg_cell_t**)array_idx(&server->spawn_points, server->spawn_idx);
 
+	ret = vec2f(
+		spawn_cell->pos.x * map->grid_size, 
+		spawn_cell->pos.y * map->grid_size
+	);
+	printf("Pos: %f/%f\n", ret.x, ret.y);
 	server->spawn_idx++;
-	if (server->spawn_idx >= MAX_SPAWN_POINTS)
+	if (server->spawn_idx >= server->spawn_points.count)
 		server->spawn_idx = 0;
 	return ret;
 }
@@ -270,56 +277,19 @@ server_init_coregame(server_t* server)
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 	server->game.player_damaged = (cg_player_damaged_callback_t)on_player_damaged;
 
-	f32 offset = 100.0;
-	const cg_rect_t* wb = &server->game.world_border;
+	array_init(&server->spawn_points, sizeof(cg_cell_t**), 10);
+	cg_cell_t* cell;
 
-	// Top Left
-	server->spawn_points[0] = vec2f(
-		wb->pos.x + offset,
-		wb->pos.y + offset
-	);
+	for (u16 x = 0; x < map->header.w; x++)
+	{
+		for (u16 y = 0; y < map->header.h; y++)
+		{
+			cell = cg_map_at(map, x, y);
+			if (cell->type == CG_CELL_SPAWN)
+				array_add_voidp(&server->spawn_points, cell);
+		}
+	}
 
-	// Top Middle
-	server->spawn_points[1] = vec2f(
-		wb->pos.x + (wb->size.x / 2),
-		wb->pos.y + offset
-	);
-
-	// Top Right 
-	server->spawn_points[2] = vec2f(
-		wb->pos.x + wb->size.x - (offset * 2),
-		wb->pos.y + offset
-	);
-	
-	// Middle Right 
-	server->spawn_points[3] = vec2f(
-		wb->pos.x + wb->size.x - (offset * 2),
-		wb->pos.y + (wb->size.y / 2)
-	);
-	
-	// Bottom Right 
-	server->spawn_points[4] = vec2f(
-		wb->pos.x + wb->size.x - (offset * 2),
-		wb->pos.y + wb->size.y - (offset * 2)
-	);
-	
-	// Bottom Middle 
-	server->spawn_points[5] = vec2f(
-		wb->pos.x + (wb->size.x / 2),
-		wb->pos.y + wb->size.y - (offset * 2)
-	);
-
-	// Bottom Left 
-	server->spawn_points[6] = vec2f(
-		wb->pos.x + offset,
-		wb->pos.y + wb->size.y - (offset * 2)
-	);
-	
-	// Middle Left 
-	server->spawn_points[7] = vec2f(
-		wb->pos.x + offset,
-		wb->pos.y + (wb->size.y / 2)
-	);
 	return 0;
 }
 
@@ -848,6 +818,7 @@ server_cleanup(server_t* server)
 		perror("close epoll");
 
 	coregame_cleanup(&server->game);
+	array_del(&server->spawn_points);
 	mmframes_free(&server->mmf);
 	netdef_destroy(&server->netdef);
 }

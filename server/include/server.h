@@ -10,7 +10,6 @@
 #define MAX_EVENTS 8
 #define FRAMETIMES_LEN 128
 #define FRAMETIME_LEN 63
-#define MAX_SPAWN_POINTS 8
 #define SSP_FLAGS (SSP_FOOTER_BIT | SSP_SESSION_BIT | SSP_SEQUENCE_COUNT_BIT)
 
 typedef struct server
@@ -26,7 +25,7 @@ typedef struct server
 	netdef_t netdef;
 	coregame_t game;
 
-	vec2f_t spawn_points[MAX_SPAWN_POINTS];
+	array_t spawn_points;
 	u32 spawn_idx;
 
 	mmframes_t mmf;

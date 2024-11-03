@@ -66,6 +66,9 @@ map_editor_init(waapp_t* app, waapp_map_editor_t* editor)
 	editor->mouse_map = state->mouse_map;
 
 	ght_init(&editor->maps, 5, free);
+
+	editor->cell_types[0] = "Block";
+	editor->cell_types[1] = "Spawn";
 }
 
 void 
@@ -86,7 +89,7 @@ map_editor_add_block(waapp_t* app, waapp_map_editor_t* editor)
 	cg_cell_t* cell = cg_map_at_wpos(editor->map, &mpos);
 	if (cell)
 	{
-		cell->type = CG_CELL_BLOCK;
+		cell->type = editor->selected_cell_type + CG_CELL_BLOCK;
 	}
 }
 
@@ -197,6 +200,7 @@ map_editor_ui(waapp_t* app, waapp_map_editor_t* editor)
 		if (*status_msg)
 			nk_label(ctx, status_msg, NK_TEXT_CENTERED);
 
+		nk_combobox(ctx, editor->cell_types, 2, &editor->selected_cell_type, 30, nk_vec2(100, 100));
 	}
 	nk_end(ctx);
 	if (new_map)

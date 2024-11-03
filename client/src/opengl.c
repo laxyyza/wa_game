@@ -366,15 +366,18 @@ render_cell(waapp_t* app, const cg_map_t* map, const cg_cell_t* cell)
 	ren_t* ren = &app->ren;
 	texture_t* texture = NULL;
 	rect_t cell_rect = {0};
+	u32 color = 0;
 
 	if (cell->type == CG_CELL_EMPTY)
 		texture = app->grass_tex;
 	else if (cell->type == CG_CELL_BLOCK)
 		texture = app->block_tex;
+	else if (cell->type == CG_CELL_SPAWN)
+		color = 0x000066FF;
 
 	rect_init(&cell_rect, 
 		vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size), 
-		vec2f(grid_size, grid_size), 0x000000FF, texture);
+		vec2f(grid_size, grid_size), color, texture);
 	ren_draw_rect(ren, &cell_rect);
 }
 
