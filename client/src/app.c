@@ -497,8 +497,8 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 {
     const char* title = "WA OpenGL";
     const char* app_id = "wa_opengl";
-    i32 w = 640;
-    i32 h = 480;
+    i32 w = 1280;
+    i32 h = 720;
     bool fullscreen = false;
     wa_state_t* state;
 	app->death_kill_time = 10.0;
