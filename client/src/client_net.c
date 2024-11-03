@@ -130,7 +130,7 @@ client_net_fd_blocking(sock_t fd, bool block)
 	u_long mode = (block) ? 0 : 1;
 	if (ioctlsocket(fd, FIONBIO, &mode) != 0)
 	{
-		fprintf(stderr, "Failed to set non-blocking mode: %d\n", WSAGetLastError());
+		errorf("Failed to set non-blocking mode: %d\n", WSAGetLastError());
 	}
 #endif
 }
@@ -144,7 +144,7 @@ session_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	app->net.player_id = sessionid->player_id;
 	app->net.udp.buf.session_id = sessionid->session_id;
 
-	printf("Got Session ID: %u, player ID: %u\n",
+	debug("Got Session ID: %u, player ID: %u\n",
 		sessionid->session_id, sessionid->player_id);
 }
 
@@ -217,7 +217,7 @@ client_net_add_fdevent(waapp_t* app, sock_t fd,
 	event->read = read;
 	event->close = close;
 	event->write = write;
-	event->error = NULL;
+	event->err = NULL;
 	event->data = data;
 
 #ifdef __linux__
@@ -371,7 +371,7 @@ tcp_write_connect(waapp_t* app, fdevent_t* fdev)
 	socklen_t len = sizeof(i32);
 	getsockopt(fdev->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
 
-	printf("tcp_connect: %s (%d)\n", client_net_errstr(err), err);
+	debug("tcp_connect: %s (%d)\n", client_net_errstr(err), err);
 	if (err)
 		return;
 
@@ -416,7 +416,7 @@ static void
 udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 {
 	net_tcp_udp_info_t* info = (net_tcp_udp_info_t*)segment->data;
-	printf("UDP Server Port: %u\n", info->port);
+	info("UDP Server Port: %u\n", info->port);
 	app->net.udp.server.addr.sin_port = htons(info->port);
 	client_net_set_tickrate(app, info->tickrate);
 
@@ -508,14 +508,14 @@ player_died(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	target = ght_get(&app->players, died->target_player_id);
 	if (target == NULL)
 	{
-		fprintf(stderr, "player_died: target player %u not found.\n",
+		errorf("player_died: target player %u not found.\n",
 			died->target_player_id);
 		return;
 	}
 	attacker = ght_get(&app->players, died->attacker_player_id);
 	if (attacker == NULL)
 	{
-		fprintf(stderr, "player_died: attacker player %u not found.\n",
+		errorf("player_died: attacker player %u not found.\n",
 			died->attacker_player_id);
 		return;
 	}
@@ -621,13 +621,13 @@ client_net_async_connect(waapp_t* app, const char* addr)
 		}
 		else
 		{
-			fprintf(stderr, "async_connect: '%s' (%d)\n", client_net_errstr(err), err);
+			error("async_connect: '%s' (%d)\n", client_net_errstr(err), err);
 			return "Connect FAILED.";
 		}
 	}
 
 	net->tcp.fdev = client_net_add_fdevent(app, sock->sockfd, tcp_read, tcp_close, write_cb, sock);
-	net->tcp.fdev->error = tcp_error;
+	net->tcp.fdev->err = tcp_error;
 
 	if (write_cb == NULL)
 	{
@@ -710,16 +710,16 @@ handle_event(waapp_t* app, fdevent_t* fdev, u32 events)
 		socklen_t len = sizeof(i32);
 		getsockopt(fdev->fd, SOL_SOCKET, SO_ERROR, &err, &len);
 
-		fprintf(stderr, "Socket (%d) error: \"%s\" (%d)\n", fdev->fd, strerror(err), err);
-		if (fdev->error)
-			fdev->error(app, fdev, err);
+		error("Socket (%d) error: \"%s\" (%d)\n", fdev->fd, strerror(err), err);
+		if (fdev->err)
+			fdev->err(app, fdev, err);
 		else
 			fdev->close(app, fdev);
 		return;
 	}
 	if (events & EPOLLHUP)
 	{
-		printf("EPOLLHUP\n");
+		infof("EPOLLHUP\n");
 		fdev->close(app, fdev);
 	}
 	if (events & EPOLLIN)
@@ -860,7 +860,7 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 		ret = select(max_fd + 1, &net->read_fds, &net->write_fds, &net->execpt_fds, do_timeout);
 		if (ret == -1)
 		{
-			fprintf(stderr, "select error: %s\n", last_errstr());
+			errorf("select error: %s\n", last_errstr());
 			return;
 		}
 		else if (ret > 0)
@@ -876,8 +876,8 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 					socklen_t len = sizeof(i32);
 					getsockopt(fdev->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
 
-					if (fdev->error)
-						fdev->error(app, fdev, err);
+					if (fdev->err)
+						fdev->err(app, fdev, err);
 					else if (fdev->close)
 						fdev->close(app, fdev);
 				}

@@ -44,7 +44,7 @@ void
 texture_bind(const texture_t* text, u32 slot)
 {
     glActiveTexture(GL_TEXTURE0 + slot);
-    printf("Binding texture ID: %u into slot: %u\n",
+    debug("Binding texture ID: %u into slot: %u\n",
            text->id, slot);
     // glBindTextureUnit(slot, text->id);
     glBindTexture(GL_TEXTURE_2D, text->id);

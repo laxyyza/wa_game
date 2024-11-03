@@ -7,6 +7,7 @@
 #include "gui/gui.h"
 #include <time.h>
 #include "nuklear.h"
+#include "nlog.h"
 
 static void 
 client_shoot(waapp_t* app)
@@ -484,11 +485,15 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     wa_state_t* state;
 	app->death_kill_time = 10.0;
 
+	nlog_set_name("");
+
     if (argc >= 2 && strcmp(argv[1], "fullscreen") == 0)
         fullscreen = true;
 
     if ((app->window = wa_window_create(title, w, h, fullscreen)) == NULL)
+	{
         return -1;
+	}
 
     state = wa_window_get_state(app->window);
     state->window.wayland.app_id = app_id;

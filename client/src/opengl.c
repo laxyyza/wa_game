@@ -38,13 +38,13 @@ waapp_enable_debug(waapp_t* app)
 static void
 print_gl_version(void)
 {
-    printf("OpenGL vendor: %s\n",
+    info("OpenGL vendor: %s\n",
            glGetString(GL_VENDOR));
-    printf("OpenGL renderer: %s\n",
+    info("OpenGL renderer: %s\n",
            glGetString(GL_RENDERER));
-    printf("OpenGL version: %s\n",
+    info("OpenGL version: %s\n",
            glGetString(GL_VERSION));
-    printf("OpenGL GLSL version: %s\n",
+    info("OpenGL GLSL version: %s\n",
            glGetString(GL_SHADING_LANGUAGE_VERSION));
 }
 
@@ -308,12 +308,8 @@ waapp_gui(waapp_t* app)
 
     }
     nk_end(ctx);
-    if (nk_window_is_hidden(ctx, window_name))
-    {
-        wa_window_stop(app->window);
-        printf("CLOSE!\n");
-    }
-
+	if (nk_window_is_hidden(ctx, window_name))
+		wa_window_stop(app->window);
 
 	gui_set_font(app, app->font_big);
 	struct nk_style_item og_bg = ctx->style.window.fixed_background;

@@ -10,6 +10,7 @@
 #include "client_net.h"
 #include "mmframes.h"
 #include "state.h"
+#include "nlog.h"
 
 struct nk_wa;
 struct nk_conext;

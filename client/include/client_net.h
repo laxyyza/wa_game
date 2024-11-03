@@ -28,7 +28,7 @@ typedef struct fdevent
 	fdevent_callback_t read;
 	fdevent_callback_t write;
 	fdevent_callback_t close;
-	fdevent_err_callback_t error;
+	fdevent_err_callback_t err;
 } fdevent_t;
 
 typedef struct 

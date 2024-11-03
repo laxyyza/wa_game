@@ -36,9 +36,9 @@ shader_compile(const char* path, GLenum type)
     {
         char log[512];
         glGetShaderInfoLog(shader, 512, NULL, log);
-        fprintf(stderr, "ERROR:compile_shader of type: %s:\n",
+        error("ERROR:compile_shader of type: %s:\n",
                 (type == GL_VERTEX_SHADER) ? "VERTEX" : "FRAGMENT");
-        fprintf(stderr, "\t%s\n", log);
+        error("\t%s\n", log);
     }
     free((void*)src);
     return shader;

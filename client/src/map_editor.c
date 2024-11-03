@@ -79,9 +79,9 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 		if (nk_button_label(ctx, "Save"))
 		{
 			if (cg_map_save(editor->map, "res/test.cgmap"))
-				printf("Saved\n");
+				debug("Saved\n");
 			else
-				printf("Failed Save\n");
+				debug("Failed Save\n");
 		}
 	}
 	nk_end(ctx);
@@ -111,5 +111,5 @@ map_editor_exit(waapp_t* app, waapp_map_editor_t* editor)
 void 
 map_editor_cleanup(UNUSED waapp_t* app, UNUSED waapp_map_editor_t* editor)
 {
-	printf("TODO: Implement map_editor_cleanup().\n");
+	debug("TODO: Implement map_editor_cleanup().\n");
 }
