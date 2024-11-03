@@ -137,7 +137,7 @@ waapp_handle_key(waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
 	switch (ev->key)
 	{
 		case WA_KEY_F:
-			if (ev->pressed)
+			if (ev->pressed && app->on_ui == false)
                 wa_window_set_fullscreen(window, !(state->window.state & WA_STATE_FULLSCREEN));
 			break;
 		default:
