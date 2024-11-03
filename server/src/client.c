@@ -2,6 +2,9 @@
 #include "server.h"
 #include <sys/random.h>
 
+#define COMPRESSION_THRESHOLD 1000
+#define COMPRESSION_LEVEL 5
+
 client_t* 
 accept_client(server_t* server)
 {
@@ -18,8 +21,9 @@ accept_client(server_t* server)
 	inet_ntop(AF_INET, &client->tcp_sock.addr.sockaddr.in.sin_addr.s_addr, client->tcp_sock.ipstr, client->tcp_sock.addr.addr_len);
 
 	ssp_segbuff_init(&client->tcp_buf, 10, 0);
-	client->tcp_buf.auto_compression = true;
-	client->tcp_buf.auto_compression_threshold = 1000; // Only do compression over this.
+	client->tcp_buf.compression.auto_do = true;
+	client->tcp_buf.compression.threshold = COMPRESSION_THRESHOLD; // Only do compression over this.
+	client->tcp_buf.compression.level = COMPRESSION_LEVEL;
 	ssp_segbuff_init(&client->udp_buf, 10, SSP_FLAGS);
 
 	getrandom(&client->session_id, sizeof(u32), 0);
