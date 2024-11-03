@@ -6,11 +6,26 @@
 
 typedef struct waapp waapp_t;
 
+#define MAP_NAME_MAX 32
+#define MAP_PATH_MAX 512
+
+typedef struct 
+{
+	u32 id;
+	cg_map_header_t header;
+	char path[MAP_PATH_MAX];
+	char name[MAP_NAME_MAX];
+	i32 selected;
+	cg_map_t* map;
+} editor_map_header_t;
+
 typedef struct 
 {
 	cg_map_t* map;
 	const u8* mouse_map;
 	f32 og_zoom_min;
+	ght_t   maps;
+	editor_map_header_t* map_selected;
 } waapp_map_editor_t;
 
 void map_editor_init(waapp_t* app, waapp_map_editor_t* editor);

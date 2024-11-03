@@ -12,7 +12,11 @@
 static void
 waapp_clamp_cam(waapp_t* app)
 {
+	if (app->game.map == NULL)
+		return;
+
 	f32 offset = 20.0;
+
 	const cg_map_header_t* map = &app->game.map->header;
 	vec3f_t* cam = &app->cam;
 
