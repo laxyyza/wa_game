@@ -26,11 +26,11 @@ map_editor_read_header(waapp_map_editor_t* editor, const char* path)
 	if (memcmp(map_header->header.magic, CG_MAP_MAGIC, CG_MAP_MAGIC_LEN))
 		goto err;
 
-	strncpy(map_header->path, path, MAP_PATH_MAX);
+	strncpy(map_header->path, path, MAP_PATH_MAX - 1);
 	char* filename = strrchr(path, '/') + 1;
 	filename = strtok(filename, ".");
 
-	strncpy(map_header->name, filename, MAP_NAME_MAX);
+	strncpy(map_header->name, filename, MAP_NAME_MAX - 1);
 	map_header->id = map_header_iq_seq;
 	map_header_iq_seq++;
 
