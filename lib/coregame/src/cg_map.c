@@ -69,7 +69,6 @@ cg_map_set_cells_pos(cg_map_t* map)
 			cell = &map->cells[(y * map->header.w) + x];
 			cell->pos.x = x;
 			cell->pos.y = y;
-			cell->type = CG_CELL_EMPTY;
 		}
 	}
 }
@@ -89,6 +88,47 @@ cg_map_new(u16 w, u16 h, u16 grid_size)
 	cg_map_set_cells_pos(map);
 
 	return map;
+}
+
+static u16 
+mini16(u16 a, u16 b)
+{
+	if (a > b)
+		return b;
+	else
+		return a;
+}
+
+void
+cg_map_resize(cg_map_t** mapp, u16 new_w, u16 new_h)
+{
+	cg_map_t* map = *mapp;
+	cg_map_t* new_map;
+	if (new_w == map->header.w && new_h == map->header.h)
+		return;
+
+	u16 old_w = map->header.w;
+	u16 old_h = map->header.h;
+
+	new_map = cg_map_new(new_w, new_h, map->header.grid_size);
+
+	cg_cell_t* new_cell;
+	cg_cell_t* old_cell;
+
+	u16 safe_w = mini16(new_w, old_w);
+	u16 safe_h = mini16(new_h, old_h);
+
+	for (u16 x = 0; x < safe_w; x++)
+	{
+		for (u16 y = 0; y < safe_h; y++)
+		{
+			old_cell = &map->cells[(y * old_w) + x];
+			new_cell = &new_map->cells[(y * new_w) + x];
+			new_cell->type = old_cell->type;
+		}
+	}
+	free(map);
+	*mapp = new_map;
 }
 
 static u64 
