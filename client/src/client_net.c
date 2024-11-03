@@ -283,7 +283,7 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 	if ((bytes_read = recv(fdev->fd, buf, BUFFER_SIZE, 0)) == -1)
 		perror("tcp_recv");
 	else
-		ssp_parse_buf(&app->net.def.ssp_state, NULL, buf, bytes_read, NULL);
+		ssp_parse_buf(&app->net.def.ssp_state, &app->net.tcp.buf, buf, bytes_read, NULL);
 	free(buf);
 }
 

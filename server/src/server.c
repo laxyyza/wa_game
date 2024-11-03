@@ -77,7 +77,7 @@ read_client(server_t* server, event_t* event)
 		server_close_event(server, event);
 	else
 	{
-		ret = ssp_parse_buf(&server->netdef.ssp_state, &client->udp_buf, buf, bytes_read, client);
+		ret = ssp_parse_buf(&server->netdef.ssp_state, &client->tcp_buf, buf, bytes_read, client);
 		if (ret == SSP_FAILED)
 		{
 			printf("Client (%s) sent invalid packet. Closing client.\n",
