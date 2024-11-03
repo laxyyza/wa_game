@@ -558,6 +558,14 @@ cg_map(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	app->map_from_server = cg_map_load_disk(tcp_map, segment->size);
 }
 
+static void 
+server_shutdown(UNUSED const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	waapp_main_menu_t* mm = app->sm.states.main_menu.data;
+	strcpy(mm->state, "Server shutdown");
+	waapp_state_switch(app, &app->sm.states.main_menu);
+}
+
 i32 
 client_net_connect(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -665,6 +673,7 @@ client_net_init(waapp_t* app)
 	callbacks[NET_UDP_PLAYER_STATS] = (ssp_segmap_callback_t)player_stats;
 	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)player_ping;
 	callbacks[NET_TCP_CG_MAP] = (ssp_segmap_callback_t)cg_map;
+	callbacks[NET_TCP_SERVER_SHUTDOWN] = (ssp_segmap_callback_t)server_shutdown;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;

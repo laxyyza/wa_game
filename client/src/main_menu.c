@@ -44,9 +44,8 @@ main_menu_init(UNUSED waapp_t* app, waapp_main_menu_t* mm)
 }
 
 void 
-main_menu_enter(UNUSED waapp_t* app, waapp_main_menu_t* mm)
+main_menu_enter(UNUSED waapp_t* app, UNUSED waapp_main_menu_t* mm)
 {
-	mm->state[0] = 0x00;
 }
 
 void 
@@ -104,6 +103,7 @@ void
 main_menu_exit(UNUSED waapp_t* app, waapp_main_menu_t* mm)
 {
 	mm_save(mm);
+	mm->state[0] = 0x00;
 }
 
 void 

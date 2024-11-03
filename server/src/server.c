@@ -113,6 +113,12 @@ close_client(server_t* server, client_t* client)
 {
 	u32 player_id = 0;
 
+	if (server->running == false && client->player)
+	{
+		ssp_segbuff_add(&client->tcp_buf, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
+		ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+	}
+
 	ssp_tcp_sock_close(&client->tcp_sock);
 	printf("Client (%s) (fd:%d) closed.\t(%zu connected clients)\n", 
 			client->tcp_sock.ipstr, client->tcp_sock.sockfd, server->clients.count - 1);
