@@ -259,6 +259,8 @@ game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 		app->cam.x = app->cam.x - (old_wpos.x - new_wpos.x) * app->ren.scale.x;
 		app->cam.y = app->cam.y - (old_wpos.y - new_wpos.y) * app->ren.scale.y;
 
+		waapp_clamp_cam(app);
+
 		ren_set_view(&app->ren, &app->cam);
 	}
 }
