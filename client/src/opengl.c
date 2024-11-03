@@ -262,22 +262,6 @@ waapp_gui(waapp_t* app)
 					waapp_set_max_fps(app, app->max_fps);
 			}
 		}
-
-        nk_label(ctx, "Background Color", NK_TEXT_LEFT);
-        nk_layout_row_dynamic(ctx, 25, 1);
-        if (nk_combo_begin_color(ctx, nk_rgb_cf(bg), nk_vec2(nk_widget_width(ctx), 400)))
-        {
-            nk_layout_row_dynamic(ctx, 200, 1);
-            bg = nk_color_picker(ctx, bg, NK_RGBA);
-            nk_layout_row_dynamic(ctx, 25, 1);
-            bg.r = nk_propertyf(ctx, "#R", 0, bg.r, 1.0f, 0.01f, 0.005f);
-            bg.g = nk_propertyf(ctx, "#G", 0, bg.g, 1.0f, 0.01f, 0.005f);
-            bg.b = nk_propertyf(ctx, "#B", 0, bg.b, 1.0f, 0.01f, 0.005f);
-            bg.a = nk_propertyf(ctx, "#A", 0, bg.a, 1.0f, 0.01f, 0.005f);
-            nk_combo_end(ctx);
-            memcpy(&app->bg_color, &bg, sizeof(vec4f_t));
-        }
-
         const char* fullscreen_str = (state->window.state & WA_STATE_FULLSCREEN) ? "Windowed" : "Fullscreen";
         if (nk_button_label(ctx, fullscreen_str))
             wa_window_set_fullscreen(app->window, !(state->window.state & WA_STATE_FULLSCREEN));

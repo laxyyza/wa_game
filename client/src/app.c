@@ -7,7 +7,21 @@
 #include "gui/gui.h"
 #include <time.h>
 #include "nuklear.h"
-#include "nlog.h"
+#include "cutils.h"
+
+static void
+waapp_clamp_cam(waapp_t* app)
+{
+	f32 offset = 20.0;
+	const cg_map_header_t* map = &app->game.map->header;
+	vec3f_t* cam = &app->cam;
+
+	const f32 max_x = (map->w * map->grid_size * app->ren.scale.x) - (app->ren.viewport.x - offset);
+	const f32 max_y = (map->h * map->grid_size * app->ren.scale.y) - (app->ren.viewport.y - offset);
+
+	cam->x = clampf(cam->x, -max_x, offset);
+	cam->y = clampf(cam->y, -max_y, offset);
+}
 
 static void 
 client_shoot(waapp_t* app)
@@ -44,6 +58,9 @@ waapp_lock_cam(waapp_t* app)
 	const vec2f_t* viewport = &app->ren.viewport;
 	app->cam.x = -(origin.x * app->ren.scale.x - (viewport->x / 2));
 	app->cam.y = -(origin.y * app->ren.scale.y - (viewport->y / 2));
+
+	waapp_clamp_cam(app);
+
 	ren_set_view(&app->ren, &app->cam);
 
 	player->core->cursor = screen_to_world(app, &app->mouse);
@@ -207,12 +224,6 @@ game_handle_mouse_button(waapp_t* app, const wa_event_mouse_t* ev)
 	{
 		client_shoot(app);
 	}
-}
-
-static f32
-clampf(f32 val, f32 min, f32 max)
-{
-	return fmaxf(min, fminf(val, max));
 }
 
 void 
@@ -465,8 +476,9 @@ waapp_move_cam(waapp_t* app)
                 app->mouse_prev.x - app->mouse.x,
                 app->mouse_prev.y - app->mouse.y
             );
-            cam->x -= diff.x;
-            cam->y -= diff.y;
+			cam->x -= diff.x;
+			cam->y -= diff.y;
+			waapp_clamp_cam(app);
             ren_set_view(&app->ren, cam);
         }
 
