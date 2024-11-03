@@ -16,14 +16,11 @@ file_size(FILE* f)
 }
 
 cg_map_t*	
-cg_map_load(const char* path)
+cg_map_load(const char* path, cg_map_t** disk_map_p, u32* disk_size_p)
 {
 	cg_map_t* ret = NULL;
 	cg_map_t* disk_map;
 	u64 disk_size;
-	u64 disk_cells_count = 0;
-	cg_cell_t* disk_cell;
-	cg_cell_t* cell;
 
 	FILE* f = fopen(path, "rb");
 	if (f == NULL)
@@ -41,6 +38,32 @@ cg_map_load(const char* path)
 		fprintf(stderr, "Loading cgmap (%s) FAILED: Magic mismatch.\n", path);
 		goto err;
 	}
+	fclose(f);
+
+	ret = cg_map_load_disk(disk_map, disk_size);
+
+	if (disk_map_p)
+	{
+		*disk_map_p = disk_map;
+		*disk_size_p = disk_size;
+	}
+	else
+		free(disk_map);
+	return ret;
+err:
+	fclose(f);
+	free(disk_map);
+	return ret;
+}
+
+cg_map_t* 
+cg_map_load_disk(const cg_map_t* disk_map, u32 disk_size)
+{
+	cg_map_t* ret;
+	u64 disk_cells_count = 0;
+	const cg_cell_t* disk_cell;
+	cg_cell_t* cell;
+
 	disk_cells_count = (disk_size - sizeof(cg_map_header_t)) / sizeof(cg_cell_t);
 
 	ret = cg_map_new(disk_map->header.w, disk_map->header.h, disk_map->header.grid_size);
@@ -51,9 +74,6 @@ cg_map_load(const char* path)
 		cell = cg_map_at(ret, disk_cell->pos.x, disk_cell->pos.y);
 		memcpy(cell, disk_cell, sizeof(cg_cell_t));
 	}
-err:
-	fclose(f);
-	free(disk_map);
 	return ret;
 }
 
@@ -73,11 +93,23 @@ cg_map_set_cells_pos(cg_map_t* map)
 	}
 }
 
+u32
+cg_map_calc_size(u16 w, u16 h)
+{
+	return ((w * h) * sizeof(cg_cell_t)) + sizeof(cg_map_header_t);
+}
+
+u32
+cg_map_size(const cg_map_t* map)
+{
+	return cg_map_calc_size(map->header.w, map->header.h);
+}
+
 cg_map_t*	
 cg_map_new(u16 w, u16 h, u16 grid_size)
 {
 	cg_map_t* map;
-	u32 size = ((w * h) * sizeof(cg_cell_t)) + sizeof(cg_map_header_t);
+	u32 size = cg_map_calc_size(w, h);
 
 	map = calloc(1, size);
 	memcpy(map->header.magic, CG_MAP_MAGIC, CG_MAP_MAGIC_LEN);

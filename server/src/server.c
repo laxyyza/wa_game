@@ -255,10 +255,17 @@ on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, serv
 	});
 }
 
-static void
+static i32 
 server_init_coregame(server_t* server)
 {
-	coregame_init(&server->game, false);
+	cg_map_t* map = cg_map_load(server->cgmap_path, &server->disk_map, &server->disk_map_size);
+	if (map == NULL)
+	{
+		fprintf(stderr, "Failed to load map: %s\n", server->cgmap_path);
+		return -1;
+	}
+
+	coregame_init(&server->game, false, map);
 	server->game.user_data = server;
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 	server->game.player_damaged = (cg_player_damaged_callback_t)on_player_damaged;
@@ -313,6 +320,7 @@ server_init_coregame(server_t* server)
 		wb->pos.x + offset,
 		wb->pos.y + (wb->size.y / 2)
 	);
+	return 0;
 }
 
 static void 
@@ -356,6 +364,7 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 			connect->username, client->tcp_sock.ipstr, session->session_id);
 
 	ssp_segbuff_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), session);
+	ssp_segbuff_add(&client->tcp_buf, NET_TCP_CG_MAP, server->disk_map_size, server->disk_map);
 	ssp_segbuff_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), udp_info);
 	broadcast_new_player(server, client);
 }
@@ -589,17 +598,18 @@ server_argv(server_t* server, i32 argc, char* const* argv)
 	i32 opt;
 
 	struct option long_options[] = {
-		{"port", required_argument, 0, 'p'},
-		{"udp-port", required_argument, 0, 0},
-		{"tcp-port", required_argument, 0, 0},
-		{"tickrate", required_argument, 0, 't'},
-		{"help", no_argument, 0, 'h'},
+		{"port",		required_argument,	0, 'p'},
+		{"map",			required_argument,	0, 'm'},
+		{"udp-port",	required_argument,	0,  0 },
+		{"tcp-port",	required_argument,	0,  0 },
+		{"tickrate",	required_argument,	0, 't'},
+		{"help",		no_argument,		0, 'h'},
 		{0, 0, 0, 0}
 	};
 	char* endptr;
 	i32 opt_idx;
 
-	while ((opt = getopt_long(argc, argv, "p:t:h", long_options, &opt_idx)) != -1)
+	while ((opt = getopt_long(argc, argv, "p:m:t:h", long_options, &opt_idx)) != -1)
 	{
 		switch (opt) 
 		{
@@ -610,6 +620,9 @@ server_argv(server_t* server, i32 argc, char* const* argv)
 				server->udp_port = server->port + 1;
 				break;
 			}
+			case 'm':
+				server->cgmap_path = optarg;
+				break;
 			case 't':
 			{
 				i16 tickrate = strtol(optarg, &endptr, 10);
@@ -661,8 +674,9 @@ server_init(server_t* server, i32 argc, char* const* argv)
 		goto err;
 	if (server_init_signalfd(server) == -1)
 		goto err;
+	if (server_init_coregame(server) == -1)
+		goto err;
 	server_init_netdef(server);
-	server_init_coregame(server);
 	mmframes_init(&server->mmf);
 
 	server->running = true;

@@ -15,6 +15,7 @@ enum segtypes
 	NET_TCP_DELETE_PLAYER,
 	NET_TCP_UDP_INFO,
 	NET_TCP_SERVER_SHUTDOWN,
+	NET_TCP_CG_MAP,
 
 	NET_UDP_PLAYER_MOVE,
 	NET_UDP_PLAYER_DIR,
@@ -55,6 +56,8 @@ typedef struct
 	f64 tickrate;
 	u8  ssp_flags;
 } net_tcp_udp_info_t;
+
+typedef cg_map_t net_tcp_cg_map_t;
 
 typedef struct 
 {

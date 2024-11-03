@@ -376,7 +376,7 @@ update_logic(waapp_t* app)
 void 
 game_init(waapp_t* app, UNUSED void* data)
 {
-	coregame_init(&app->game, true);
+	coregame_init(&app->game, true, app->map_from_server);
 	app->game.user_data = app;
 	app->game.player_free_callback = on_player_free;
 

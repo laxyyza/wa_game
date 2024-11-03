@@ -95,7 +95,7 @@ typedef struct coregame
 	bool client;
 } coregame_t;
 
-void coregame_init(coregame_t* coregame, bool client);
+void coregame_init(coregame_t* coregame, bool client, cg_map_t* map);
 void coregame_update(coregame_t* coregame);
 void coregame_cleanup(coregame_t* coregame);
 

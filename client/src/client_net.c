@@ -550,6 +550,14 @@ player_ping(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 		player->stats.ping = ping->ms;
 }
 
+static void 
+cg_map(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	const net_tcp_cg_map_t* tcp_map = (const net_tcp_cg_map_t*)segment->data;
+
+	app->map_from_server = cg_map_load_disk(tcp_map, segment->size);
+}
+
 i32 
 client_net_connect(waapp_t* app, const char* ipaddr, u16 port)
 {
@@ -656,6 +664,7 @@ client_net_init(waapp_t* app)
 	callbacks[NET_UDP_PLAYER_DIED] = (ssp_segmap_callback_t)player_died;
 	callbacks[NET_UDP_PLAYER_STATS] = (ssp_segmap_callback_t)player_stats;
 	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)player_ping;
+	callbacks[NET_TCP_CG_MAP] = (ssp_segmap_callback_t)cg_map;
 
 	netdef_init(&net->def, &app->game, callbacks);
 	net->def.ssp_state.user_data = app;

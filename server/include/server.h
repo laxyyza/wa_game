@@ -42,6 +42,9 @@ typedef struct server
 		event_t* head;
 		event_t* tail;
 	} events;
+	const char* cgmap_path;
+	cg_map_t*	disk_map;
+	u32			disk_map_size;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, char* const* argv);

@@ -76,6 +76,8 @@ typedef struct waapp
 	array_t player_deaths;
 
 	f64 death_kill_time;
+
+	cg_map_t* map_from_server;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, const char** argv);

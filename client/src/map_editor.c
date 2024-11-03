@@ -4,8 +4,6 @@
 #include <nuklear.h>
 #include "file.h"
 
-#define MAP_PATH "res/maps"
-
 static u32 map_header_iq_seq = 1;
 
 static void
@@ -269,7 +267,7 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 					if (editor->map_selected->map)
 						editor->map = editor->map_selected->map;
 					else
-						editor->map = cg_map_load(editor->map_selected->path);
+						editor->map = cg_map_load(editor->map_selected->path, NULL, NULL);
 				}
 			}
 			nk_layout_row_template_end(ctx);

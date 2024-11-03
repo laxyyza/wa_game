@@ -25,7 +25,7 @@ coregame_get_delta_time(coregame_t* cg)
 
 
 void 
-coregame_init(coregame_t* coregame, bool client)
+coregame_init(coregame_t* coregame, bool client, cg_map_t* map)
 {
 	ght_init(&coregame->players, 10, free);
 	coregame->time_scale = 1.0;
@@ -41,7 +41,10 @@ coregame_init(coregame_t* coregame, bool client)
 	coregame->client = client;
 
 	// coregame->map = cg_map_new(100, 100, 100);
-	coregame->map = cg_map_load("res/test.cgmap");
+	if (map)
+		coregame->map = map;
+	// else
+	// 	coregame->map = cg_map_load(MAP_PATH "/test.cgmap");
 }
 
 static inline bool 
