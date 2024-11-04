@@ -81,7 +81,6 @@ typedef struct
 {
 	u32 player_id;
 	vec2f_t shoot_dir;
-	vec2f_t shoot_pos;
 } net_udp_player_shoot_t;
 
 typedef struct 

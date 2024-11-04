@@ -426,7 +426,6 @@ player_shoot(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 	net_udp_player_shoot_t* new_shoot = mmframes_alloc(&server->mmf, sizeof(net_udp_player_shoot_t));
 	new_shoot->player_id = source_client->player->id;
 	new_shoot->shoot_dir = shoot->shoot_dir;
-	new_shoot->shoot_pos = shoot->shoot_pos;
 
 	GHT_FOREACH(client_t* client, clients, {
 		if (client != source_client)

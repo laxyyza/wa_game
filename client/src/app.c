@@ -42,11 +42,10 @@ client_shoot(waapp_t* app)
 	);
 	vec2f_norm(&dir);
 
-	cg_projectile_t* proj = coregame_player_shoot(&app->game, app->player->core, dir);
+	coregame_player_shoot(&app->game, app->player->core, dir);
 
 	net_udp_player_shoot_t* shoot = mmframes_alloc(&app->mmf, sizeof(net_udp_player_shoot_t));
 	shoot->shoot_dir = dir;
-	shoot->shoot_pos = proj->rect.pos;
 	ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
 }
 
