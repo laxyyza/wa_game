@@ -931,16 +931,16 @@ client_udp_send(waapp_t* app, ssp_packet_t* packet)
 {
 	client_net_t* net = &app->net;
 
-	u32 packet_size = ssp_packet_size(packet);
-	if (sendto(net->udp.fd, (void*)packet, packet_size, 0, (void*)&net->udp.server.addr, net->udp.server.addr_len) == -1)
+	if (sendto(net->udp.fd, packet->buf, packet->size, 0, 
+			  (void*)&net->udp.server.addr, net->udp.server.addr_len) == -1)
 	{
 		perror("sendto");
 	}
 
 	net->udp.out.count++;
-	net->udp.out.bytes += packet_size;
+	net->udp.out.bytes += packet->size;
 
-	free(packet);
+	ssp_packet_free(packet);
 }
 
 static void
