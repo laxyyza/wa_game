@@ -54,7 +54,6 @@ waapp_opengl_init(waapp_t* app)
     gladLoadGL();
     waapp_enable_debug(app);
     print_gl_version();
-	glLineWidth(2.0);
 
     ren_init(&app->ren);
 
