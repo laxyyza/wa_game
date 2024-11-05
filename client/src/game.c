@@ -164,7 +164,8 @@ game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 		app->cam.x = app->cam.x - (old_wpos.x - new_wpos.x) * app->ren.scale.x;
 		app->cam.y = app->cam.y - (old_wpos.y - new_wpos.y) * app->ren.scale.y;
 
-		game_clamp_cam(&app->cam, app->current_map, &app->ren);
+		if (app->clamp_cam)
+			game_clamp_cam(&app->cam, app->current_map, &app->ren);
 
 		ren_set_view(&app->ren, &app->cam);
 	}
@@ -337,7 +338,8 @@ game_move_cam(waapp_t* app)
             );
 			cam->x -= diff.x;
 			cam->y -= diff.y;
-			game_clamp_cam(cam, app->current_map, &app->ren);
+			if (app->clamp_cam)
+				game_clamp_cam(cam, app->current_map, &app->ren);
             ren_set_view(&app->ren, cam);
         }
 

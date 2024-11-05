@@ -45,6 +45,7 @@ typedef struct waapp
 	bool update_vync;
 	bool tmp_vsync;
 	bool on_ui;
+	bool clamp_cam;
 
     struct nk_wa* nk_wa;
     struct nk_context* nk_ctx;

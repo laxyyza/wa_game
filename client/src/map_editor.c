@@ -81,6 +81,7 @@ map_editor_enter(waapp_t* app, waapp_map_editor_t* editor)
 {
 	editor->og_zoom_min = app->min_zoom;
 	app->min_zoom = 0.1;
+	app->clamp_cam = false;
 
 	app->keybind.cam_move = WA_MOUSE_MIDDLE;
 
@@ -357,6 +358,7 @@ void
 map_editor_exit(waapp_t* app, waapp_map_editor_t* editor)
 {
 	app->min_zoom = editor->og_zoom_min;
+	app->clamp_cam = true;
 }
 
 void 

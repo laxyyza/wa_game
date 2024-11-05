@@ -205,6 +205,7 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
 
 	app->min_zoom = 0.4;
 	app->max_zoom = 4.0;
+	app->clamp_cam = true;
 
     return 0;
 }
