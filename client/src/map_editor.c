@@ -37,7 +37,7 @@ map_editor_read_header(waapp_map_editor_t* editor, const char* path)
 	map_header_iq_seq++;
 
 	fclose(f);
-	ght_insert(&editor->maps, map_header->id, map_header);
+	ght_insert(&editor->maps, ght_hashstr(path), map_header);
 	return;
 err:
 	free(map_header);
@@ -126,10 +126,24 @@ static bool
 map_editor_save_current(waapp_map_editor_t* editor)
 {
 	bool ret;
+	bool first_save = false;
+	editor_map_header_t* selected = editor->map_selected;
 
-	char path[MAP_PATH_MAX];
-	snprintf(path, MAP_PATH_MAX - 1, MAP_PATH"/%s.cgmap", editor->map_selected->name);
-	ret = cg_map_save(editor->map, path);
+	if (selected->path[0] == 0x00)
+		first_save = true;
+
+	selected->header = selected->map->header;
+	snprintf(selected->path, MAP_PATH_MAX - 1, MAP_PATH"/%s.cgmap", editor->map_selected->name);
+	ret = cg_map_save(editor->map, selected->path);
+
+	if (first_save)
+	{
+		editor->maps.free = NULL;
+		ght_del(&editor->maps, selected->id);
+		ght_insert(&editor->maps, ght_hashstr(selected->path), selected);
+		editor->maps.free = free;
+	}
+
 	return ret;
 }
 
@@ -212,15 +226,16 @@ map_editor_ui(waapp_t* app, waapp_map_editor_t* editor)
 	if (new_map)
 	{
 		editor->map_selected->map = editor->map;
-		editor->map = NULL;
+		app->current_map = editor->map = NULL;
 		editor->map_selected = NULL;
 	}
 	else if (free_map)
 	{
+		editor->map_selected->map = NULL;
 		if (editor->map_selected->path[0] == 0x00)
 			ght_del(&editor->maps, editor->map_selected->id);
 		free(editor->map);
-		editor->map = NULL;
+		app->current_map = editor->map = NULL;
 		editor->map_selected = NULL;
 	}
 }
@@ -277,7 +292,7 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 					if (editor->map_selected->map)
 						app->current_map = editor->map = editor->map_selected->map;
 					else
-						app->current_map = editor->map = cg_map_load(editor->map_selected->path, NULL, NULL);
+						app->current_map = editor->map_selected->map = editor->map = cg_map_load(editor->map_selected->path, NULL, NULL);
 				}
 			}
 			nk_layout_row_template_end(ctx);
