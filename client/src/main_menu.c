@@ -54,11 +54,12 @@ void
 main_menu_update(waapp_t* app, waapp_main_menu_t* mm)
 {
 	struct nk_context* ctx = app->nk_ctx;
+	const char* window_name = "Connect to Game Server";
 
 	nk_flags flags = NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | 
 					NK_WINDOW_TITLE | NK_WINDOW_SCALABLE | NK_WINDOW_CLOSABLE;
 
-	if (nk_begin(ctx, "Connect to Game Server", nk_rect(50, 50, 320, 400), flags))
+	if (nk_begin(ctx, window_name, nk_rect(50, 50, 320, 400), flags))
 	{
 		nk_layout_row_dynamic(ctx, 30, 1);
 		nk_label(ctx, "Username:", NK_TEXT_LEFT);
@@ -93,6 +94,8 @@ main_menu_update(waapp_t* app, waapp_main_menu_t* mm)
 		}
 	}
 	nk_end(ctx);
+	if (nk_window_is_hidden(ctx, window_name))
+		wa_window_stop(app->window);
 }
 
 i32 
