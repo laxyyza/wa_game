@@ -2,6 +2,8 @@
 #include "app.h"
 #include "opengl.h"
 #include <nuklear.h>
+#include "game_ui.h"
+#include "game_draw.h"
 #include "file.h"
 
 static u32 map_header_iq_seq = 1;
@@ -59,9 +61,10 @@ editor_get_map_headers(waapp_map_editor_t* editor)
 	free(map_files);
 }
 
-void 
-map_editor_init(waapp_t* app, waapp_map_editor_t* editor)
+void*
+map_editor_init(waapp_t* app)
 {
+	waapp_map_editor_t* editor = calloc(1, sizeof(waapp_map_editor_t));
 	wa_state_t* state = wa_window_get_state(app->window);
 	editor->mouse_map = state->mouse_map;
 
@@ -69,6 +72,8 @@ map_editor_init(waapp_t* app, waapp_map_editor_t* editor)
 
 	editor->cell_types[0] = "Block";
 	editor->cell_types[1] = "Spawn";
+
+	return editor;
 }
 
 void 
@@ -85,7 +90,7 @@ map_editor_enter(waapp_t* app, waapp_map_editor_t* editor)
 static void
 map_editor_add_block(waapp_t* app, waapp_map_editor_t* editor)
 {
-	vec2f_t mpos = screen_to_world(app, &app->mouse);
+	vec2f_t mpos = screen_to_world(&app->ren, &app->mouse);
 	cg_cell_t* cell = cg_map_at_wpos(editor->map, &mpos);
 	if (cell)
 	{
@@ -96,7 +101,7 @@ map_editor_add_block(waapp_t* app, waapp_map_editor_t* editor)
 static void
 map_editor_del_block(waapp_t* app, waapp_map_editor_t* editor)
 {
-	vec2f_t mpos = screen_to_world(app, &app->mouse);
+	vec2f_t mpos = screen_to_world(&app->ren, &app->mouse);
 	cg_cell_t* cell = cg_map_at_wpos(editor->map, &mpos);
 	if (cell)
 	{
@@ -233,14 +238,14 @@ void
 map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 {
 	struct nk_context* ctx = app->nk_ctx;
-	waapp_move_cam(app);
+	game_move_cam(app);
 
 	if (editor->map)
 	{
 		map_editor_handle_building(app, editor);
 		map_editor_ui(app, editor);
 		if (editor->map)
-			waapp_render_map(app, editor->map, true);
+			game_render_map(app, editor->map, true);
 	}
 	else
 	{
@@ -254,7 +259,7 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 			nk_layout_row_template_push_static(ctx, 150);
 			if (nk_button_label(ctx, "Create New Map"))
 			{
-				editor->map = cg_map_new(10, 10, 100);
+				app->current_map = editor->map = cg_map_new(10, 10, 100);
 				editor->map_selected = calloc(1, sizeof(editor_map_header_t));
 				editor->map_selected->id = map_header_iq_seq;
 				map_header_iq_seq++;
@@ -269,9 +274,9 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 				if (nk_button_label(ctx, button_label))
 				{
 					if (editor->map_selected->map)
-						editor->map = editor->map_selected->map;
+						app->current_map = editor->map = editor->map_selected->map;
 					else
-						editor->map = cg_map_load(editor->map_selected->path, NULL, NULL);
+						app->current_map = editor->map = cg_map_load(editor->map_selected->path, NULL, NULL);
 				}
 			}
 			nk_layout_row_template_end(ctx);
@@ -360,4 +365,6 @@ map_editor_cleanup(UNUSED waapp_t* app, waapp_map_editor_t* editor)
 	ght_destroy(&editor->maps);
 	if (editor->map)
 		free(editor->map);
+
+	free(editor);
 }

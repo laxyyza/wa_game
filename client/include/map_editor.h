@@ -30,7 +30,7 @@ typedef struct
 	i32 selected_cell_type;
 } waapp_map_editor_t;
 
-void map_editor_init(waapp_t* app, waapp_map_editor_t* editor);
+void* map_editor_init(waapp_t* app);
 void map_editor_enter(waapp_t* app, waapp_map_editor_t* editor);
 void map_editor_update(waapp_t* app, waapp_map_editor_t* editor);
 i32  map_editor_event(waapp_t* app, const wa_event_t* ev);

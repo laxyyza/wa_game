@@ -1,19 +1,18 @@
 #include "player.h"
-#include "app.h"
-#include <math.h>
+#include "game.h"
 
 player_t* 
-player_new_from(waapp_t* app, cg_player_t* cg_player)
+player_new_from(client_game_t* game, cg_player_t* cg_player)
 {
 	player_t* player = calloc(1, sizeof(player_t));
 
 	player->core = cg_player;
 	rect_init(&player->rect, player->core->pos, 
 			player->core->size, 0x000000FF, 
-			app->tank_bottom_tex);
+			game->tank_bottom_tex);
 	memcpy(&player->top, &player->rect, sizeof(rect_t));
-	player->top.texture = app->tank_top_tex;
-	ght_insert(&app->players, player->core->id, player);
+	player->top.texture = game->tank_top_tex;
+	ght_insert(&game->players, player->core->id, player);
 
 	rect_init(&player->hpbar.background, player->rect.pos, vec2f(150, 15), 0x000000AA, NULL);
 
@@ -32,11 +31,11 @@ player_new_from(waapp_t* app, cg_player_t* cg_player)
 }
 
 player_t* 
-player_new(waapp_t* app, const char* name)
+player_new(client_game_t* game, const char* name)
 {
-	cg_player_t* cg_player = coregame_add_player(&app->game, name);
+	cg_player_t* cg_player = coregame_add_player(&game->cg, name);
 
-	return player_new_from(app, cg_player);
+	return player_new_from(game, cg_player);
 }
 
 void 

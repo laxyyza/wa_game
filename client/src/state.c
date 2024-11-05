@@ -11,8 +11,7 @@ waapp_state_manager_init(waapp_t* app)
 {
 	waapp_state_manager_t* sm = &app->sm;
 
-	sm->states.main_menu.data = calloc(1, sizeof(waapp_main_menu_t));
-	sm->states.main_menu.init = (state_callback_t)main_menu_init;
+	sm->states.main_menu.init = main_menu_init;
 	sm->states.main_menu.enter = (state_callback_t)main_menu_enter;
 	sm->states.main_menu.update = (state_callback_t)main_menu_update;
 	sm->states.main_menu.event = main_menu_event;
@@ -21,13 +20,12 @@ waapp_state_manager_init(waapp_t* app)
 	sm->states.main_menu.flags = STATE_DO_CLEANUP | STATE_CLEANED_UP;
 
 	sm->states.game.init = game_init;
-	sm->states.game.update = game_update;
-	sm->states.game.event = game_event;
-	sm->states.game.cleanup = game_cleanup;
+	sm->states.game.update = (state_callback_t)game_update;
+	sm->states.game.event = (state_event_callback_t)game_event;
+	sm->states.game.cleanup = (state_callback_t)game_cleanup;
 	sm->states.game.flags = STATE_DO_CLEANUP | STATE_CLEANED_UP;
 
-	sm->states.map_editor.data = calloc(1, sizeof(waapp_map_editor_t));
-	sm->states.map_editor.init = (state_callback_t)map_editor_init;
+	sm->states.map_editor.init = map_editor_init;
 	sm->states.map_editor.enter = (state_callback_t)map_editor_enter;
 	sm->states.map_editor.update = (state_callback_t)map_editor_update;
 	sm->states.map_editor.event = map_editor_event;
@@ -54,7 +52,7 @@ waapp_state_switch(waapp_t* app, waapp_state_t* state)
 
 	if (state->flags & STATE_CLEANED_UP && state->init)
 	{
-		state->init(app, state->data);
+		state->data = state->init(app);
 		state->flags ^= STATE_CLEANED_UP;
 	}
 	if (state->enter)
@@ -84,7 +82,10 @@ waapp_state_update(wa_window_t* window, waapp_t* app)
 	if (sm->cleanup_pending)
 	{
 		if (sm->prev->cleanup)
+		{
 			sm->prev->cleanup(app, sm->prev->data);
+			sm->prev->data = NULL;
+		}
 		sm->prev->flags |= STATE_CLEANED_UP;
 		sm->cleanup_pending = false;
 	}

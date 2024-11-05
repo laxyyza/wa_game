@@ -9,74 +9,6 @@
 #include "nuklear.h"
 #include "cutils.h"
 
-static void
-waapp_clamp_cam(waapp_t* app)
-{
-	if (app->game.map == NULL)
-		return;
-
-	f32 offset = 20.0;
-
-	const cg_map_header_t* map = &app->game.map->header;
-	vec3f_t* cam = &app->cam;
-
-	const f32 max_x = (map->w * map->grid_size * app->ren.scale.x) - (app->ren.viewport.x - offset);
-	const f32 max_y = (map->h * map->grid_size * app->ren.scale.y) - (app->ren.viewport.y - offset);
-
-	cam->x = clampf(cam->x, -max_x, offset);
-	cam->y = clampf(cam->y, -max_y, offset);
-}
-
-static void 
-client_shoot(waapp_t* app)
-{
-	if (app->on_ui)
-		return;
-
-	const player_t* player = app->player;
-
-	const vec2f_t mpos = screen_to_world(app, &app->mouse);
-	vec2f_t dir = vec2f(
-		mpos.x - (player->core->pos.x + (player->core->size.x / 2)),
-		mpos.y - (player->core->pos.y + (player->core->size.y / 2))
-	);
-	vec2f_norm(&dir);
-
-	coregame_player_shoot(&app->game, app->player->core, dir);
-
-	net_udp_player_shoot_t* shoot = mmframes_alloc(&app->mmf, sizeof(net_udp_player_shoot_t));
-	shoot->shoot_dir = dir;
-	ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
-}
-
-void
-waapp_lock_cam(waapp_t* app)
-{
-	player_t* player = app->player;
-	vec2f_t origin = vec2f(
-		player->core->pos.x + (player->core->size.x / 2),
-		player->core->pos.y + (player->core->size.y / 2)
-	);
-
-	const vec2f_t* viewport = &app->ren.viewport;
-	app->cam.x = -(origin.x * app->ren.scale.x - (viewport->x / 2));
-	app->cam.y = -(origin.y * app->ren.scale.y - (viewport->y / 2));
-
-	waapp_clamp_cam(app);
-
-	ren_set_view(&app->ren, &app->cam);
-
-	player->core->cursor = screen_to_world(app, &app->mouse);
-	ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &player->core->cursor);
-}
-
-static void
-game_draw(waapp_t* app)
-{
-    waapp_opengl_draw(app);
-	app->frames++;
-}
-
 static void 
 nk_handle_input(waapp_t* app, const wa_event_key_t* ev)
 {
@@ -148,124 +80,11 @@ waapp_handle_key(waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
 	}
 }
 
-static void
-game_handle_key(waapp_t* app, wa_window_t* window, const wa_event_key_t* ev)
-{
-    wa_state_t* state = wa_window_get_state(window);
-	player_t* player = app->player;
-
-	switch (ev->key)
-	{
-		case WA_KEY_V:
-			if (ev->pressed)
-                wa_window_vsync(window, !state->window.vsync);
-			break;
-		case WA_KEY_W:
-			if (ev->pressed)
-				player->movement_dir |= PLAYER_DIR_UP;
-			else
-				player->movement_dir ^= PLAYER_DIR_UP;
-			break;
-		case WA_KEY_S:
-			if (ev->pressed)
-				player->movement_dir |= PLAYER_DIR_DOWN;
-			else
-				player->movement_dir ^= PLAYER_DIR_DOWN;
-			break;
-		case WA_KEY_A:
-			if (ev->pressed)
-				player->movement_dir |= PLAYER_DIR_LEFT;
-			else
-				player->movement_dir ^= PLAYER_DIR_LEFT;
-			break;
-		case WA_KEY_D:
-			if (ev->pressed)
-				player->movement_dir |= PLAYER_DIR_RIGHT;
-			else
-				player->movement_dir ^= PLAYER_DIR_RIGHT;
-			break;
-		case WA_KEY_SPACE:
-			if (ev->pressed && ((app->lock_cam = !app->lock_cam)))
-				waapp_lock_cam(app);
-			break;
-		case WA_KEY_T:
-			if (ev->pressed)
-				app->trigger_shooting = !app->trigger_shooting;
-			break;
-		default:
-			break;
-	}
-}
-
-static void 
-game_handle_pointer(waapp_t* app, UNUSED const wa_event_pointer_t* ev)
-{
-	if (app->player)
-	{
-		app->player->core->cursor = screen_to_world(app, &app->mouse);
-		ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &app->player->core->cursor);
-	}
-}
-
 static void 
 waapp_handle_pointer(waapp_t* app, const wa_event_pointer_t* ev)
 {
 	app->mouse.x = ev->x;
 	app->mouse.y = ev->y;
-
-	if (app->player)
-	{
-		app->player->core->cursor = screen_to_world(app, &app->mouse);
-		ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &app->player->core->cursor);
-	}
-}
-
-static void 
-game_handle_mouse_button(waapp_t* app, const wa_event_mouse_t* ev)
-{
-	if (ev->button == WA_MOUSE_LEFT && ev->pressed)
-	{
-		client_shoot(app);
-	}
-}
-
-void 
-game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
-{
-	f32 dir = (ev->value > 0) ? -1.0 : 1.0;
-
-	if (app->on_ui)
-		return;
-
-	vec2f_t old_wpos = screen_to_world(app, &app->mouse);
-
-	if (dir > 0)
-	{
-		app->ren.scale.x += 0.1;
-		app->ren.scale.y += 0.1;
-	}
-	else
-	{
-		app->ren.scale.x -= 0.1;
-		app->ren.scale.y -= 0.1;
-	}
-	app->ren.scale.x = app->ren.scale.y = clampf(app->ren.scale.x, app->min_zoom, app->max_zoom);
-
-	ren_set_scale(&app->ren, &app->ren.scale);
-
-	if (app->lock_cam)
-		waapp_lock_cam(app);
-	else
-	{
-		vec2f_t new_wpos = screen_to_world(app, &app->mouse);
-
-		app->cam.x = app->cam.x - (old_wpos.x - new_wpos.x) * app->ren.scale.x;
-		app->cam.y = app->cam.y - (old_wpos.y - new_wpos.y) * app->ren.scale.y;
-
-		waapp_clamp_cam(app);
-
-		ren_set_view(&app->ren, &app->cam);
-	}
 }
 
 static void
@@ -281,8 +100,8 @@ static void
 waapp_resize(waapp_t* app, const wa_event_resize_t* ev)
 {
 	ren_viewport(&app->ren, ev->w, ev->h);
-	if (app->lock_cam)
-		waapp_lock_cam(app);
+	if (app->game && app->game->lock_cam)
+		game_lock_cam(app->game);
 }
 
 static void 
@@ -335,161 +154,6 @@ waapp_close(_WA_UNUSED wa_window_t* window, _WA_UNUSED void* data)
 
 }
 
-static void 
-on_player_free(cg_player_t* player, void* data)
-{
-	waapp_t* app = data;
-	ght_del(&app->players, player->id);
-}
-
-static void 
-update_logic(waapp_t* app)
-{
-	player_t* player = app->player;
-
-	if (player)
-	{
-		coregame_set_player_dir(player->core, player->movement_dir);
-
-		coregame_update(&app->game);
-
-		if (app->prev_pos.x != player->core->pos.x || app->prev_pos.y != player->core->pos.y)
-		{
-			if (app->lock_cam)
-				waapp_lock_cam(app);
-			app->prev_pos = player->core->pos;
-		}
-		if (app->prev_dir.x != player->core->dir.x || app->prev_dir.y != player->core->dir.y)
-		{
-			ssp_segbuff_add(&app->net.udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
-			app->prev_dir = player->core->dir;
-		}
-
-		if (app->trigger_shooting)
-			client_shoot(app);
-
-		client_net_try_udp_flush(app);
-	}
-}
-
-void 
-game_init(waapp_t* app, UNUSED void* data)
-{
-	coregame_init(&app->game, true, app->map_from_server);
-	app->game.user_data = app;
-	app->game.player_free_callback = on_player_free;
-
-	app->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
-	app->tank_bottom_tex->name = "Tank Bottom";
-	app->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
-	app->tank_top_tex->name = "Tank Top";
-	app->lock_cam = true;
-
-	ght_init(&app->players, 10, free);
-
-	app->keybind.cam_move = WA_MOUSE_RIGHT;
-
-	const cg_map_header_t* maph = &app->game.map->header;
-
-	rect_init(&app->map_border, vec2f(0, 0), 
-		vec2f(
-			maph->w * maph->grid_size,
-			maph->h * maph->grid_size
-		), 
-		0xFF0000FF, 
-		NULL
-	);
-
-	array_init(&app->player_deaths, sizeof(player_kill_t), 10);
-}
-
-void 
-game_update(waapp_t* app, UNUSED void* data)
-{
-	clock_gettime(CLOCK_MONOTONIC, &app->start_time);
-
-	update_logic(app);
-	game_draw(app);
-
-	if (app->update_vync)
-	{
-		wa_window_vsync(app->window, app->tmp_vsync);
-		app->update_vync = false;
-	}
-
-	clock_gettime(CLOCK_MONOTONIC, &app->end_time);
-
-	f64 elapsed_time_sec = (app->end_time.tv_sec - app->last_time.tv_sec) + 
-							(app->end_time.tv_nsec - app->last_time.tv_nsec) / 1e9;
-	if (elapsed_time_sec > 1.0)
-	{
-		app->fps = app->frames;
-		app->frames = 0;
-		app->last_time = app->end_time;
-	}
-}
-
-i32
-game_event(waapp_t* app, const wa_event_t* ev)
-{
-	wa_window_t* window = app->window;
-
-	switch (ev->type)
-	{
-		case WA_EVENT_KEYBOARD:
-			game_handle_key(app, window, &ev->keyboard);
-			return 0;
-		case WA_EVENT_POINTER:
-			game_handle_pointer(app, &ev->pointer);
-			return 0;
-		case WA_EVENT_MOUSE_BUTTON:
-			game_handle_mouse_button(app, &ev->mouse);
-			return 0;
-		case WA_EVENT_MOUSE_WHEEL:
-			game_handle_mouse_wheel(app, &ev->wheel);
-			return 0;
-		default:
-			return 1;
-	}
-}
-
-void 
-game_cleanup(waapp_t* app, UNUSED void* data)
-{
-	texture_del(app->tank_bottom_tex);
-	texture_del(app->tank_top_tex);
-
-	array_del(&app->player_deaths);
-	ght_destroy(&app->players);
-	coregame_cleanup(&app->game);
-	client_net_disconnect(app);
-	app->player = NULL;
-}
-
-void
-waapp_move_cam(waapp_t* app)
-{
-    wa_state_t* state = wa_window_get_state(app->window);
-    vec3f_t* cam = &app->cam;
-
-    if (app->mouse.x != app->mouse_prev.x || app->mouse.y != app->mouse_prev.y)
-    {
-        if (state->mouse_map[app->keybind.cam_move])
-        {
-			app->lock_cam = false;
-            vec2f_t diff = vec2f(
-                app->mouse_prev.x - app->mouse.x,
-                app->mouse_prev.y - app->mouse.y
-            );
-			cam->x -= diff.x;
-			cam->y -= diff.y;
-			waapp_clamp_cam(app);
-            ren_set_view(&app->ren, cam);
-        }
-
-        app->mouse_prev = app->mouse;
-    }
-}
 
 i32 
 waapp_init(waapp_t* app, i32 argc, const char** argv)
@@ -500,7 +164,6 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     i32 h = 720;
     bool fullscreen = false;
     wa_state_t* state;
-	app->death_kill_time = 10.0;
 
 	nlog_set_name("");
 

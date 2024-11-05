@@ -25,6 +25,10 @@ src = files(
     'src/state.c',
     'src/main_menu.c',
     'src/map_editor.c',
+    'src/game.c',
+    'src/game_ui.c',
+    'src/game_draw.c',
+    'src/game_net_events.c',
 )
 deps = [m_dep]
 

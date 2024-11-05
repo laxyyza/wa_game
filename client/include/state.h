@@ -6,6 +6,7 @@
 
 typedef struct waapp waapp_t;
 
+typedef void* (*state_init_callback_t)(waapp_t* app);
 typedef void (*state_callback_t)(waapp_t* app, void* data);
 typedef i32  (*state_event_callback_t)(waapp_t* app, const wa_event_t* ev);
 
@@ -14,14 +15,14 @@ typedef i32  (*state_event_callback_t)(waapp_t* app, const wa_event_t* ev);
 
 typedef struct 
 {
-	void* data;
-	u8		flags;
-	state_callback_t init;
-	state_callback_t enter;
-	state_callback_t update;
-	state_event_callback_t event;
-	state_callback_t exit;
-	state_callback_t cleanup;
+	void*					data;
+	u8						flags;
+	state_init_callback_t	init;
+	state_callback_t		enter;
+	state_callback_t		update;
+	state_event_callback_t	event;
+	state_callback_t		exit;
+	state_callback_t		cleanup;
 } waapp_state_t;
 
 typedef struct 

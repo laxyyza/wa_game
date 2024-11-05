@@ -5,6 +5,7 @@
 #include "rect.h"
 
 typedef struct waapp waapp_t;
+typedef struct client_game client_game_t;
 
 typedef struct 
 {	
@@ -35,8 +36,8 @@ typedef struct
 	rect_t rect;
 } projectile_t;
 
-player_t* player_new(waapp_t* app, const char* name);
-player_t* player_new_from(waapp_t* app, cg_player_t* cg_player);
+player_t* player_new(client_game_t* game, const char* name);
+player_t* player_new_from(client_game_t* game, cg_player_t* cg_player);
 void	  player_set_health(player_t* player, i32 new_hp);
 
 #endif // _CLIENT_PLAYER_H_

@@ -6,6 +6,7 @@
 #include "main_menu.h"
 #include "state.h"
 #include "gui/gui.h"
+#include "game_net_events.h"
 
 #ifdef __linux__
 #include <sys/epoll.h>
@@ -381,37 +382,6 @@ tcp_write_connect(waapp_t* app, fdevent_t* fdev)
 	client_net_fdevent_del_write(app, fdev);
 }
 
-static void 
-new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_data)
-{
-	const cg_player_t* new_player = (const cg_player_t*)segment->data;
-
-	cg_player_t* cg_player = malloc(sizeof(cg_player_t));
-	memcpy(cg_player, new_player, sizeof(cg_player_t));
-
-	player_t* player = player_new_from(app, cg_player);
-
-	if (cg_player->id == app->net.player_id)
-	{
-		app->player = player;
-		player->hpbar.fill.color = rgba(0x00FF00FF);
-	}
-
-	coregame_add_player_from(&app->game, cg_player);
-}
-
-static void 
-delete_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_data)
-{
-	const net_tcp_delete_player_t* del_player = (const net_tcp_delete_player_t*)segment->data;
-
-	cg_player_t* player = ght_get(&app->game.players, del_player->player_id);
-	if (player)
-	{
-		coregame_free_player(&app->game, player);
-	}
-}
-
 static void
 udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 {
@@ -428,60 +398,6 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 }
 
 static void 
-player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
-{
-	const net_udp_player_move_t* move = (net_udp_player_move_t*)segment->data;
-	const vec2f_t* server_pos = &move->pos;
-	const vec2f_t* client_pos;
-	player_t* player = ght_get(&app->players, move->player_id);
-
-	if (player)
-	{
-		client_pos = &player->core->pos;
-
-		f32 dist = coregame_dist(client_pos, server_pos);
-
-		if (dist > app->game.interp_threshold_dist)
-		{
-			player->core->interpolate = true;
-			player->core->server_pos = *server_pos;
-		}
-		else
-			player->core->pos = *server_pos;
-		player->core->dir = move->dir;
-	}
-}
-
-static void 
-player_cursor(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
-{
-	const net_udp_player_cursor_t* cursor = (net_udp_player_cursor_t*)segment->data;
-	cg_player_t* player = ght_get(&app->game.players, cursor->player_id);
-	if (player)
-	{
-		player->cursor = cursor->cursor_pos;
-	}
-}
-
-static void 
-player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
-{
-	const net_udp_player_shoot_t* shoot = (net_udp_player_shoot_t*)segment->data;
-	cg_player_t* player = ght_get(&app->game.players, shoot->player_id);
-	if (player)
-		coregame_player_shoot(&app->game, player, shoot->shoot_dir);
-}
-
-static void 
-player_health(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
-{
-	const net_udp_player_health_t* health = (net_udp_player_health_t*)segment->data;
-	player_t* player = ght_get(&app->players, health->player_id);
-	if (player)
-		player_set_health(player, health->health);
-}
-
-static void 
 udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 {
 	client_net_t* net = &app->net;
@@ -492,78 +408,9 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	clock_gettime(CLOCK_MONOTONIC, &current_time);
 
 	f64 elapsed_time = get_elapsed_time(&current_time, &pong->start_time);
-	app->player->core->stats.ping = player_ping->ms = net->udp.latency = elapsed_time * 1000.0;
+	app->game->player->core->stats.ping = player_ping->ms = net->udp.latency = elapsed_time * 1000.0;
 
 	ssp_segbuff_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
-}
-
-static void 
-player_died(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
-{
-	const net_udp_player_died_t* died = (const net_udp_player_died_t*)segment->data;
-	player_t* target;
-	player_t* attacker;
-	player_kill_t* kill;
-
-	target = ght_get(&app->players, died->target_player_id);
-	if (target == NULL)
-	{
-		errorf("player_died: target player %u not found.\n",
-			died->target_player_id);
-		return;
-	}
-	attacker = ght_get(&app->players, died->attacker_player_id);
-	if (attacker == NULL)
-	{
-		errorf("player_died: attacker player %u not found.\n",
-			died->attacker_player_id);
-		return;
-	}
-
-	kill = array_add_into(&app->player_deaths);
-	strncpy(kill->target_name, target->core->username, PLAYER_NAME_MAX);
-	strncpy(kill->attacker_name, attacker->core->username, PLAYER_NAME_MAX);
-	clock_gettime(CLOCK_MONOTONIC, &kill->timestamp);
-}
-
-static void 
-player_stats(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
-{
-	const net_udp_player_stats_t* stats = (const net_udp_player_stats_t*)segment->data;
-	player_t* player;
-
-	player = ght_get(&app->players, stats->player_id);
-	if (player)
-	{
-		player->core->stats.kills = stats->kills;
-		player->core->stats.deaths = stats->deaths;
-	}
-}
-
-static void 
-player_ping(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
-{
-	const net_udp_player_ping_t* ping = (const net_udp_player_ping_t*)segment->data;
-	cg_player_t* player;
-
-	if ((player = ght_get(&app->game.players, ping->player_id)))
-		player->stats.ping = ping->ms;
-}
-
-static void 
-cg_map(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
-{
-	const net_tcp_cg_map_t* tcp_map = (const net_tcp_cg_map_t*)segment->data;
-
-	app->map_from_server = cg_map_load_disk(tcp_map, segment->size);
-}
-
-static void 
-server_shutdown(UNUSED const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
-{
-	waapp_main_menu_t* mm = app->sm.states.main_menu.data;
-	strcpy(mm->state, "Server shutdown");
-	waapp_state_switch(app, &app->sm.states.main_menu);
 }
 
 i32 
@@ -662,20 +509,20 @@ client_net_init(waapp_t* app)
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_SESSION_ID] = (ssp_segmap_callback_t)session_id;
 	callbacks[NET_TCP_UDP_INFO] = (ssp_segmap_callback_t)udp_info;
-	callbacks[NET_TCP_NEW_PLAYER] = (ssp_segmap_callback_t)new_player;
-	callbacks[NET_TCP_DELETE_PLAYER] = (ssp_segmap_callback_t)delete_player;
-	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)player_move;
-	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
-	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
-	callbacks[NET_UDP_PLAYER_HEALTH] = (ssp_segmap_callback_t)player_health;
+	callbacks[NET_TCP_NEW_PLAYER] = (ssp_segmap_callback_t)game_new_player;
+	callbacks[NET_TCP_DELETE_PLAYER] = (ssp_segmap_callback_t)game_delete_player;
+	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)game_player_move;
+	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)game_player_cursor;
+	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)game_player_shoot;
+	callbacks[NET_UDP_PLAYER_HEALTH] = (ssp_segmap_callback_t)game_player_health;
 	callbacks[NET_UDP_PONG] = (ssp_segmap_callback_t)udp_pong;
-	callbacks[NET_UDP_PLAYER_DIED] = (ssp_segmap_callback_t)player_died;
-	callbacks[NET_UDP_PLAYER_STATS] = (ssp_segmap_callback_t)player_stats;
-	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)player_ping;
-	callbacks[NET_TCP_CG_MAP] = (ssp_segmap_callback_t)cg_map;
-	callbacks[NET_TCP_SERVER_SHUTDOWN] = (ssp_segmap_callback_t)server_shutdown;
+	callbacks[NET_UDP_PLAYER_DIED] = (ssp_segmap_callback_t)game_player_died;
+	callbacks[NET_UDP_PLAYER_STATS] = (ssp_segmap_callback_t)game_player_stats;
+	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)game_player_ping;
+	callbacks[NET_TCP_CG_MAP] = (ssp_segmap_callback_t)game_cg_map;
+	callbacks[NET_TCP_SERVER_SHUTDOWN] = (ssp_segmap_callback_t)game_server_shutdown;
 
-	netdef_init(&net->def, &app->game, callbacks);
+	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_state.user_data = app;
 
 	array_init(&net->events, sizeof(fdevent_t), 4);

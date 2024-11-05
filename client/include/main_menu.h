@@ -20,7 +20,7 @@ typedef struct
 	char state[MM_STATE_STRING_MAX];
 } waapp_main_menu_t;
 
-void main_menu_init(waapp_t* app, waapp_main_menu_t* mm);
+void* main_menu_init(waapp_t* app);
 void main_menu_enter(waapp_t* app, waapp_main_menu_t* mm);
 void main_menu_update(waapp_t* app, waapp_main_menu_t* mm);
 i32 main_menu_event(waapp_t* app, const wa_event_t* ev);

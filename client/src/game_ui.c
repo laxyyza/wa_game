@@ -1,0 +1,238 @@
+#include "game_ui.h"
+#include "app.h"
+#include "gui/gui.h"
+#include "cutils.h"
+
+static void
+game_ui_kills_window(client_game_t* game, struct nk_context* ctx)
+{
+	array_t* player_deaths = &game->player_deaths;
+	struct timespec current_time;
+	u32 delete_count = 0;
+
+	if (player_deaths->count == 0)
+		return;
+
+	player_kill_t* kills = (player_kill_t*)player_deaths->buf;
+	player_kill_t* kill;
+
+	clock_gettime(CLOCK_MONOTONIC, &current_time);
+
+    static struct nk_rect kill_window_rect = {
+        .w = 500,
+        .h = 200
+    };
+	kill_window_rect.x = (game->ren->viewport.x - kill_window_rect.w);
+	static nk_flags flags = NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_BACKGROUND | NK_WINDOW_NO_SCROLLBAR;
+
+	if (nk_begin(ctx, "kills", kill_window_rect, flags))
+	{
+		nk_layout_row_dynamic(ctx, 30, 1);
+
+		for (u32 i = 0; i < player_deaths->count; i++)
+		{
+			kill = kills + i;
+			char label[256];
+			snprintf(label, 256, "%s -> %s", kill->attacker_name, kill->target_name); 
+			nk_label(ctx, label, NK_TEXT_RIGHT);
+
+			f64 elapsed_time = get_elapsed_time(&current_time, &kill->timestamp);
+
+			if (elapsed_time >= game->death_kill_time)
+				delete_count++;
+		}
+	}
+	nk_end(ctx);
+
+	for (u32 i = 0; i < delete_count; i++)
+		array_erase(player_deaths, 0);
+}
+
+static void
+game_ui_score_window(client_game_t* game, struct nk_context* ctx)
+{
+	static struct nk_rect score_window_rect = {
+		.w = 200,
+		.h = 50,
+		.y = 0
+	};
+	score_window_rect.x = (game->ren->viewport.x / 2 - (score_window_rect.w / 2));
+
+	if (nk_begin(ctx, "score", score_window_rect, NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR))
+	{
+		nk_layout_row_dynamic(ctx, score_window_rect.h, 1);
+		char label[64];
+		snprintf(label, 64, "Kills: %u", game->player->core->stats.kills);
+		nk_label(ctx, label, NK_TEXT_CENTERED);
+	}
+	nk_end(ctx);
+}
+
+static void 
+game_ui_tab_display_player(struct nk_context* ctx, cg_player_t* player)
+{
+	char player_stats[64];
+	nk_label(ctx, player->username, NK_TEXT_CENTERED);
+
+	snprintf(player_stats, 64, "%u", player->stats.kills);
+	nk_label(ctx, player_stats, NK_TEXT_CENTERED);
+
+	snprintf(player_stats, 64, "%u", player->stats.deaths);
+	nk_label(ctx, player_stats, NK_TEXT_CENTERED);
+
+	snprintf(player_stats, 64, "%.2f", player->stats.ping);
+	nk_label(ctx, player_stats, NK_TEXT_CENTERED);
+}
+
+static void
+game_ui_tab_window(client_game_t* game, struct nk_context* ctx)
+{
+	wa_state_t* state = wa_window_get_state(game->app->window);
+	if (state->key_map[WA_KEY_TAB] == 0)
+		return;
+
+	struct nk_rect rect = {
+		.x = percent(20, game->ren->viewport.x),
+		.y = percent(20, game->ren->viewport.y),
+	};
+	rect.w = percent(70, game->ren->viewport.x) - rect.x / 2;
+	rect.h = percent(70, game->ren->viewport.y) - rect.y / 2;
+	const ght_t* players = &game->cg.players;
+
+	if (nk_begin(ctx, "Scoreboard", rect, NK_WINDOW_TITLE))
+	{
+		nk_layout_row_dynamic(ctx, 50, 4);
+		
+		nk_label(ctx, "PLAYERS", NK_TEXT_CENTERED);
+		nk_label(ctx, "KILLS", NK_TEXT_CENTERED);
+		nk_label(ctx, "DEATHS", NK_TEXT_CENTERED);
+		nk_label(ctx, "PING", NK_TEXT_CENTERED);
+
+		nk_layout_row_dynamic(ctx, 20, 4);
+
+		game_ui_tab_display_player(ctx, game->player->core);
+
+		GHT_FOREACH(cg_player_t* player, players, {
+			if (player->id != game->player->core->id)
+				game_ui_tab_display_player(ctx, player);
+		});
+	}
+	nk_end(ctx);
+}
+
+static void
+game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
+{
+    wa_state_t* state = wa_window_get_state(game->app->window);
+	waapp_t* app = game->app;
+
+    static nk_flags win_flags = 
+        NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | 
+         NK_WINDOW_TITLE | NK_WINDOW_MINIMIZED |
+        NK_WINDOW_CLOSABLE | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE;
+    const char* window_name = state->window.title;
+    // static struct nk_vec2 window_offset = {10, 10};
+    static struct nk_rect window_rect = {
+        .x = 0,
+        .y = 0,
+        .w = 340,
+        .h = 500
+    };
+
+    if (nk_begin(ctx, window_name, window_rect, win_flags))
+                 
+    {
+		char udp_in_stat[256];
+        if (win_flags & NK_WINDOW_MINIMIZED)
+            win_flags ^= NK_WINDOW_MINIMIZED;
+
+		snprintf(udp_in_stat, 256, "Game Server: %s:%u (%.1f/s)",
+				game->net->udp.ipaddr, game->net->udp.port, game->net->udp.tickrate);
+        nk_layout_row_dynamic(ctx, 20, 1);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		if (game->net->udp.latency < 1.0)
+			snprintf(udp_in_stat, 256, "PING: %.4f ms", game->net->udp.latency);
+		else
+			snprintf(udp_in_stat, 256, "PING: %.2f ms", game->net->udp.latency);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		snprintf(udp_in_stat, 256, "CLIENT FPS: %u (%.2f ms)", app->fps, app->frame_time);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		wa_state_t* state = wa_window_get_state(app->window);
+		nk_bool vsync = !state->window.vsync;
+		if (nk_checkbox_label(ctx, "VSync", &vsync))
+		{
+			app->update_vync = true;
+			app->tmp_vsync = !vsync;
+		}
+
+        nk_layout_row_dynamic(ctx, 20, 1);
+		if (vsync)
+		{
+			nk_bool limit_fps = !app->fps_limit;
+			if (nk_checkbox_label(ctx, "Limit FPS", &limit_fps))
+				app->fps_limit = !limit_fps;
+
+			if (app->fps_limit)
+			{
+				snprintf(udp_in_stat, 256, "FPS LIMIT: %u", (u32)app->max_fps);
+				nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+				if (nk_slider_float(ctx, 10.0, &app->max_fps, 500.0, 1.0))
+					waapp_set_max_fps(app, app->max_fps);
+			}
+		}
+        const char* fullscreen_str = (state->window.state & WA_STATE_FULLSCREEN) ? "Windowed" : "Fullscreen";
+        if (nk_button_label(ctx, fullscreen_str))
+            wa_window_set_fullscreen(app->window, !(state->window.state & WA_STATE_FULLSCREEN));
+
+		snprintf(udp_in_stat, 256, "IN  UDP Packets/s: %u (%zu bytes)", 
+				game->net->udp.in.last_count, game->net->udp.in.last_bytes);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		snprintf(udp_in_stat, 256, "OUT UDP Packets/s: %u (%zu bytes)", 
+				game->net->udp.out.last_count, game->net->udp.out.last_bytes);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		snprintf(udp_in_stat, 256, "Interpolate Factor: %f", game->cg.interp_factor);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		nk_slider_float(ctx, 0.01, &game->cg.interp_factor, 1.0, 0.005);
+
+		snprintf(udp_in_stat, 256, "Interp Threshold Dist: %f", game->cg.interp_threshold_dist);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		nk_slider_float(ctx, 0.0001, &game->cg.interp_threshold_dist, 20.0, 0.0001);
+
+		snprintf(udp_in_stat, 256, "Draw calls: %u", game->ren->draw_calls);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		if (nk_button_label(ctx, "Main Menu"))
+		{
+			waapp_state_switch(app, &app->sm.states.main_menu);
+		}
+
+    }
+    nk_end(ctx);
+	if (nk_window_is_hidden(ctx, window_name))
+		wa_window_stop(app->window);
+}
+
+void 
+game_ui_update(client_game_t* game)
+{
+	struct nk_context* ctx = game->nk_ctx;
+
+	game_ui_stats_window(game, ctx);
+
+	gui_set_font(game->app, game->app->font_big);
+	struct nk_style_item og_bg = ctx->style.window.fixed_background;
+	ctx->style.window.fixed_background = nk_style_item_color(nk_rgba(0, 0, 0, 0));
+
+	game_ui_kills_window(game, ctx);
+	game_ui_score_window(game, ctx);
+
+	ctx->style.window.fixed_background = og_bg;
+	gui_set_font(game->app, game->app->font);
+
+	game_ui_tab_window(game, ctx);
+}

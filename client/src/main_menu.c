@@ -37,10 +37,12 @@ mm_save(waapp_main_menu_t* mm)
 	fclose(f);
 }
 
-void 
-main_menu_init(UNUSED waapp_t* app, waapp_main_menu_t* mm)
+void* 
+main_menu_init(UNUSED waapp_t* app)
 {
+	waapp_main_menu_t* mm = calloc(1, sizeof(waapp_main_menu_t));
 	mm_load_last(mm);
+	return mm;
 }
 
 void 
@@ -107,7 +109,7 @@ main_menu_exit(UNUSED waapp_t* app, waapp_main_menu_t* mm)
 }
 
 void 
-main_menu_cleanup(UNUSED waapp_t* app, UNUSED waapp_main_menu_t* mm)
+main_menu_cleanup(UNUSED waapp_t* app, waapp_main_menu_t* mm)
 {
-
+	free(mm);
 }
