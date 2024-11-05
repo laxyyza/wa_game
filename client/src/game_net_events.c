@@ -4,7 +4,7 @@
 #include <time.h>
 
 void 
-game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_data)
+game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const cg_player_t* new_player = (const cg_player_t*)segment->data;
 
@@ -23,7 +23,7 @@ game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_da
 }
 
 void 
-game_delete_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user_data)
+game_delete_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_tcp_delete_player_t* del_player = (const net_tcp_delete_player_t*)segment->data;
 
@@ -35,7 +35,7 @@ game_delete_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* user
 }
 
 void 
-game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_move_t* move = (net_udp_player_move_t*)segment->data;
 	const vec2f_t* server_pos = &move->pos;
@@ -60,7 +60,7 @@ game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 }
 
 void 
-game_player_cursor(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+game_player_cursor(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_cursor_t* cursor = (net_udp_player_cursor_t*)segment->data;
 	cg_player_t* player = ght_get(&app->game->cg.players, cursor->player_id);
@@ -71,7 +71,7 @@ game_player_cursor(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data
 }
 
 void 
-game_player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+game_player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_shoot_t* shoot = (net_udp_player_shoot_t*)segment->data;
 	cg_player_t* player = ght_get(&app->game->cg.players, shoot->player_id);
@@ -80,7 +80,7 @@ game_player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 }
 
 void 
-game_player_health(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+game_player_health(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_health_t* health = (net_udp_player_health_t*)segment->data;
 	player_t* player = ght_get(&app->game->players, health->player_id);
@@ -89,7 +89,7 @@ game_player_health(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data
 }
 
 void 
-game_player_died(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+game_player_died(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_died_t* died = (const net_udp_player_died_t*)segment->data;
 	player_t* target;
@@ -118,7 +118,7 @@ game_player_died(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 }
 
 void 
-game_player_stats(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+game_player_stats(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_stats_t* stats = (const net_udp_player_stats_t*)segment->data;
 	player_t* player;
@@ -132,7 +132,7 @@ game_player_stats(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 }
 
 void 
-game_player_ping(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+game_player_ping(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_ping_t* ping = (const net_udp_player_ping_t*)segment->data;
 	cg_player_t* player;
@@ -142,7 +142,7 @@ game_player_ping(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 }
 
 void 
-game_cg_map(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+game_cg_map(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_tcp_cg_map_t* tcp_map = (const net_tcp_cg_map_t*)segment->data;
 
@@ -150,7 +150,7 @@ game_cg_map(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 }
 
 void 
-game_server_shutdown(UNUSED const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+game_server_shutdown(UNUSED const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	waapp_main_menu_t* mm = app->sm.states.main_menu.data;
 	strcpy(mm->state, "Server shutdown");
