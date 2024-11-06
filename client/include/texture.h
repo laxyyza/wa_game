@@ -22,8 +22,10 @@ typedef struct
 texture_t* texture_load(const char* filename, enum filter);
 void texture_init(texture_t* text, const char* filename, enum filter);
 void texture_del(texture_t* text);
+void texture_init_empty(texture_t* texture, i32 w, i32 h);
 
-void texture_bind(const texture_t* text, u32 slot);
+void texture_bind_slot(const texture_t* text, u32 slot);
+void texture_bind(const texture_t* texture);
 void texture_unbind(void);
 
 #endif // _TEXTURE_H_

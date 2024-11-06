@@ -6,6 +6,7 @@
 #include "wa.h"
 #include "renderer.h"
 #include "client_net.h"
+#include "framebuffer.h"
 
 typedef struct waapp waapp_t;
 
@@ -32,6 +33,9 @@ typedef struct client_game
 	client_net_t* net;
 
 	struct nk_context* nk_ctx;
+
+	bro_t* proj_bro;
+	framebuffer_t proj_fbo;
 } client_game_t;
 
 void* game_init(waapp_t* app);

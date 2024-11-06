@@ -634,3 +634,66 @@ main_menu_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect)
 
     bro->vbo.count += RECT_VERT;
 }
+
+void
+game_draw_projectile_rect(ren_t* ren, bro_t* bro, const rect_t* rect)
+{
+	if (rect_in_frustum(ren, rect) == false)
+		return;
+
+    if (bro->vbo.count + RECT_VERT > bro->vbo.max_count || 
+        bro->current_textures.count >= ren->max_texture_units)
+        ren_draw_batch(ren);
+
+    const vec2f_t* size = (vec2f_t*)&rect->size;
+    const vec2f_t pos = rect_origin(rect);
+    const u32 v = bro->vbo.count;
+	const cg_projectile_t* proj = rect->render_data;
+    projectile_vertex_t* vertices = (projectile_vertex_t*)bro->vbo.buf + v;
+
+    mat4_t transform;
+    mat4_t rotation;
+    mat4_t scale;
+
+    mat4_identity(&rotation);
+
+    mat4_rotate(&rotation, &rotation, rect->rotation);
+    mat4_scale_vec2f(&scale, size);
+
+    mat4_mul(&transform, &rotation, &scale);
+    transform.m[0][3] = pos.x;
+    transform.m[1][3] = pos.y;
+
+    static const vec4f_t verts[4] = {
+        {-0.5, -0.5, 0.0, 1.0},
+        { 0.5, -0.5, 0.0, 1.0},
+        { 0.5,  0.5, 0.0, 1.0},
+        {-0.5,  0.5, 0.0, 1.0},
+    };
+
+	vec4f_t proj_pos;
+
+    mat4_mul_vec4f(&vertices->pos, &transform, &verts[0]);
+	proj_pos = vertices->pos;
+	vertices->velocity = proj->velocity;
+	vertices->proj_pos = proj_pos;
+    vertices++;
+    
+    mat4_mul_vec4f(&vertices->pos, &transform, &verts[1]);
+	vertices->velocity = proj->velocity;
+	vertices->proj_pos = proj_pos;
+    vertices++;
+
+    mat4_mul_vec4f(&vertices->pos, &transform, &verts[2]);
+	vertices->velocity = proj->velocity;
+	vertices->proj_pos = proj_pos;
+    vertices++;
+
+    mat4_mul_vec4f(&vertices->pos, &transform, &verts[3]);
+	vertices->velocity = proj->velocity;
+	vertices->proj_pos = proj_pos;
+
+    ren_add_rect_indices(bro, v);
+
+    bro->vbo.count += RECT_VERT;
+}

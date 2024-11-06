@@ -63,7 +63,9 @@ typedef struct cg_projectile
 	u32 owner;
 	cg_rect_t rect;
 	vec2f_t dir;
+	vec2f_t velocity;
 	f32 rotation;
+	f32 time_created;
 
 	struct cg_projectile* next;
 	struct cg_projectile* prev;

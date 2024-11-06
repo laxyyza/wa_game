@@ -2,6 +2,8 @@
 #include "util.h"
 #include "app.h"
 #include "game_ui.h"
+#include "framebuffer.h"
+#include "opengl.h"
 
 static void 
 game_render_player(ren_t* ren, player_t* player)
@@ -28,16 +30,37 @@ static void
 game_render_projectiles(client_game_t* game)
 {
 	cg_projectile_t* proj = game->cg.proj.head;
+	shader_t* shader = &game->proj_bro->shader;
+
+	ren_bind_bro(game->ren, game->proj_bro);
+	framebuffer_bind(&game->proj_fbo);
+	glClearColor(0, 0, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	f32 current_time = (game->app->start_time.tv_nsec / 1e9) + 
+				(game->app->start_time.tv_sec);
+
+	shader_bind(shader);
+	shader_uniform1f(shader, "trail_duration", 10.0);
+	shader_uniform1f(shader, "trail_faderate", 1.0);
 
 	while (proj)
 	{
 		rect_t rect;
+		f32 time = current_time - proj->time_created;
+		shader_uniform1f(shader, "time", time);
 		rect_init(&rect, proj->rect.pos, proj->rect.size, 0xFF0000FF, NULL);
 		rect.rotation = proj->rotation;
+		rect.render_data = proj;
 		ren_draw_rect(game->ren, &rect);
 
 		proj = proj->next;
 	}
+
+	ren_draw_batch(game->ren);
+	framebuffer_unbind(game->ren);
+	ren_bind_bro(game->ren, game->ren->default_bro);
+
 }
 
 static void
@@ -141,6 +164,15 @@ game_draw(client_game_t* game)
 	game_render_projectiles(game);
 	game_render_players(game);
 
+
+	rect_t framebuffer_rect;
+	vec2f_t pos = vec2f(0, 0);
+	rect_init(&framebuffer_rect, 
+		   screen_to_world(game->ren, &pos), 
+		   game->ren->viewport, 0, 
+		   &game->proj_fbo.texture);
+	framebuffer_rect.rotation = 0;
+	ren_draw_rect(game->ren, &framebuffer_rect);
     ren_draw_batch(ren);
 
 	ren_bind_bro(ren, ren->line_bro);

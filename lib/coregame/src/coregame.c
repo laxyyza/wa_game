@@ -202,8 +202,11 @@ coregame_update_projectiles(coregame_t* coregame)
 	while (proj)
 	{
 		proj_next = proj->next;
-		proj->rect.pos.x += proj->dir.x * PROJ_SPEED * coregame->delta;
-		proj->rect.pos.y += proj->dir.y * PROJ_SPEED * coregame->delta;
+		proj->velocity.x = proj->dir.x * PROJ_SPEED * coregame->delta;
+		proj->velocity.y = proj->dir.y * PROJ_SPEED * coregame->delta;
+
+		proj->rect.pos.x += proj->velocity.x;
+		proj->rect.pos.y += proj->velocity.y;
 
 		if (coregame_proj_hit_player_test(coregame, proj) || 
 			rect_collide_map(coregame, &proj->rect))
@@ -297,7 +300,8 @@ coregame_add_projectile(coregame_t* coregame, cg_player_t* player)
 	proj->rect.pos = player->pos;
 	proj->rect.pos.x += player->size.x / 2;
 	proj->rect.pos.y += player->size.y / 2;
-	proj->rect.size = vec2f(20, 20);
+	proj->rect.size = vec2f(40, 40);
+	proj->time_created = (coregame->last_time.tv_nsec / 1e9) + coregame->last_time.tv_sec;
 
 	if (coregame->proj.tail == NULL)
 	{

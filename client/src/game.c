@@ -3,6 +3,7 @@
 #include "app.h"
 #include "cutils.h"
 #include <nuklear.h>
+#include "renderer.h"
 
 
 static void
@@ -250,6 +251,32 @@ game_init(waapp_t* app)
 	game->death_kill_time = 10.0;
 	app->current_map = game->cg.map;
 
+	const i32 layout[] = {
+		VERTLAYOUT_F32, 4, // Vertices Position,
+		VERTLAYOUT_F32, 4, // Projectile Position,
+		VERTLAYOUT_F32, 2, // Velocity
+		VERTLAYOUT_END
+	};
+	const bro_param_t param = {
+		.draw_mode = DRAW_TRIANGLES,
+		.max_vb_count = 4096,
+		.vert_path = "client/src/shaders/projectile_vert.glsl",
+		.frag_path = "client/src/shaders/projectile_frag.glsl",
+		.shader = NULL,
+		.vertlayout = layout,
+		.vertex_size = sizeof(projectile_vertex_t),
+		.draw_rect = game_draw_projectile_rect,
+		.draw_line = NULL
+	};
+	game->proj_bro = ren_new_bro(game->ren, &param);
+
+	shader_bind(&game->proj_bro->shader);
+	vec4f_t color = rgba(0xFF0000FF);
+	shader_uniform_vec4f(&game->proj_bro->shader, "color", &color);
+	shader_uniform1f(&game->proj_bro->shader, "trail_len", 100.0);
+
+	framebuffer_init(&game->proj_fbo, game->ren->viewport.x, game->ren->viewport.y);
+
 	return game;
 }
 
@@ -309,6 +336,8 @@ game_cleanup(waapp_t* app, client_game_t* game)
 {
 	texture_del(game->tank_bottom_tex);
 	texture_del(game->tank_top_tex);
+
+	ren_delete_bro(game->proj_bro);
 
 	array_del(&game->player_deaths);
 	ght_destroy(&game->players);

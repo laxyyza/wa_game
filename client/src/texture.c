@@ -33,6 +33,24 @@ texture_init(texture_t* text, const char* filename, enum filter filter)
         stbi_image_free(text->buf);
 }
 
+void
+texture_init_empty(texture_t* texture, i32 w, i32 h)
+{
+	texture->w = w;
+	texture->h = h;
+
+    glGenTextures(1, &texture->id);
+    glBindTexture(GL_TEXTURE_2D, texture->id);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 void 
 texture_del(texture_t* text)
 {
@@ -41,13 +59,19 @@ texture_del(texture_t* text)
 }
 
 void 
-texture_bind(const texture_t* text, u32 slot)
+texture_bind_slot(const texture_t* text, u32 slot)
 {
     glActiveTexture(GL_TEXTURE0 + slot);
     debug("Binding texture ID: %u into slot: %u\n",
            text->id, slot);
     // glBindTextureUnit(slot, text->id);
     glBindTexture(GL_TEXTURE_2D, text->id);
+}
+
+void 
+texture_bind(const texture_t* texture)
+{
+	glBindTexture(GL_TEXTURE_2D, texture->id);
 }
 
 void 
