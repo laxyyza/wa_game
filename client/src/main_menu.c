@@ -63,7 +63,7 @@ main_menu_init(waapp_t* app)
 	
 	rect_init(&mm->bg_rect, vec2f(-1.0, -1.0), vec2f(2.0, 2.0), 0xFF00FFFF, NULL);
 
-	mm->bg_speed = 0.1;
+	mm->bg_speed = -0.2;
 
 	return mm;
 }
@@ -152,7 +152,7 @@ mm_ui_update(waapp_t* app, waapp_main_menu_t* mm)
 		char speed_str[64];
 		snprintf(speed_str, 64, "Background speed: %f", mm->bg_speed);
 		nk_label(ctx, speed_str, NK_TEXT_LEFT);
-		if (nk_slider_float(ctx, 0.001, &mm->bg_speed, 10.0, 0.001))
+		if (nk_slider_float(ctx, -10.0, &mm->bg_speed, 10.0, 0.001))
 			mm->speed_changed = true;
 	}
 	nk_end(ctx);
