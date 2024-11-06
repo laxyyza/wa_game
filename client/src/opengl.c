@@ -8,21 +8,91 @@
 
 static bool failed = false;
 
+static const char*
+opengl_severity_str(GLenum sev)
+{
+	switch (sev) 
+	{
+		case GL_DEBUG_SEVERITY_LOW:
+			return "GL_DEBUG_SEVERITY_LOW";
+		case GL_DEBUG_SEVERITY_MEDIUM:
+			return "GL_DEBUG_SEVERITY_MEDIUM";
+		case GL_DEBUG_SEVERITY_HIGH:
+			return "GL_DEBUG_SEVERITY_HIGH";
+		case GL_DEBUG_SEVERITY_NOTIFICATION:
+			return "GL_DEBUG_SEVERITY_NOTIFICATION";
+		default:
+			return "Unknown";
+	}
+}
+
+static const char*
+opengl_debug_type_str(GLenum type)
+{
+	switch (type)
+	{
+		case GL_DEBUG_TYPE_ERROR:
+			return "GL_DEBUG_TYPE_ERROR";
+		case GL_DEBUG_TYPE_OTHER:
+			return "GL_DEBUG_TYPE_OTHER";
+		case GL_DEBUG_TYPE_MARKER:
+			return "GL_DEBUG_TYPE_MARKER";
+		case GL_DEBUG_TYPE_POP_GROUP:
+			return "GL_DEBUG_TYPE_POP_GROUP";
+		case GL_DEBUG_TYPE_PERFORMANCE:
+			return "GL_DEBUG_TYPE_PERFORMANCE";
+		case GL_DEBUG_TYPE_PORTABILITY:
+			return "GL_DEBUG_TYPE_PORTABILITY";
+		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+			return "GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR";
+		case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+			return "GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR";
+		default:
+			return "Unknown";
+	}
+}
+
+static const char*
+opengl_debug_source_str(GLenum src)
+{
+	switch (src)
+	{
+		case GL_DEBUG_SOURCE_OTHER:
+			return "GL_DEBUG_SOURCE_OTHER";
+		case GL_DEBUG_SOURCE_THIRD_PARTY:
+			return "GL_DEBUG_SOURCE_THIRD_PARTY";
+		case GL_DEBUG_SOURCE_API:
+			return "GL_DEBUG_SOURCE_API";
+		case GL_DEBUG_SOURCE_APPLICATION:
+			return "GL_DEBUG_SOURCE_APPLICATION";
+		case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+			return "GL_DEBUG_SOURCE_WINDOW_SYSTEM";
+		case GL_DEBUG_SOURCE_SHADER_COMPILER:
+			return "GL_DEBUG_SOURCE_SHADER_COMPILER";
+		default:
+			return "Unknown";
+	}
+}
+
 static void
 opengl_debug_callback(GLenum src, GLenum type, GLuint id,
-                      GLenum severity, GLsizei len, const char* msg,
+                      GLenum severity, UNUSED GLsizei len, const char* msg,
                       const void* data)
 {
     waapp_t* app = (waapp_t*)data;
-    wa_window_stop(app->window);
-    failed = true;
+
+	if (type == GL_DEBUG_TYPE_ERROR && severity == GL_DEBUG_SEVERITY_HIGH)
+	{
+		failed = true;
+		wa_window_stop(app->window);
+	}
 
     fprintf(stderr, "OpenGL Debug Message:\n");
-    fprintf(stderr, "\tSource: 0x%x\n", src);
-    fprintf(stderr, "\tType: 0x%x\n", type);
-    fprintf(stderr, "\tID: %u\n", id);
-    fprintf(stderr, "\tSeverity: 0x%x\n", severity);
-    fprintf(stderr, "\tMessage (%u): '%s'\n", len, msg);
+    fprintf(stderr, "\tSource:\t\t0x%x (%s)\n", src, opengl_debug_source_str(src));
+    fprintf(stderr, "\tType:\t\t0x%x (%s)\n", type, opengl_debug_type_str(type));
+    fprintf(stderr, "\tID:\t\t%u\n", id);
+    fprintf(stderr, "\tSeverity:\t0x%x (%s)\n\n", severity, opengl_severity_str(severity));
+    fprintf(stderr, "\tMessage:\t'%s'\n", msg);
     fprintf(stderr, "-------------------------------------\n");
 }
 
