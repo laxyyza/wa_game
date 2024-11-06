@@ -32,7 +32,6 @@ server_next_spawn(server_t* server)
 		spawn_cell->pos.x * map->grid_size, 
 		spawn_cell->pos.y * map->grid_size
 	);
-	printf("Pos: %f/%f\n", ret.x, ret.y);
 	server->spawn_idx++;
 	if (server->spawn_idx >= server->spawn_points.count)
 		server->spawn_idx = 0;
