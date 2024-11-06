@@ -25,6 +25,12 @@ typedef struct vertex
     f32     texture_id;
 } vertex_t;
 
+typedef struct 
+{
+	vec2f_t pos;
+	vec4f_t color;
+} projectile_vertex_t;
+
 typedef struct batch_render_obj
 {
     vertarray_t vao;
@@ -38,6 +44,14 @@ typedef struct batch_render_obj
 
     u32 draw_mode;
 } bro_t;
+
+enum vertlayout 
+{
+	VERTLAYOUT_END = 0,
+	VERTLAYOUT_F32,
+	VERTLAYOUT_I32,
+	VERTLAYOUT_U32,
+};
 
 typedef struct renderer
 {
@@ -87,5 +101,7 @@ void ren_draw_batch(ren_t* ren);
 
 void ren_set_view(ren_t* ren, const vec3f_t* view);
 void ren_set_scale(ren_t* ren, const vec2f_t* scale);
+
+void bro_set_mvp(ren_t* ren, bro_t* bro);
 
 #endif // _RENDERER_H_

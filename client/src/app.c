@@ -144,7 +144,7 @@ waapp_event(wa_window_t* window, const wa_event_t* ev, void* data)
 
 	if (app->sm.current->event) 
 	{
-		app->sm.current->event(app, ev);
+		app->sm.current->event(app, app->sm.current->data, ev);
 	}
 }
 

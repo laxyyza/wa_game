@@ -8,7 +8,7 @@ typedef struct waapp waapp_t;
 
 typedef void* (*state_init_callback_t)(waapp_t* app);
 typedef void (*state_callback_t)(waapp_t* app, void* data);
-typedef i32  (*state_event_callback_t)(waapp_t* app, const wa_event_t* ev);
+typedef i32  (*state_event_callback_t)(waapp_t* app, void* data, const wa_event_t* ev);
 
 #define STATE_DO_CLEANUP 0x01
 #define STATE_CLEANED_UP 0x02

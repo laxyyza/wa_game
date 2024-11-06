@@ -110,12 +110,28 @@ shader_uniform4f(shader_t* shader, const char* name,
 }
 
 void 
+shader_uniform1f(shader_t* shader, const char* name, f32 x)
+{
+    i32 location = shader_uniform_location(shader, name);
+	glUniform1f(location, x);
+}
+
+void 
 shader_uniform_vec4f(shader_t* shader, 
                      const char* name,
                      const vec4f_t* vec)
 {
     i32 location = shader_uniform_location(shader, name);
     glUniform4fv(location, 1, (f32*)vec);
+}
+
+void 
+shader_uniform_vec2f(shader_t* shader,
+                     const char* name,
+                     const vec2f_t* vec)
+{
+    i32 location = glGetUniformLocation(shader->id, name);
+    glUniform2fv(location, 1, (f32*)vec);
 }
 
 void 

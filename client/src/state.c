@@ -14,7 +14,7 @@ waapp_state_manager_init(waapp_t* app)
 	sm->states.main_menu.init = main_menu_init;
 	sm->states.main_menu.enter = (state_callback_t)main_menu_enter;
 	sm->states.main_menu.update = (state_callback_t)main_menu_update;
-	sm->states.main_menu.event = main_menu_event;
+	sm->states.main_menu.event = (state_event_callback_t)main_menu_event;
 	sm->states.main_menu.exit = (state_callback_t)main_menu_exit;
 	sm->states.main_menu.cleanup = (state_callback_t)main_menu_cleanup;
 	sm->states.main_menu.flags = STATE_DO_CLEANUP | STATE_CLEANED_UP;
@@ -28,7 +28,7 @@ waapp_state_manager_init(waapp_t* app)
 	sm->states.map_editor.init = map_editor_init;
 	sm->states.map_editor.enter = (state_callback_t)map_editor_enter;
 	sm->states.map_editor.update = (state_callback_t)map_editor_update;
-	sm->states.map_editor.event = map_editor_event;
+	sm->states.map_editor.event = (state_event_callback_t)map_editor_event;
 	sm->states.map_editor.exit = (state_callback_t)map_editor_exit;
 	sm->states.map_editor.flags = STATE_CLEANED_UP;
 

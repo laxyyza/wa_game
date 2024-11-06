@@ -362,7 +362,7 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 }
 
 i32  
-map_editor_event(waapp_t* app, const wa_event_t* ev)
+map_editor_event(waapp_t* app, UNUSED waapp_map_editor_t* editor, const wa_event_t* ev)
 {
 	if (ev->type == WA_EVENT_MOUSE_WHEEL)
 		game_handle_mouse_wheel(app, &ev->wheel);

@@ -281,20 +281,20 @@ game_update(waapp_t* app, client_game_t* game)
 }
 
 i32
-game_event(waapp_t* app, const wa_event_t* ev)
+game_event(waapp_t* app, client_game_t* game, const wa_event_t* ev)
 {
 	wa_window_t* window = app->window;
 
 	switch (ev->type)
 	{
 		case WA_EVENT_KEYBOARD:
-			game_handle_key(app->game, window, &ev->keyboard);
+			game_handle_key(game, window, &ev->keyboard);
 			return 0;
 		case WA_EVENT_POINTER:
-			game_handle_pointer(app->game, &ev->pointer);
+			game_handle_pointer(game, &ev->pointer);
 			return 0;
 		case WA_EVENT_MOUSE_BUTTON:
-			game_handle_mouse_button(app->game, &ev->mouse);
+			game_handle_mouse_button(game, &ev->mouse);
 			return 0;
 		case WA_EVENT_MOUSE_WHEEL:
 			game_handle_mouse_wheel(app, &ev->wheel);

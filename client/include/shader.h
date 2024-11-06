@@ -22,6 +22,11 @@ void shader_uniform4f(shader_t* shader,
 void shader_uniform_vec4f(shader_t* shader,
                           const char* name,
                           const vec4f_t* vec4);
+void shader_uniform1f(shader_t* shader, const char* name, f32 x);
+void 
+shader_uniform_vec2f(shader_t* shader,
+                     const char* name,
+                     const vec2f_t* vec);
 void shader_uniform1i(shader_t* shader, 
                       const char* name, 
                       i32 value);

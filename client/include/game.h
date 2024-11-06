@@ -36,7 +36,7 @@ typedef struct client_game
 
 void* game_init(waapp_t* app);
 void game_update(waapp_t* app, client_game_t* game);
-i32  game_event(waapp_t* app, const wa_event_t* ev);
+i32  game_event(waapp_t* app, client_game_t* game, const wa_event_t* ev);
 void game_cleanup(waapp_t* app, client_game_t* game);
 void game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev);
 void game_move_cam(waapp_t* app);
