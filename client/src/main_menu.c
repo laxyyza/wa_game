@@ -38,15 +38,28 @@ mm_save(waapp_main_menu_t* mm)
 }
 
 void* 
-main_menu_init(UNUSED waapp_t* app)
+main_menu_init(waapp_t* app)
 {
 	waapp_main_menu_t* mm = calloc(1, sizeof(waapp_main_menu_t));
 	mm_load_last(mm);
 
-	mm->bg_bro = ren_new_bro(DRAW_TRIANGLES, 64, 
-						  "client/src/shaders/mm_vert.glsl", 
-						  "client/src/shaders/mm_frag.glsl", 
-						  NULL);
+	const i32 layout[] = {
+		VERTLAYOUT_F32, 4, // position,
+		VERTLAYOUT_END
+	};
+	const bro_param_t param = {
+		.draw_mode = DRAW_TRIANGLES,
+		.max_vb_count = 8,
+		.vert_path = "client/src/shaders/mm_vert.glsl",
+		.frag_path = "client/src/shaders/mm_frag.glsl",
+		.shader = NULL,
+		.vertlayout = layout,
+		.vertex_size = sizeof(vec4f_t),
+		.draw_rect = main_menu_draw_rect,
+		.draw_line = NULL
+	};
+
+	mm->bg_bro = ren_new_bro(&app->ren, &param);
 	
 	rect_init(&mm->bg_rect, vec2f(-1.0, -1.0), vec2f(2.0, 2.0), 0xFF00FFFF, NULL);
 
@@ -66,6 +79,7 @@ main_menu_enter(waapp_t* app, waapp_main_menu_t* mm)
 	app->ren.scale.y = 1;
 	ren_set_scale(&app->ren, &app->ren.scale);
 
+	shader_bind(&mm->bg_bro->shader);
 	shader_uniform_vec2f(&mm->bg_bro->shader, "res", &app->ren.viewport);
 }
 
@@ -154,14 +168,13 @@ main_menu_update(waapp_t* app, waapp_main_menu_t* mm)
 }
 
 i32 
-main_menu_event(waapp_t* app, waapp_main_menu_t* mm, const wa_event_t* ev)
+main_menu_event(UNUSED waapp_t* app, waapp_main_menu_t* mm, const wa_event_t* ev)
 {
 	if (ev->type == WA_EVENT_RESIZE)
 	{
 		vec2f_t res = {ev->resize.w, ev->resize.h};
 		shader_bind(&mm->bg_bro->shader);
 		shader_uniform_vec2f(&mm->bg_bro->shader, "res", &res);
-		shader_uniform_mat4f(&mm->bg_bro->shader, "mvp", &app->ren.mvp);
 		mm->bg_rect.size.x = res.x;
 		mm->bg_rect.size.y = res.y;
 	}

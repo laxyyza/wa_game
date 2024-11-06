@@ -3,16 +3,17 @@
 #include "renderer.h"
 
 void 
-vertbuf_init(vertbuf_t* vb, const void* data, u32 max_count)
+vertbuf_init(vertbuf_t* vb, const void* data, u32 max_count, u32 vertex_size)
 {
     glGenBuffers(1, &vb->id);
     vertbuf_bind(vb);
-    vb->size = max_count * sizeof(vertex_t);
+    vb->size = max_count * vertex_size;
     glBufferData(GL_ARRAY_BUFFER, vb->size, data, GL_DYNAMIC_DRAW);
 
     vb->buf = calloc(1, vb->size);
     vb->count = 0;
     vb->max_count = max_count;
+	vb->vertex_size = vertex_size;
     // glBufferStorage(GL_ARRAY_BUFFER, size, data, 
     //                 GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 }
@@ -35,7 +36,7 @@ vertbuf_submit(const vertbuf_t* vb)
 {
     glBufferSubData(GL_ARRAY_BUFFER,
                     0,
-                    vb->count * sizeof(vertex_t),
+                    vb->count * vb->vertex_size,
                     vb->buf);
 }
 

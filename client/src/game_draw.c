@@ -118,11 +118,9 @@ game_render_map(waapp_t* app, cg_map_t* map, bool show_grid)
 		for (u32 y = c_left->pos.y; y <= c_right->pos.y; y++)
 			game_render_cell(app, map, cg_map_at(map, x, y));
 
-	ren_bind_bro(ren, app->line_bro);
-
 	if (show_grid)
 		game_render_grid(ren, map->header.w, map->header.h, map->header.grid_size, map->header.grid_size);
-	ren_draw_rect(&app->ren, &app->map_border);
+	ren->line_bro->draw_rect(ren, ren->line_bro, &app->map_border);
 
 	ren_bind_bro(ren, app->ren.default_bro);
 }
@@ -145,7 +143,7 @@ game_draw(client_game_t* game)
 
     ren_draw_batch(ren);
 
-	ren_bind_bro(ren, app->line_bro);
+	ren_bind_bro(ren, ren->line_bro);
     ren_draw_batch(ren);
 
 	game_ui_update(game);

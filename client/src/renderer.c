@@ -22,6 +22,29 @@ enable_blending(void)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
+void 
+ren_default_draw_line(ren_t* ren, bro_t* bro, const vec2f_t* a, const vec2f_t* b, u32 color32)
+{
+    if (bro->vbo.count + 2 > bro->vbo.max_count)
+        ren_draw_batch(ren);
+
+    const vec4f_t color = rgba(color32);
+    const u32 v = bro->vbo.count;
+    line_vertex_t* vertices = ((line_vertex_t*)bro->vbo.buf) + v;
+
+    vertices->pos = vec4f(a->x, a->y, 0, 1);
+    vertices->color = color;
+    vertices++;
+    
+    vertices->pos = vec4f(b->x, b->y, 0, 1);
+    vertices->color = color;
+
+	array_add_i16(&bro->ibo.array, 0 + v);
+	array_add_i16(&bro->ibo.array, 1 + v);
+
+    bro->vbo.count += 2;
+}
+
 static void
 set_uniform_textures(bro_t* bro)
 {
@@ -46,13 +69,58 @@ set_uniform_textures(bro_t* bro)
 	array_clear(&bro->current_textures, false);
 }
 
+static void 
+ren_init_default_bro(ren_t* ren)
+{
+	const i32 layout[] = {
+		VERTLAYOUT_F32, 4, // position
+		VERTLAYOUT_F32, 4, // color
+		VERTLAYOUT_F32, 2, // Texture Coords 
+		VERTLAYOUT_F32, 1, // Texture ID
+		VERTLAYOUT_END
+	};
+	const bro_param_t param = {
+		.draw_mode = DRAW_TRIANGLES,
+		.max_vb_count = MAX_VERTICES,
+		.vert_path = "client/src/shaders/default_vert.glsl",
+		.frag_path = "client/src/shaders/default_frag.glsl",
+		.shader = NULL,
+		.vertlayout = layout,
+		.vertex_size = sizeof(default_vertex_t),
+		.draw_rect = ren_default_draw_rect,
+		.draw_line = NULL
+	};
+
+    ren->default_bro = ren_new_bro(ren, &param);
+}
+
+static void 
+ren_init_line_bro(ren_t* ren)
+{
+	const i32 layout[] = {
+		VERTLAYOUT_F32, 4, // position
+		VERTLAYOUT_F32, 4, // color
+		VERTLAYOUT_END
+	};
+	const bro_param_t param = {
+		.draw_mode = DRAW_LINES,
+		.max_vb_count = 1024,
+		.vert_path = "client/src/shaders/line_vert.glsl",
+		.frag_path = "client/src/shaders/line_frag.glsl",
+		.shader = NULL,
+		.vertlayout = layout,
+		.vertex_size = sizeof(line_vertex_t),
+		.draw_rect = ren_default_draw_rect_lines,
+		.draw_line = ren_default_draw_line,
+	};
+	ren->line_bro = ren_new_bro(ren, &param);
+}
+
 static void
 ren_def_bro(ren_t* ren)
 {
-    ren->default_bro = ren_new_bro(DRAW_TRIANGLES,
-                                    MAX_VERTICES,
-                                    "client/src/shaders/vert.glsl",
-                                    "client/src/shaders/frag.glsl", NULL);
+	ren_init_default_bro(ren);
+	ren_init_line_bro(ren);
 }
 
 void
@@ -71,8 +139,27 @@ bro_bind_submit(bro_t* bro)
     set_uniform_textures(bro);
 }
 
+static void
+ren_parse_vertlayout(vertlayout_t* vertex_layout, const i32* layout_array)
+{
+	while (*layout_array != VERTLAYOUT_END)
+	{
+		enum vertlayout layout = *layout_array;
+		i32 count = *(++layout_array);
+		if (layout == VERTLAYOUT_F32)
+			vertlayout_add_f32(vertex_layout, count);
+		else if (layout == VERTLAYOUT_I32)
+			vertlayout_add_i32(vertex_layout, count);
+		else if (layout  == VERTLAYOUT_U32)
+			vertlayout_add_u32(vertex_layout, count);
+		else
+			assert(false);
+		layout_array++;
+	}
+}
+
 bro_t*
-ren_new_bro(enum draw_mode draw_mode, u32 max_vb_count, const char* vert_shader, const char* frag_shader, const shader_t* shared_shader)
+ren_new_bro(ren_t* ren, const bro_param_t* param)
 {
     vertarray_t* vao;
     vertbuf_t* vbo;
@@ -86,35 +173,46 @@ ren_new_bro(enum draw_mode draw_mode, u32 max_vb_count, const char* vert_shader,
     layout = &bro->layout;
     ibo = &bro->ibo;
     shader = &bro->shader;
-    if (draw_mode == DRAW_TRIANGLES)
+    if (param->draw_mode == DRAW_TRIANGLES)
         bro->draw_mode = GL_TRIANGLES;
-    else if (draw_mode == DRAW_LINES)
+    else if (param->draw_mode == DRAW_LINES)
         bro->draw_mode = GL_LINES;
 
     vertarray_init(vao);
-    vertbuf_init(vbo, NULL, max_vb_count);
+    vertbuf_init(vbo, NULL, param->max_vb_count, param->vertex_size);
 
     vertlayout_init(layout);
-    vertlayout_add_f32(layout, 4);    // 4 floats: position
-    vertlayout_add_f32(layout, 4);    // 4 floats: color
-    vertlayout_add_f32(layout, 2);    // 2 floats: Texture coords
-    vertlayout_add_f32(layout, 1);    // 1 float: Texture ID
+	ren_parse_vertlayout(layout, param->vertlayout);
+    // vertlayout_add_f32(layout, 4);    // 4 floats: position
+    // vertlayout_add_f32(layout, 4);    // 4 floats: color
+    // vertlayout_add_f32(layout, 2);    // 2 floats: Texture coords
+    // vertlayout_add_f32(layout, 1);    // 1 float: Texture ID
     vertarray_add(vao, vbo, layout);
 
     idxbuf_init(ibo, IDXBUF_UINT16, NULL, INITIAL_IBO);
 
-	if (shared_shader)
+	if (param->shader)
 	{
-		memcpy(shader, shared_shader, sizeof(shader_t));
+		memcpy(shader, param->shader, sizeof(shader_t));
 		bro->shared_shader = true;
 	}
 	else
 	{
-		shader_init(shader, vert_shader, frag_shader);
+		shader_init(shader, param->vert_path, param->frag_path);
 		bro->shared_shader = false;
+
+		shader_bind(shader);
+		if (shader_uniform_location(shader, "mvp") != -1)
+		{
+			array_add_voidp(&ren->mvp_shaders, shader);
+		}
+		shader_unbind();
 	}
 
 	array_init(&bro->current_textures, sizeof(u32), 10);
+
+	bro->draw_rect = param->draw_rect;
+	bro->draw_line = param->draw_line;
 
     return bro;
 }
@@ -138,6 +236,7 @@ void
 ren_init(ren_t* ren)
 {
     enable_blending();
+	array_init(&ren->mvp_shaders, sizeof(shader_t**), 4);
     ren_def_bro(ren);
     ren_bind_bro(ren, ren->default_bro);
 	mat4_identity(&ren->scale_mat);
@@ -152,8 +251,20 @@ static void
 ren_set_mvp(ren_t* ren)
 {
     mat4_mul(&ren->mvp, &ren->view, &ren->proj);
-    shader_bind(&ren->current_bro->shader);
-    shader_uniform_mat4f(&ren->current_bro->shader, "mvp", &ren->mvp);
+
+	/**
+	 *	TODO: Somehow need to remove shaders from ren->mvp_shaders when they get freed.
+	 *	This assumes mvp_shaders are valid.
+	 */
+	shader_t** shaders = (shader_t**)ren->mvp_shaders.buf;
+	shader_t* shader;
+
+	for (u32 i = 0; i < ren->mvp_shaders.count; i++)
+	{
+		shader = shaders[i];
+		shader_bind(shader);
+		shader_uniform_mat4f(shader, "mvp", &ren->mvp);
+	}
 }
 
 void 
@@ -251,10 +362,8 @@ bro_texture_idx(bro_t* bro, texture_t* texture)
 }
 
 static void 
-ren_draw_rect_norm(ren_t* ren, const rect_t* rect)
+ren_default_draw_rect_norm(ren_t* ren, bro_t* bro, const rect_t* rect)
 {
-    bro_t* bro = ren->current_bro;
-
     if (bro->vbo.count + RECT_VERT > bro->vbo.max_count)
         ren_draw_batch(ren);
 
@@ -262,7 +371,7 @@ ren_draw_rect_norm(ren_t* ren, const rect_t* rect)
     const vec2f_t* size = &rect->size;
     const vec4f_t* color = &rect->color;
     const u32 v = bro->vbo.count;
-    vertex_t* vertices = bro->vbo.buf + v;
+    default_vertex_t* vertices = (default_vertex_t*)bro->vbo.buf + v;
 
     i32 texture_idx = bro_texture_idx(bro, rect->texture);
 
@@ -319,18 +428,69 @@ rect_in_frustum(ren_t* ren, const rect_t* rect)
 }
 
 void 
-ren_draw_rect(ren_t* ren, const rect_t* rect)
+ren_default_draw_rect_lines(ren_t* ren, bro_t* bro, const rect_t* rect)
+{
+    if (bro->vbo.count + RECT_VERT > bro->vbo.max_count || 
+        bro->current_textures.count >= ren->max_texture_units)
+        ren_draw_batch(ren);
+
+    const vec2f_t* size = (vec2f_t*)&rect->size;
+    const vec2f_t pos = rect_origin(rect);
+    const vec4f_t* color = &rect->color;
+    const u32 v = bro->vbo.count;
+    line_vertex_t* vertices = (line_vertex_t*)bro->vbo.buf + v;
+
+    mat4_t transform;
+    mat4_t rotation;
+    mat4_t scale;
+
+    mat4_identity(&rotation);
+
+    mat4_rotate(&rotation, &rotation, rect->rotation);
+    mat4_scale_vec2f(&scale, size);
+
+    mat4_mul(&transform, &rotation, &scale);
+    transform.m[0][3] = pos.x;
+    transform.m[1][3] = pos.y;
+
+    static const vec4f_t verts[4] = {
+        {-0.5, -0.5, 0.0, 1.0},
+        { 0.5, -0.5, 0.0, 1.0},
+        { 0.5,  0.5, 0.0, 1.0},
+        {-0.5,  0.5, 0.0, 1.0},
+    };
+
+    mat4_mul_vec4f(&vertices->pos, &transform, &verts[0]);
+    vertices->color = *color;
+    vertices++;
+    
+    mat4_mul_vec4f(&vertices->pos, &transform, &verts[1]);
+    vertices->color = *color;
+    vertices++;
+
+    mat4_mul_vec4f(&vertices->pos, &transform, &verts[2]);
+    vertices->color = *color;
+    vertices++;
+
+    mat4_mul_vec4f(&vertices->pos, &transform, &verts[3]);
+    vertices->color = *color;
+
+    ren_add_rect_indices(bro, v);
+
+    bro->vbo.count += RECT_VERT;
+}
+
+void 
+ren_default_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect)
 {
 	if (rect_in_frustum(ren, rect) == false)
 		return;
 
 	if (rect->rotation == 0)
 	{
-		ren_draw_rect_norm(ren, rect);
+		ren_default_draw_rect_norm(ren, bro, rect);
 		return;
 	}
-
-    bro_t* bro = ren->current_bro;
 
     if (bro->vbo.count + RECT_VERT > bro->vbo.max_count || 
         bro->current_textures.count >= ren->max_texture_units)
@@ -340,7 +500,7 @@ ren_draw_rect(ren_t* ren, const rect_t* rect)
     const vec2f_t pos = rect_origin(rect);
     const vec4f_t* color = &rect->color;
     const u32 v = bro->vbo.count;
-    vertex_t* vertices = bro->vbo.buf + v;
+    default_vertex_t* vertices = (default_vertex_t*)bro->vbo.buf + v;
 
     f32 texture_idx = bro_texture_idx(bro, rect->texture);
 
@@ -397,34 +557,22 @@ ren_draw_rect(ren_t* ren, const rect_t* rect)
 }
 
 void 
+ren_draw_rect(ren_t* ren, const rect_t* rect)
+{
+	bro_t* bro = ren->current_bro;
+
+	if (bro->draw_rect)
+		bro->draw_rect(ren, bro, rect);
+	else
+		printf("draw_rect() bro doesn't support draw_rect!\n");
+}
+
+void 
 ren_draw_line(ren_t* ren, const vec2f_t* a, const vec2f_t* b, u32 color32)
 {
-    bro_t* bro = ren->current_bro;
+    bro_t* bro = ren->line_bro;
 
-    if (bro->vbo.count + 2 > bro->vbo.max_count)
-        ren_draw_batch(ren);
-
-    const vec4f_t color = rgba(color32);
-    const u32 v = bro->vbo.count;
-    vertex_t* vertices = bro->vbo.buf + v;
-
-    f32 texture_id = NO_TEXTURE;
-
-    vertices->pos = vec4f(a->x, a->y, 0, 1);
-    vertices->color = color;
-    vertices->tex_cords = vec2f(0.0, 0.0);
-    vertices->texture_id = texture_id;
-    vertices++;
-    
-    vertices->pos = vec4f(b->x, b->y, 0, 1);
-    vertices->color = color;
-    vertices->tex_cords = vec2f(1.0, 0.0);
-    vertices->texture_id = texture_id;
-
-	array_add_i16(&bro->ibo.array, 0 + v);
-	array_add_i16(&bro->ibo.array, 1 + v);
-
-    bro->vbo.count += 2;
+	bro->draw_line(ren, bro, a, b, color32);
 }
 
 void 
@@ -461,5 +609,28 @@ void
 ren_del(ren_t* ren)
 {
     // vertbuf_unmap(&ren->vertbuf);
+	array_del(&ren->mvp_shaders);
     ren_delete_bro(ren->default_bro);
+    ren_delete_bro(ren->line_bro);
+}
+
+void
+main_menu_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect)
+{
+    if (bro->vbo.count + RECT_VERT > bro->vbo.max_count)
+        ren_draw_batch(ren);
+
+    const vec2f_t* pos = &rect->pos;
+    const vec2f_t* size = &rect->size;
+    const u32 v = bro->vbo.count;
+    vec4f_t* vertices = (vec4f_t*)bro->vbo.buf + v;
+
+    vertices[0] = vec4f(rect->pos.x, rect->pos.y, 0, 1);
+    vertices[1] = vec4f(pos->x + size->x, pos->y, 0, 1);
+    vertices[2] = vec4f(pos->x + size->x, pos->y + size->y, 0, 1);
+    vertices[3] = vec4f(pos->x, pos->y + size->y, 0, 1);
+
+    ren_add_rect_indices(bro, v);
+
+    bro->vbo.count += RECT_VERT;
 }

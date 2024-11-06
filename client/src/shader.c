@@ -82,7 +82,7 @@ shader_unbind(void)
     glUseProgram(0);
 }
 
-static i32
+i32
 shader_uniform_location(shader_t* shader, const char* name)
 {
     i64 location;
@@ -95,9 +95,12 @@ shader_uniform_location(shader_t* shader, const char* name)
     }
 
     location = glGetUniformLocation(shader->id, name);
-    ght_insert(&shader->location_cache, 
-               ght_hashstr(name), 
-               (void*)location);
+	if (location != -1)
+	{
+		ght_insert(&shader->location_cache, 
+				   ght_hashstr(name), 
+				   (void*)location);
+	}
     return location;
 }
 

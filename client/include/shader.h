@@ -39,5 +39,6 @@ void shader_uniform_mat4f(shader_t* shader,
                       const char* name, 
                       const mat4_t* mat4);
 u32 shader_compile(const char* path, u32 type);
+i32 shader_uniform_location(shader_t* shader, const char* name);
  
 #endif // _SHADER_H_

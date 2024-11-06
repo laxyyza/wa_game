@@ -189,7 +189,6 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
         wa_window_delete(app->window);
         return -1;
     }
-	app->line_bro = ren_new_bro(DRAW_LINES, 1024, NULL, NULL, &app->ren.default_bro->shader);
 	mmframes_init(&app->mmf);
 
 	client_net_init(app);
@@ -241,7 +240,6 @@ void
 waapp_cleanup(waapp_t* app)
 {
 	mmframes_free(&app->mmf);
-	ren_delete_bro(app->line_bro);
     waapp_opengl_cleanup(app);
     wa_window_delete(app->window);
 }

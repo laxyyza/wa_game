@@ -3,18 +3,17 @@
 
 #include "int.h"
 
-typedef struct vertex vertex_t;
-
 typedef struct 
 {
     u32 id;
     u32 size;
     u32 max_count;
     u32 count;
-    vertex_t* buf;
+	u32 vertex_size;
+    void* buf;
 } vertbuf_t;
 
-void vertbuf_init(vertbuf_t* vertbuf, const void* data, u32 max_count);
+void vertbuf_init(vertbuf_t* vertbuf, const void* data, u32 max_count, u32 vertex_size);
 void vertbuf_del(vertbuf_t* vertbuf);
 void vertbuf_bind(const vertbuf_t* vertbuf);
 void vertbuf_unbind(void);

@@ -356,7 +356,7 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 
 	ren_draw_batch(&app->ren);
 
-	ren_bind_bro(&app->ren, app->line_bro);
+	ren_bind_bro(&app->ren, app->ren.line_bro);
 	ren_draw_batch(&app->ren);
 	ren_bind_bro(&app->ren, app->ren.default_bro);
 }

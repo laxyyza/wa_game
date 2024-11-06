@@ -27,7 +27,6 @@ typedef struct waapp
 
     vec3f_t cam;
 	client_game_t* game;
-	bro_t* line_bro;
 
 	client_net_t net;
 	mmframes_t mmf;
