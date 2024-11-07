@@ -3,4 +3,4 @@
 OUT=client/log.txt
 EXE=bin/wa_game
 
-exec $EXE &> $OUT
+exec $EXE $@ &> $OUT
