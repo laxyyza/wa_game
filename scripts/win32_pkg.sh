@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
+VERSION=$(cat VERSION)
+
 BUILD_DIR=build-win32
-STAG_DIR=$BUILD_DIR/wa_game
+STAG_NAME=wa_game_$VERSION
+STAG_DIR=$BUILD_DIR/$STAG_NAME
 SHADERS_DIR=$STAG_DIR/client/src/shaders
 CLIENT_BIN_DIR=$STAG_DIR/client/bin
 
@@ -9,8 +12,8 @@ PTHREAD_PATH=/usr/x86_64-w64-mingw32/bin/libwinpthread-1.dll
 LIBSSP=/usr/x86_64-w64-mingw32/bin/libssp-0.dll
 LIBZSTD=/usr/x86_64-w64-mingw32/bin/libzstd.dll
 
-OUTPUT_ZIP=wa_game_win32.zip
-OUTPUT_TAR=wa_game_win32.tar
+OUTPUT_ZIP=wa_game_win32_$VERSION.zip
+OUTPUT_TAR=wa_game_win32_$VERSION.tar
 
 EXE_PATH=$BUILD_DIR/client/wa_game.exe
 SCRIPT_PATH=scripts/wa_game.bat
@@ -33,5 +36,4 @@ cd ..
 zstd $OUTPUT_TAR
 xz -z -k $OUTPUT_TAR
 gzip -k $OUTPUT_TAR
-zip -r $OUTPUT_ZIP wa_game
-
+zip -r $OUTPUT_ZIP $STAG_NAME
