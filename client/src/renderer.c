@@ -25,8 +25,9 @@ enable_blending(void)
 void 
 ren_default_draw_line(ren_t* ren, bro_t* bro, const vec2f_t* a, const vec2f_t* b, u32 color32)
 {
-    if (bro->vbo.count + 2 > bro->vbo.max_count)
-        ren_draw_batch(ren);
+	bool do_batch = (bro->vbo.count + 2) >= bro->vbo.max_count;
+	if (do_batch)
+		bro_draw_batch(ren, bro);
 
     const vec4f_t color = rgba(color32);
     const u32 v = bro->vbo.count;
@@ -365,7 +366,7 @@ static void
 ren_default_draw_rect_norm(ren_t* ren, bro_t* bro, const rect_t* rect)
 {
     if (bro->vbo.count + RECT_VERT > bro->vbo.max_count)
-        ren_draw_batch(ren);
+        bro_draw_batch(ren, bro);
 
     const vec2f_t* pos = &rect->pos;
     const vec2f_t* size = &rect->size;
@@ -432,7 +433,7 @@ ren_default_draw_rect_lines(ren_t* ren, bro_t* bro, const rect_t* rect)
 {
     if (bro->vbo.count + RECT_VERT > bro->vbo.max_count || 
         bro->current_textures.count >= ren->max_texture_units)
-        ren_draw_batch(ren);
+        bro_draw_batch(ren, bro);
 
     const vec2f_t* size = (vec2f_t*)&rect->size;
     const vec2f_t pos = rect_origin(rect);
@@ -494,7 +495,7 @@ ren_default_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect)
 
     if (bro->vbo.count + RECT_VERT > bro->vbo.max_count || 
         bro->current_textures.count >= ren->max_texture_units)
-        ren_draw_batch(ren);
+        bro_draw_batch(ren, bro);
 
     const vec2f_t* size = (vec2f_t*)&rect->size;
     const vec2f_t pos = rect_origin(rect);
@@ -591,10 +592,11 @@ bro_reset(bro_t* bro)
     bro->vbo.count = 0;
 }
 
-void 
-ren_draw_batch(ren_t* ren)
+void
+bro_draw_batch(ren_t* ren, bro_t* bro)
 {
-    bro_t* bro = ren->current_bro;
+	if (bro->vbo.count == 0)
+		return;
 
     bro_bind_submit(bro);
     const idxbuf_t* ib = &bro->ibo;
@@ -603,6 +605,13 @@ ren_draw_batch(ren_t* ren)
 
     bro_reset(bro);
     ren->draw_calls++;
+}
+
+void 
+ren_draw_batch(ren_t* ren)
+{
+    bro_t* bro = ren->current_bro;
+	bro_draw_batch(ren, bro);
 }
 
 void 

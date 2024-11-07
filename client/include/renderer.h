@@ -134,5 +134,6 @@ void ren_default_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect);
 void ren_default_draw_line(ren_t* ren, bro_t* bro, const vec2f_t* a, const vec2f_t* b, u32 color32);
 void main_menu_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect);
 void ren_default_draw_rect_lines(ren_t* ren, bro_t* bro, const rect_t* rect);
+void bro_draw_batch(ren_t* ren, bro_t* bro);
 
 #endif // _RENDERER_H_
