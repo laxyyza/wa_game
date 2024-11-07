@@ -77,15 +77,10 @@ opengl_debug_source_str(GLenum src)
 static void
 opengl_debug_callback(GLenum src, GLenum type, GLuint id,
                       GLenum severity, UNUSED GLsizei len, const char* msg,
-                      const void* data)
+                      UNUSED const void* data)
 {
-    waapp_t* app = (waapp_t*)data;
-
 	if (type == GL_DEBUG_TYPE_ERROR && severity == GL_DEBUG_SEVERITY_HIGH)
-	{
 		failed = true;
-		wa_window_stop(app->window);
-	}
 
     fprintf(stderr, "OpenGL Debug Message:\n");
     fprintf(stderr, "\tSource:\t\t0x%x (%s)\n", src, opengl_debug_source_str(src));
@@ -100,6 +95,9 @@ opengl_debug_callback(GLenum src, GLenum type, GLuint id,
 static void
 waapp_enable_debug(waapp_t* app)
 {
+	if (app->disable_debug)
+		return;
+
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(opengl_debug_callback, app);

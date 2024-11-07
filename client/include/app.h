@@ -67,9 +67,11 @@ typedef struct waapp
 
 	cg_map_t* map_from_server;
 	const cg_map_t* current_map;
+
+	bool disable_debug;
 } waapp_t;
 
-i32 waapp_init(waapp_t* app, i32 argc, const char** argv);
+i32 waapp_init(waapp_t* app, i32 argc, char* const* argv);
 void waapp_run(waapp_t* app);
 void waapp_cleanup(waapp_t* app);
 void waapp_set_max_fps(waapp_t* app, f64 max_fps);

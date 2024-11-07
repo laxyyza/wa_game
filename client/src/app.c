@@ -8,6 +8,7 @@
 #include <time.h>
 #include "nuklear.h"
 #include "cutils.h"
+#include <getopt.h>
 
 static void 
 nk_handle_input(waapp_t* app, const wa_event_key_t* ev)
@@ -154,9 +155,53 @@ waapp_close(_WA_UNUSED wa_window_t* window, _WA_UNUSED void* data)
 
 }
 
+static void
+waapp_print_help(const char* path)
+{
+	printf(
+		"Usage:\n\t%s [options]\n\n"\
+		"	-d, --disable-debug\tDisable OpenGL Debug.\n"\
+		"	-f, --fullscreen\tOpen in fullscreen.\n"\
+		"	-h, --help\tShow this message.\n\n",
+		path
+	);
+}
+
+static i32 
+waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
+{
+	i32 opt;
+
+	struct option long_options[] = {
+		{"disable-debug", no_argument, 0, 'd'},
+		{"fullscreen", no_argument, 0, 'f'},
+		{"help", no_argument, 0, 'h'},
+		{0, 0, 0, 0}
+	};
+
+	while ((opt = getopt_long(argc, argv, "dfh", long_options, NULL)) != -1)
+	{
+		switch (opt)
+		{
+			case 'd':
+				app->disable_debug = true;
+				break;
+			case 'f':
+				*fullscreen = true;
+				break;
+			case 'h':
+				waapp_print_help(argv[0]);
+				return -1;
+			default:
+				return -1;
+		}
+	}
+
+	return 0;
+}
 
 i32 
-waapp_init(waapp_t* app, i32 argc, const char** argv)
+waapp_init(waapp_t* app, i32 argc, char* const* argv)
 {
     const char* title = "WA OpenGL";
     const char* app_id = "wa_opengl";
@@ -164,6 +209,9 @@ waapp_init(waapp_t* app, i32 argc, const char** argv)
     i32 h = 720;
     bool fullscreen = false;
     wa_state_t* state;
+
+	if (waapp_argv(app, argc, argv, &fullscreen) == -1)
+		return -1;
 
 	nlog_set_name("");
 
