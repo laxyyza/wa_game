@@ -26,6 +26,7 @@ mkdir -p $SHADERS_DIR $CLIENT_BIN_DIR
 rm -v $BUILD_DIR/${OUTPUT_TAR}* $BUILD_DIR/${OUTPUT_ZIP}
 
 cp -rv res $STAG_DIR
+rm -v $STAG_DIR/res/lastinfo
 cp -v client/src/shaders/* $SHADERS_DIR
 strip $EXE_PATH
 cp -v $EXE_PATH $PTHREAD_PATH $LIBSSP $LIBZSTD $CLIENT_BIN_DIR
