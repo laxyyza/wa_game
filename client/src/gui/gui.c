@@ -66,6 +66,8 @@ typedef struct nk_wa
     struct nk_vec2 double_click_pos;
 } nk_wa_t;
 
+static waapp_t* _app;
+
 static void
 nk_wa_dev_create(struct nk_wa* nk)
 {
@@ -121,6 +123,16 @@ nk_wa_dev_create(struct nk_wa* nk)
     glBindVertexArray(0);
 }
 
+NK_INTERN void
+nk_wa_clipboard_paste(UNUSED nk_handle usr, struct nk_text_edit* edit)
+{
+    u32 len;
+    char* text = wa_clipboard_paste_heap(_app->window, &len);
+    if (text)
+        nk_textedit_paste(edit, text, len);
+    free(text);
+}
+
 static struct nk_wa*
 nk_wa_init(void)
 {
@@ -128,6 +140,7 @@ nk_wa_init(void)
 
     nk_init_default(&nk->ctx, 0);
     nk_wa_dev_create(nk);
+    nk->ctx.clip.paste = nk_wa_clipboard_paste;
 
     return nk;
 }
@@ -327,6 +340,7 @@ void
 gui_init(waapp_t* app)
 {
     app->nk_wa = nk_wa_init();
+    _app = app;
     struct nk_font_atlas* atlas;
 	struct nk_font_config config = nk_font_config(0);
 
