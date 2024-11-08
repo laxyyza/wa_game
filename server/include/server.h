@@ -45,7 +45,6 @@ typedef struct server
 	f64		interval;
 	i64		interval_ns; // Interval Nanoseconds
 
-	i64		highest_frametime;
 	char	highest_frametime_str[FRAMETIME_LEN];
 
 	struct {
@@ -62,6 +61,12 @@ typedef struct server
 
 	f64 routine_time;
 	f64 client_timeout_threshold;
+
+	u64 tick_count;
+	u64 tick_time_total;
+	server_stats_t stats;
+	f64 last_stat_update;
+	bool send_stats;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, char* const* argv);

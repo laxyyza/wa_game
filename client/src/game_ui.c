@@ -120,6 +120,74 @@ game_ui_tab_window(client_game_t* game, struct nk_context* ctx)
 	nk_end(ctx);
 }
 
+static void 
+format_ns(char* buf, u64 max, i64 ns)
+{
+	if (ns > 1e6)
+		snprintf(buf, max, "%.3f ms", (f64)ns / 1e6);
+	else if (ns > 1000)
+		snprintf(buf, max, "%ld us", ns / 1000);
+	else
+		snprintf(buf, max, "%ld ns", ns);
+}
+
+#define STATS_LABEL_LEN 64
+
+static void
+game_ui_server_stats(client_game_t* game, struct nk_context* ctx)
+{
+	// char label_str[128];
+	char label_str[STATS_LABEL_LEN];
+	nk_flags col0 = NK_TEXT_CENTERED;
+	nk_flags col1 = NK_TEXT_CENTERED;
+
+	nk_layout_row_dynamic(ctx, 300, 1);
+	if (nk_group_begin(ctx, "Server Stats", NK_WINDOW_TITLE | NK_WINDOW_BORDER))
+	{
+		const server_stats_t* stats = &game->net->server_stats;
+		nk_layout_row_dynamic(ctx, 20, 2);
+
+		nk_label(ctx, "Tick time:", col0);
+		format_ns(label_str, STATS_LABEL_LEN, stats->tick_time);
+		nk_label(ctx, label_str, col1);
+
+		nk_label(ctx, "Tick time avg:", col0);
+		format_ns(label_str, STATS_LABEL_LEN, stats->tick_time_avg);
+		nk_label(ctx, label_str, col1);
+		
+		nk_label(ctx, "Tick time (high):", col0);
+		format_ns(label_str, STATS_LABEL_LEN, stats->tick_time_highest);
+		nk_label(ctx, label_str, col1);
+
+		nk_label(ctx, "UDP PPS in:", col0);
+		snprintf(label_str, STATS_LABEL_LEN, "%u", stats->udp_pps_in);
+		nk_label(ctx, label_str, col1);
+
+		nk_label(ctx, "UDP PPS in:", col0);
+		snprintf(label_str, STATS_LABEL_LEN, "%u bytes", stats->udp_pps_in_bytes);
+		nk_label(ctx, label_str, col1);
+
+		nk_label(ctx, "UDP PPS in (high):", col0);
+		snprintf(label_str, STATS_LABEL_LEN, "%u bytes", stats->udp_pps_in_bytes_highest);
+		nk_label(ctx, label_str, col1);
+
+		nk_label(ctx, "UDP PPS out:", col0);
+		snprintf(label_str, STATS_LABEL_LEN, "%u", stats->udp_pps_out);
+		nk_label(ctx, label_str, col1);
+
+		nk_label(ctx, "UDP PPS out:", col0);
+		snprintf(label_str, STATS_LABEL_LEN, "%u bytes", stats->udp_pps_out_bytes);
+		nk_label(ctx, label_str, col1);
+
+		nk_label(ctx, "UDP PPS out (high):", col0);
+		snprintf(label_str, STATS_LABEL_LEN, "%u bytes", stats->udp_pps_out_bytes_highest);
+		nk_label(ctx, label_str, col1);
+
+		nk_group_end(ctx);
+	}
+	nk_layout_row_dynamic(ctx, 30, 1);
+}
+
 static void
 game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 {
@@ -205,6 +273,19 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 
 		snprintf(udp_in_stat, 256, "Draw calls: %u", game->ren->draw_calls);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		nk_bool get_server_stats = !app->get_server_stats;
+		if (nk_checkbox_label(ctx, "Get server stats", &get_server_stats))
+		{
+			app->get_server_stats = !get_server_stats;
+
+			net_tcp_want_server_stats_t want_stats = {app->get_server_stats};
+			ssp_segbuff_add(&app->net.tcp.buf, NET_TCP_WANT_SERVER_STATS, sizeof(net_tcp_want_server_stats_t), &want_stats);
+			ssp_tcp_send_segbuf(&app->net.tcp.sock, &app->net.tcp.buf);
+		}
+
+		if (app->get_server_stats)
+			game_ui_server_stats(game, ctx);
 
 		if (nk_button_label(ctx, "Main Menu"))
 		{

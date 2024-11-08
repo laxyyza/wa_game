@@ -15,6 +15,7 @@ typedef struct
 	ssp_segbuff_t	udp_buf;
 	udp_addr_t		udp;
 	bool			udp_connected;
+	bool			want_stats;
 	struct timespec last_packet_time;
 } client_t;
 

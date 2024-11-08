@@ -16,6 +16,7 @@ enum segtypes
 	NET_TCP_UDP_INFO,
 	NET_TCP_SERVER_SHUTDOWN,
 	NET_TCP_CG_MAP,
+	NET_TCP_WANT_SERVER_STATS,
 
 	NET_UDP_PLAYER_MOVE,
 	NET_UDP_PLAYER_DIR,
@@ -28,6 +29,8 @@ enum segtypes
 
 	NET_UDP_PING,
 	NET_UDP_PONG,
+
+	NET_UDP_SERVER_STATS,
 
 	NET_DEBUG_MSG,
 
@@ -58,6 +61,11 @@ typedef struct
 } net_tcp_udp_info_t;
 
 typedef cg_map_t net_tcp_cg_map_t;
+
+typedef struct 
+{
+	bool opt_in;
+} net_tcp_want_server_stats_t;
 
 typedef struct 
 {
@@ -128,6 +136,23 @@ typedef struct
 	char ipaddr[INET6_ADDRSTRLEN];
 	u16 port;
 } udp_addr_t;
+
+typedef struct 
+{
+	u32 udp_pps_out;
+	u32 udp_pps_out_highest;
+	u32 udp_pps_out_bytes;
+	u32 udp_pps_out_bytes_highest;
+
+	u32 udp_pps_in;
+	u32 udp_pps_in_highest;
+	u32 udp_pps_in_bytes;
+	u32 udp_pps_in_bytes_highest;
+
+	i64 tick_time;
+	i64 tick_time_avg;
+	i64 tick_time_highest;
+} server_stats_t, udp_server_stats_t;
 
 void netdef_init(netdef_t* netdef, coregame_t* coregame, 
 				 const ssp_segmap_callback_t callbacks_override[NET_SEGTYPES_LEN]);

@@ -194,3 +194,11 @@ player_ping(const ssp_segment_t* segment, server_t* server, client_t* source_cli
 			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), client_ping);
 	});
 }
+
+void 
+want_server_stats(const ssp_segment_t* segment, UNUSED server_t* server, client_t* source_client)
+{
+	const net_tcp_want_server_stats_t* stats = (const net_tcp_want_server_stats_t*)segment->data;
+
+	source_client->want_stats = stats->opt_in;
+}

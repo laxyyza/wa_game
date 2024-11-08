@@ -159,6 +159,8 @@ server_read_udp_packet(server_t* server, event_t* event)
 	}
 
 	set_udp_info(&info);
+	server->stats.udp_pps_in++;
+	server->stats.udp_pps_in_bytes += bytes_read;
 
 	ret = ssp_parse_buf(&server->netdef.ssp_state, NULL, buf, bytes_read, &info);
 	if (ret == SSP_FAILED)
@@ -264,11 +266,30 @@ server_flush_udp_clients(server_t* server)
 	GHT_FOREACH(client_t* client, clients, {
 		if (client->udp_connected)
 		{
+			if (server->send_stats && client->want_stats)
+				ssp_segbuff_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
+
 			ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
+
 			if (packet)
+			{
+				server->stats.udp_pps_out++;
+				server->stats.udp_pps_out_bytes += packet->size;
+
 				client_send(server, client, packet);
+			}
 		}
 	});
+
+	if (server->send_stats)
+	{
+		server->stats.udp_pps_in = 0;
+		server->stats.udp_pps_in_bytes = 0;
+
+		server->stats.udp_pps_out = 0;
+		server->stats.udp_pps_out_bytes = 0;
+		server->send_stats = false;
+	}
 }
 
 static inline void
@@ -278,14 +299,14 @@ ns_to_timespec(struct timespec* timespec, i64 ns)
 	timespec->tv_nsec = ns % (i64)1e9;
 }
 
-static void 
-format_ns(char* buf, u64 max, i64 ns)
-{
-	if (ns < 1e6)
-		snprintf(buf, max, "%ld ns", ns);
-	else
-		snprintf(buf, max, "%.3f ms", (f64)ns / 1e6);
-}
+// static void 
+// format_ns(char* buf, u64 max, i64 ns)
+// {
+// 	if (ns < 1e6)
+// 		snprintf(buf, max, "%ld ns", ns);
+// 	else
+// 		snprintf(buf, max, "%.3f ms", (f64)ns / 1e6);
+// }
 
 static void
 server_poll(server_t* server)
@@ -302,14 +323,34 @@ server_poll(server_t* server)
 	struct timespec* do_timeout = (server->clients.count == 0) ? NULL : &timeout;
 	struct epoll_event* event;
 
+
+	f64 current_time_s = (server->start_time.tv_nsec / 1e9) + server->start_time.tv_sec;
+	f64 time_elapsed = current_time_s - server->last_stat_update;
+	
+	if (time_elapsed >= 1.0)
+	{
+		if (server->stats.udp_pps_in_bytes > server->stats.udp_pps_in_bytes_highest)
+			server->stats.udp_pps_in_bytes_highest = server->stats.udp_pps_in_bytes;
+
+		if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
+			server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
+
+		server->send_stats = true;
+
+		server->last_stat_update = current_time_s;
+	}
+
 	if (do_timeout)
 	{
 		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
 							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
-		if (prev_frame_time_ns > server->highest_frametime)
+		server->stats.tick_time = prev_frame_time_ns;
+		server->tick_time_total += prev_frame_time_ns;
+		server->stats.tick_time_avg = server->tick_time_total / server->tick_count;
+		if (prev_frame_time_ns > server->stats.tick_time_highest)
 		{
-			server->highest_frametime = prev_frame_time_ns;
-			format_ns(server->highest_frametime_str, FRAMETIME_LEN, prev_frame_time_ns);
+			server->stats.tick_time_highest = prev_frame_time_ns;
+			// format_ns(server->highest_frametime_str, FRAMETIME_LEN, prev_frame_time_ns);
 		}
 		timeout_time_ns = server->interval_ns - prev_frame_time_ns;
 		if (timeout_time_ns > 0)
@@ -371,6 +412,8 @@ server_run(server_t* server)
 	memcpy(&server->end_time, &server->start_time, sizeof(struct timespec));
 	memcpy(&server->prev_time, &server->start_time, sizeof(struct timespec));
 
+	server->last_stat_update = (server->start_time.tv_nsec / 1e9) + server->start_time.tv_sec;
+
 	while (server->running)
 	{
 		server_poll(server);
@@ -380,6 +423,7 @@ server_run(server_t* server)
 		coregame_update(&server->game);
 		server_flush_udp_clients(server);
 		mmframes_clear(&server->mmf);
+		server->tick_count++;
 
 		clock_gettime(CLOCK_MONOTONIC, &server->end_time);
 	}

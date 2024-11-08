@@ -69,6 +69,7 @@ typedef struct waapp
 	const cg_map_t* current_map;
 
 	bool disable_debug;
+	i32 get_server_stats;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, char* const* argv);

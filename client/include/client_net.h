@@ -88,6 +88,7 @@ typedef struct
 	client_udp_t udp;
 
 	array_t events;
+	server_stats_t server_stats;
 
 #ifdef _WIN32
 	fd_set read_fds;

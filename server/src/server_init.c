@@ -205,6 +205,7 @@ server_init_netdef(server_t* server)
 {
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_CONNECT] = (ssp_segmap_callback_t)client_tcp_connect;
+	callbacks[NET_TCP_WANT_SERVER_STATS] = (ssp_segmap_callback_t)want_server_stats;
 	callbacks[NET_UDP_PLAYER_DIR] = (ssp_segmap_callback_t)player_dir;
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
 	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;

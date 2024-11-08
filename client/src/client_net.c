@@ -397,6 +397,14 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	waapp_state_switch(app, &app->sm.states.game);
 }
 
+static void
+server_stats(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
+{
+	const server_stats_t* stats = (const server_stats_t*)segment->data;
+
+	memcpy(&app->net.server_stats, stats, sizeof(server_stats_t));
+}
+
 static void 
 udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 {
@@ -521,6 +529,7 @@ client_net_init(waapp_t* app)
 	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)game_player_ping;
 	callbacks[NET_TCP_CG_MAP] = (ssp_segmap_callback_t)game_cg_map;
 	callbacks[NET_TCP_SERVER_SHUTDOWN] = (ssp_segmap_callback_t)game_server_shutdown;
+	callbacks[NET_UDP_SERVER_STATS] = (ssp_segmap_callback_t)server_stats;
 
 	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_state.user_data = app;
