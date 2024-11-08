@@ -3,6 +3,8 @@ server_src = files(
     'src/server.c',
     'src/client.c',
     'src/event.c',
+    'src/server_init.c',
+    'src/server_game.c',
 )
 server_include = include_directories('include/')
 

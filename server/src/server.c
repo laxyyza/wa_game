@@ -1,28 +1,9 @@
-#define _GNU_SOURCE
 #include "server.h"
-#include <sys/random.h>
-#include <time.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/signalfd.h>
-#include <signal.h>
-#include <getopt.h>
-#include <sys/timerfd.h>
+#include "server_game.h"
 
 #define RECV_BUFFER_SIZE 4096
-#define TICKRATE 64.0
 
-static i32
-server_init_tcp(server_t* server)
-{
-	i32 ret;
-
-	ret = ssp_tcp_server(&server->tcp_sock, SSP_IPv4, server->port);
-
-	return ret;
-}
-
-static vec2f_t 
+vec2f_t 
 server_next_spawn(server_t* server)
 {
 	vec2f_t ret;
@@ -37,33 +18,6 @@ server_next_spawn(server_t* server)
 	if (server->spawn_idx >= server->spawn_points.count)
 		server->spawn_idx = 0;
 	return ret;
-}
-
-static void
-server_set_tickrate(server_t* server, f64 tickrate)
-{
-	server->tickrate = tickrate;
-	server->interval = 1.0 / tickrate;
-	server->interval_ns = (1.0 / tickrate) * 1e9;
-}
-
-static i32
-server_init_udp(server_t* server)
-{
-	if ((server->udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
-	{
-		perror("socket UDP");
-		return -1;
-	}
-
-	server->tcp_sock.addr.sockaddr.in.sin_port = htons(server->udp_port);
-	if (bind(server->udp_fd, (struct sockaddr*)&server->tcp_sock.addr.sockaddr, server->tcp_sock.addr.addr_len) == -1)
-	{
-		perror("bind UDP");
-		return -1;
-	}
-
-	return 0;
 }
 
 static void
@@ -90,7 +44,7 @@ server_routine_checks(server_t* server)
 	});
 }
 
-static void
+void
 server_timerfd_timeout(server_t* server, event_t* event)
 {
 	u64 expirations;
@@ -102,30 +56,6 @@ server_timerfd_timeout(server_t* server, event_t* event)
 	}
 
 	server_routine_checks(server);
-}
-
-static i32 
-server_init_timerfd(server_t* server)
-{
-	struct itimerspec timer;
-
-	server->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
-	if (server->timerfd == -1)
-	{
-		perror("timerfd_create");
-		return -1;
-	}
-
-	timer.it_value.tv_sec = server->routine_time;
-	timer.it_value.tv_nsec = 0;
-	timer.it_interval = timer.it_value;
-
-	if (timerfd_settime(server->timerfd, 0, &timer, NULL) == -1)
-		perror("timerfd_settime");
-
-	server_add_event(server, server->timerfd, NULL, server_timerfd_timeout, NULL);
-
-	return 0;
 }
 
 static void
@@ -157,18 +87,6 @@ read_client(server_t* server, event_t* event)
 	}
 
 	free(buf);
-}
-
-static void 
-broadcast_delete_player(server_t* server, u32 id)
-{
-	ght_t* clients = &server->clients;
-	net_tcp_delete_player_t del_player = {id};
-
-	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuff_add(&client->tcp_buf, NET_TCP_DELETE_PLAYER, sizeof(net_tcp_delete_player_t), &del_player);
-		ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
-	});
 }
 
 void
@@ -206,8 +124,8 @@ event_close_client(server_t* server, event_t* event)
 	server_close_client(server, event->data);
 }
 
-static void
-handle_new_connection(server_t* server, UNUSED event_t* event)
+void
+server_handle_new_connection(server_t* server, UNUSED event_t* event)
 {
 	client_t* client = accept_client(server);
 	if (client == NULL)
@@ -223,8 +141,8 @@ set_udp_info(udp_addr_t* info)
 	info->port = ntohs(info->addr.sin_port);
 }
 
-static void 
-read_udp_packet(server_t* server, event_t* event)
+void 
+server_read_udp_packet(server_t* server, event_t* event)
 {
 	void* buf = malloc(RECV_BUFFER_SIZE);
 	i64 bytes_read;
@@ -250,166 +168,8 @@ read_udp_packet(server_t* server, event_t* event)
 	free(buf);
 }
 
-static i32
-server_init_epoll(server_t* server)
-{
-	if ((server->epfd = epoll_create1(EPOLL_CLOEXEC)) == -1)
-	{
-		perror("epoll_create1");
-		return -1;
-	}
-
-	server_add_event(server, server->tcp_sock.sockfd, NULL, handle_new_connection, NULL);
-	server_add_event(server, server->udp_fd, NULL, read_udp_packet, NULL);
-
-	return 0;
-}
-
-static void
-on_player_changed(cg_player_t* player, server_t* server)
-{
-	ght_t* clients = &server->clients;
-	net_udp_player_move_t* move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
-	move->player_id = player->id;
-	move->pos = player->pos;
-	move->dir = player->dir;
-
-	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
-	});
-}
-
-static void
-on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, server_t* server)
-{
-	ght_t* clients = &server->clients;
-	net_udp_player_health_t* health = mmframes_alloc(&server->mmf, sizeof(net_udp_player_health_t));
-	net_udp_player_move_t* move = NULL;
-	net_udp_player_stats_t* target_stats;
-	net_udp_player_stats_t* attacker_stats;
-	net_udp_player_died_t* player_died;
-	health->player_id = target_player->id;
-	health->health = target_player->health;
-
-	if (target_player->health <= 0)
-	{
-		move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
-		move->player_id = target_player->id;
-		target_player->pos = move->pos = server_next_spawn(server);
-		target_player->dir = move->dir = vec2f(0, 0);
-		target_player->health = health->health = target_player->max_health;
-
-		attacker_player->stats.kills++;
-		target_player->stats.deaths++;
-
-		player_died = mmframes_alloc(&server->mmf, sizeof(net_udp_player_died_t));
-		player_died->target_player_id = target_player->id;
-		player_died->attacker_player_id = attacker_player->id;
-
-		target_stats = mmframes_alloc(&server->mmf, sizeof(net_udp_player_stats_t));
-		target_stats->player_id = target_player->id;
-		target_stats->kills = target_player->stats.kills;
-		target_stats->deaths = target_player->stats.deaths;
-
-		attacker_stats = mmframes_alloc(&server->mmf, sizeof(net_udp_player_stats_t));
-		attacker_stats->player_id = attacker_player->id;
-		attacker_stats->kills = attacker_player->stats.kills;
-		attacker_stats->deaths = attacker_player->stats.deaths;
-
-		printf("Player \"%s\" killed \"%s\".\n", attacker_player->username, target_player->username);
-	}
-
-	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_HEALTH, sizeof(net_udp_player_health_t), health);
-		if (move)
-		{
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_DIED, sizeof(net_udp_player_died_t), player_died);
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), target_stats);
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), attacker_stats);
-		}
-	});
-}
-
-static i32 
-server_init_coregame(server_t* server)
-{
-	cg_map_t* map = cg_map_load(server->cgmap_path, &server->disk_map, &server->disk_map_size);
-	if (map == NULL)
-	{
-		fprintf(stderr, "Failed to load map: %s\n", server->cgmap_path);
-		return -1;
-	}
-
-	coregame_init(&server->game, false, map);
-	server->game.user_data = server;
-	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
-	server->game.player_damaged = (cg_player_damaged_callback_t)on_player_damaged;
-
-	array_init(&server->spawn_points, sizeof(cg_cell_t**), 10);
-	cg_cell_t* cell;
-
-	for (u16 x = 0; x < map->header.w; x++)
-	{
-		for (u16 y = 0; y < map->header.h; y++)
-		{
-			cell = cg_map_at(map, x, y);
-			if (cell->type == CG_CELL_SPAWN)
-				array_add_voidp(&server->spawn_points, cell);
-		}
-	}
-
-	return 0;
-}
-
-static void 
-broadcast_new_player(server_t* server, client_t* new_client)
-{
-	ght_t* clients = &server->clients;
-
-	GHT_FOREACH(client_t* client, clients, {
-		if (client->player)
-		{
-			ssp_segbuff_add(&client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(cg_player_t), new_client->player);
-			if (client != new_client)
-			{
-				ssp_segbuff_add(&new_client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(cg_player_t), client->player);
-				ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
-			}
-		}
-	});
-	ssp_tcp_send_segbuf(&new_client->tcp_sock, &new_client->tcp_buf);
-}
-
-static void 
-client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* client)
-{
-	net_tcp_sessionid_t* session = mmframes_alloc(&server->mmf, sizeof(net_tcp_sessionid_t));
-	net_tcp_udp_info_t* udp_info = mmframes_alloc(&server->mmf, sizeof(net_tcp_udp_info_t));
-
-	udp_info->port = server->udp_port;
-	udp_info->tickrate = server->tickrate;
-	udp_info->ssp_flags = SSP_FLAGS;
-
-	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
-
-	client->player = coregame_add_player(&server->game, connect->username);
-	client->player->pos = server_next_spawn(server);
-
-	session->session_id = client->session_id;
-	session->player_id = client->player->id;
-
-	printf("Client '%s' (%s) got %u for session ID.\n", 
-			connect->username, client->tcp_sock.ipstr, session->session_id);
-
-	ssp_segbuff_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), session);
-	ssp_segbuff_add(&client->tcp_buf, NET_TCP_CG_MAP, server->disk_map_size, server->disk_map);
-	ssp_segbuff_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), udp_info);
-	broadcast_new_player(server, client);
-}
-
-static bool 
-verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_segbuff_t** segbuf)
+bool 
+server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_segbuff_t** segbuf)
 {
 	client_t* client;
 
@@ -452,94 +212,7 @@ verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void**
 	return true;
 }
 
-static void 
-player_dir(const ssp_segment_t* segment, UNUSED server_t* server, client_t* source_client)
-{
-	const net_udp_player_dir_t* dir = (const net_udp_player_dir_t*)segment->data;
-
-	source_client->player->dir = dir->dir;
-}
-
-static void 
-player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_client)
-{
-	ght_t* clients = &server->clients;
-
-	const net_udp_player_cursor_t* cursor = (const net_udp_player_cursor_t*)segment->data;
-	source_client->player->cursor = cursor->cursor_pos;
-
-	net_udp_player_cursor_t* new_cursor = mmframes_alloc(&server->mmf, sizeof(net_udp_player_cursor_t));
-	new_cursor->cursor_pos = cursor->cursor_pos;
-	new_cursor->player_id = source_client->player->id;
-
-	GHT_FOREACH(client_t* client, clients, {
-		if (client != source_client)
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(net_udp_player_cursor_t), new_cursor);
-	});
-}
-
-static void 
-player_shoot(const ssp_segment_t* segment, server_t* server, client_t* source_client)
-{
-	ght_t* clients = &server->clients;
-
-	const net_udp_player_shoot_t* shoot = (const net_udp_player_shoot_t*)segment->data;
-
-	coregame_player_shoot(&server->game, source_client->player, shoot->shoot_dir);
-
-	net_udp_player_shoot_t* new_shoot = mmframes_alloc(&server->mmf, sizeof(net_udp_player_shoot_t));
-	new_shoot->player_id = source_client->player->id;
-	new_shoot->shoot_dir = shoot->shoot_dir;
-
-	GHT_FOREACH(client_t* client, clients, {
-		if (client != source_client)
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), new_shoot);
-	});
-}
-
-static void 
-udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client)
-{
-	const net_udp_pingpong_t* ping = (const net_udp_pingpong_t*)segment->data;
-
-	// insta send to client. No buffering. 
-	ssp_packet_t* packet = ssp_insta_packet(&source_client->udp_buf, NET_UDP_PONG, ping, sizeof(net_udp_pingpong_t));
-	client_send(server, source_client, packet);
-}
-
-static void 
-player_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client)
-{
-	const net_udp_player_ping_t* og_client_ping = (const net_udp_player_ping_t*)segment->data;
-	net_udp_player_ping_t* client_ping = mmframes_alloc(&server->mmf, sizeof(net_udp_player_ping_t));
-	ght_t* clients = &server->clients;
-
-	client_ping->ms = og_client_ping->ms;
-	client_ping->player_id = source_client->player->id;
-
-	GHT_FOREACH(client_t* client, clients, {
-		if (client != source_client)
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), client_ping);
-	});
-}
-
-static void
-server_init_netdef(server_t* server)
-{
-	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
-	callbacks[NET_TCP_CONNECT] = (ssp_segmap_callback_t)client_tcp_connect;
-	callbacks[NET_UDP_PLAYER_DIR] = (ssp_segmap_callback_t)player_dir;
-	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
-	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
-	callbacks[NET_UDP_PING] = (ssp_segmap_callback_t)udp_ping;
-	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)player_ping;
-
-	netdef_init(&server->netdef, NULL, callbacks);
-	server->netdef.ssp_state.user_data = server;
-	server->netdef.ssp_state.verify_session = (ssp_session_verify_callback_t)verify_session;
-}
-
-static void
+void
 signalfd_read(server_t* server, event_t* event)
 {
 	struct signalfd_siginfo siginfo;
@@ -577,184 +250,10 @@ signalfd_close(server_t* server)
 		perror("signalfd_close");
 }
 
-static void
+void
 event_signalfd_close(server_t* server, UNUSED event_t* ev)
 {
 	signalfd_close(server);
-}
-
-static i32
-server_init_signalfd(server_t* server)
-{
-	sigset_t mask;
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGINT);
-	sigaddset(&mask, SIGTERM);
-	sigprocmask(SIG_BLOCK, &mask, NULL);
-
-	server->signalfd = signalfd(-1, &mask, 0);
-	if (server->signalfd == -1)
-	{
-		perror("signalfd");
-		return -1;
-	}
-
-	server_add_event(server, server->signalfd, NULL, signalfd_read, event_signalfd_close);
-
-	return 0;
-}
-
-static void
-server_print_help(const char* exe_path)
-{
-	printf(
-		"Usage:\n\t%s [options]\n\n"\
-		"  -m, --map=FILE\t\t.cgmap file path.\n"
-		"  -p, --port=PORT\t\tPort number for TCP and UDP + 1. (Default 49420 TCP, 49421 UDP)\n"
-		"  --tcp-port=PORT\t\tTCP Port. (Default 49420)\n"
-		"  --udp-port=PORT\t\tUDP Port. (Default 49421)\n"
-		"  -t, --tickrate=TICKRATE\tTickrate. (Default 64)\n"
-		"  -r, --routine-time=SECONDS\tRoutine checks in seconds. (Default 20s)\n"
-		"  -c, --client-timeout=SECONDS\tTime in seconds before a client is disconnected due to inactivity (no packets received). (Default 15s)\n"
-		"  -h, --help\t\t\tPrint this message\n\n"
-	, exe_path);
-}
-
-static i32
-server_set_port(u16* dest_port, const char* str)
-{
-	i32 port = atoi(str);
-	if (port <= 0 || port > UINT16_MAX)
-	{
-		fprintf(stderr, "Invalid port number.\n");
-		return -1;
-	}
-
-	*dest_port = (u16)port;
-	return 0;
-}
-
-static i32
-server_argv(server_t* server, i32 argc, char* const* argv)
-{
-	i32 opt;
-
-	struct option long_options[] = {
-		{"port",		required_argument,	0, 'p'},
-		{"map",			required_argument,	0, 'm'},
-		{"udp-port",	required_argument,	0,  0 },
-		{"tcp-port",	required_argument,	0,  0 },
-		{"tickrate",	required_argument,	0, 't'},
-		{"routine-time",	required_argument,	0, 'r'},
-		{"client-timeout",	required_argument,	0, 'c'},
-		{"help",		no_argument,		0, 'h'},
-		{0, 0, 0, 0}
-	};
-	char* endptr;
-	i32 opt_idx;
-
-	while ((opt = getopt_long(argc, argv, "p:m:t:h:r:c:", long_options, &opt_idx)) != -1)
-	{
-		switch (opt) 
-		{
-			case 'p':
-			{
-				if (server_set_port(&server->port, optarg) == -1)
-					return -1;
-				server->udp_port = server->port + 1;
-				break;
-			}
-			case 'm':
-				server->cgmap_path = optarg;
-				break;
-			case 't':
-			{
-				i16 tickrate = strtol(optarg, &endptr, 10);
-				if (endptr == optarg || *endptr != 0x00 || tickrate >= INT16_MAX || tickrate <= 0)
-				{
-					fprintf(stderr, "Invalid tickrate.\n");
-					return -1;
-				}
-				server_set_tickrate(server, (f64)tickrate);
-				break;
-			}
-			case 'h':
-				server_print_help(argv[0]);
-				return -1;
-			case 0:
-			{
-				if (strcmp(long_options[opt_idx].name, "udp-port") == 0)
-					server_set_port(&server->udp_port, optarg);
-				else if (strcmp(long_options[opt_idx].name, "tcp-port") == 0)
-					server_set_port(&server->port, optarg);
-				break;
-			}
-			case 'r':
-			{
-				i32 time = strtoll(optarg, &endptr, 10);
-				if (endptr == optarg || *endptr != 0x00 || time >= INT32_MAX || time <= 0)
-				{
-					fprintf(stderr, "Invalid routine-time.\n");
-					return -1;
-				}
-				server->routine_time = (f64)time;
-				break;
-			}
-			case 'c':
-			{
-				i32 time = strtoll(optarg, &endptr, 10);
-				if (endptr == optarg || *endptr != 0x00 || time >= INT32_MAX || time <= 0)
-				{
-					fprintf(stderr, "Invalid client timeout time.\n");
-					return -1;
-				}
-				server->client_timeout_threshold = (f64)time;
-				break;
-			}
-			default:
-				return -1;
-				break;
-		}
-	}
-
-	return 0;
-}
-
-i32 
-server_init(server_t* server, i32 argc, char* const* argv)
-{
-	server->port = DEFAULT_PORT;
-	server->udp_port = DEFAULT_PORT + 1;
-	server->routine_time = 20.0;
-	server->client_timeout_threshold = 15.0;
-	server_set_tickrate(server, TICKRATE);
-
-	if (server_argv(server, argc, argv) == -1)
-		return -1;
-
-	ght_init(&server->clients, 10, free);
-
-	if (server_init_tcp(server) == -1)
-		goto err;
-	if (server_init_udp(server) == -1)
-		goto err;
-	if (server_init_epoll(server) == -1)
-		goto err;
-	if (server_init_signalfd(server) == -1)
-		goto err;
-	if (server_init_coregame(server) == -1)
-		goto err;
-	if (server_init_timerfd(server) == -1)
-		goto err;
-	server_init_netdef(server);
-	mmframes_init(&server->mmf);
-
-	server->running = true;
-
-	return 0;
-err:
-	server_cleanup(server);
-	return -1;
 }
 
 static void 
