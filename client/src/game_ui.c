@@ -131,9 +131,9 @@ format_ns(char* buf, u64 max, i64 ns)
 	if (ns > 1e6)
 		snprintf(buf, max, "%.3f ms", (f64)ns / 1e6);
 	else if (ns > 1000)
-		snprintf(buf, max, "%ld us", ns / 1000);
+		snprintf(buf, max, "%zu us", ns / 1000);
 	else
-		snprintf(buf, max, "%ld ns", ns);
+		snprintf(buf, max, "%zu ns", ns);
 }
 
 #define STATS_LABEL_LEN 64
