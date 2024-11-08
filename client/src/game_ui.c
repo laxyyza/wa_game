@@ -440,8 +440,9 @@ game_ui_chat_window(client_game_t* game, struct nk_context* ctx)
 			nk_layout_row_template_push_dynamic(ctx);
 			nk_button_label(ctx, "SEND");
 		}
-		if (nk_window_is_hovered(ctx))
-			game->app->on_ui = true;
+
+		if (nk_window_is_hovered(ctx) && show == false)
+			game->app->on_ui = false;
 	}
 	nk_end(ctx);
 	

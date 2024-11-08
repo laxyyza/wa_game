@@ -3,6 +3,7 @@
 #include "app.h"
 #include "cutils.h"
 #include <nuklear.h>
+#include "game_ui.h"
 
 
 static void
@@ -306,8 +307,7 @@ game_update(waapp_t* app, client_game_t* game)
 {
 	clock_gettime(CLOCK_MONOTONIC, &app->start_time);
 
-	app->on_ui = false;
-
+	game_ui_update(game);
 	game_update_logic(game);
 	game_draw(game);
 	app->frames++;

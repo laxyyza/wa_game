@@ -145,6 +145,4 @@ game_draw(client_game_t* game)
 
 	ren_bind_bro(ren, ren->line_bro);
     ren_draw_batch(ren);
-
-	game_ui_update(game);
 }
