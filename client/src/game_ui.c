@@ -41,6 +41,8 @@ game_ui_kills_window(client_game_t* game, struct nk_context* ctx)
 			if (elapsed_time >= game->death_kill_time)
 				delete_count++;
 		}
+		if (nk_window_is_hovered(ctx))
+			game->app->on_ui = false;
 	}
 	nk_end(ctx);
 
@@ -58,12 +60,14 @@ game_ui_score_window(client_game_t* game, struct nk_context* ctx)
 	};
 	score_window_rect.x = (game->ren->viewport.x / 2 - (score_window_rect.w / 2));
 
-	if (nk_begin(ctx, "score", score_window_rect, NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR))
+	if (nk_begin(ctx, "score", score_window_rect, NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_NO_INPUT | NK_WINDOW_BACKGROUND))
 	{
 		nk_layout_row_dynamic(ctx, score_window_rect.h, 1);
 		char label[64];
 		snprintf(label, 64, "Kills: %u", game->player->core->stats.kills);
 		nk_label(ctx, label, NK_TEXT_CENTERED);
+		if (nk_window_is_hovered(ctx))
+			game->app->on_ui = false;
 	}
 	nk_end(ctx);
 }
@@ -116,6 +120,7 @@ game_ui_tab_window(client_game_t* game, struct nk_context* ctx)
 			if (player->id != game->player->core->id)
 				game_ui_tab_display_player(ctx, player);
 		});
+		game->app->on_ui = true;
 	}
 	nk_end(ctx);
 }
@@ -142,7 +147,7 @@ game_ui_server_stats(client_game_t* game, struct nk_context* ctx)
 	nk_flags col1 = NK_TEXT_CENTERED;
 
 	nk_layout_row_dynamic(ctx, 300, 1);
-	if (nk_group_begin(ctx, "Server Stats", NK_WINDOW_TITLE | NK_WINDOW_BORDER))
+	if (nk_group_begin(ctx, "Server Stats", NK_WINDOW_TITLE | NK_WINDOW_BORDER | NK_WINDOW_NO_INPUT))
 	{
 		const server_stats_t* stats = &game->net->server_stats;
 		nk_layout_row_dynamic(ctx, 20, 2);
@@ -292,6 +297,8 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			waapp_state_switch(app, &app->sm.states.main_menu);
 		}
 
+		if (nk_window_is_hovered(ctx))
+			game->app->on_ui = true;
     }
     nk_end(ctx);
 	if (nk_window_is_hidden(ctx, window_name))
