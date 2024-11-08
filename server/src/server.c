@@ -7,6 +7,7 @@
 #include <sys/signalfd.h>
 #include <signal.h>
 #include <getopt.h>
+#include <sys/timerfd.h>
 
 #define RECV_BUFFER_SIZE 4096
 #define TICKRATE 64.0
@@ -66,6 +67,68 @@ server_init_udp(server_t* server)
 }
 
 static void
+server_routine_checks(server_t* server)
+{
+	ght_t* clients = &server->clients;
+	if (clients->count == 0)
+		return;
+
+	f64 current_time = (server->start_time.tv_nsec / 1e9) +
+						(server->start_time.tv_sec);
+
+	GHT_FOREACH(client_t* client, clients, {
+		f64 client_packet_time = (client->last_packet_time.tv_nsec / 1e9) +
+								(client->last_packet_time.tv_sec);
+		f64 time_elapsed = current_time - client_packet_time;
+
+		if (time_elapsed > server->client_timeout_threshold)
+		{
+			printf("Didn't receive a packet from client (%s) for more than %.1fs. ", 
+					client->tcp_sock.ipstr, server->client_timeout_threshold);
+			server_close_client(server, client);
+		}
+	});
+}
+
+static void
+server_timerfd_timeout(server_t* server, event_t* event)
+{
+	u64 expirations;
+
+	if (read(event->fd, &expirations, sizeof(u64)) == -1)
+	{
+		perror("timerfd read");
+		return;
+	}
+
+	server_routine_checks(server);
+}
+
+static i32 
+server_init_timerfd(server_t* server)
+{
+	struct itimerspec timer;
+
+	server->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+	if (server->timerfd == -1)
+	{
+		perror("timerfd_create");
+		return -1;
+	}
+
+	timer.it_value.tv_sec = server->routine_time;
+	timer.it_value.tv_nsec = 0;
+	timer.it_interval = timer.it_value;
+
+	if (timerfd_settime(server->timerfd, 0, &timer, NULL) == -1)
+		perror("timerfd_settime");
+
+	server_add_event(server, server->timerfd, NULL, server_timerfd_timeout, NULL);
+
+	return 0;
+}
+
+static void
 read_client(server_t* server, event_t* event)
 {
 	client_t* client = event->data;
@@ -90,6 +153,7 @@ read_client(server_t* server, event_t* event)
 				client->tcp_sock.ipstr);
 			server_close_event(server, event);
 		}
+		client->last_packet_time = server->start_time;
 	}
 
 	free(buf);
@@ -107,8 +171,8 @@ broadcast_delete_player(server_t* server, u32 id)
 	});
 }
 
-static void
-close_client(server_t* server, client_t* client)
+void
+server_close_client(server_t* server, client_t* client)
 {
 	u32 player_id = 0;
 
@@ -139,7 +203,7 @@ close_client(server_t* server, client_t* client)
 static void
 event_close_client(server_t* server, event_t* event)
 {
-	close_client(server, event->data);
+	server_close_client(server, event->data);
 }
 
 static void
@@ -383,6 +447,7 @@ verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void**
 	}
 	*new_source = client;
 	*segbuf = &client->udp_buf;
+	client->last_packet_time = server->start_time;
 
 	return true;
 }
@@ -544,10 +609,13 @@ server_print_help(const char* exe_path)
 {
 	printf(
 		"Usage:\n\t%s [options]\n\n"\
+		"  -m, --map=FILE\t\t.cgmap file path.\n"
 		"  -p, --port=PORT\t\tPort number for TCP and UDP + 1. (Default 49420 TCP, 49421 UDP)\n"
 		"  --tcp-port=PORT\t\tTCP Port. (Default 49420)\n"
 		"  --udp-port=PORT\t\tUDP Port. (Default 49421)\n"
 		"  -t, --tickrate=TICKRATE\tTickrate. (Default 64)\n"
+		"  -r, --routine-time=SECONDS\tRoutine checks in seconds. (Default 20s)\n"
+		"  -c, --client-timeout=SECONDS\tTime in seconds before a client is disconnected due to inactivity (no packets received). (Default 15s)\n"
 		"  -h, --help\t\t\tPrint this message\n\n"
 	, exe_path);
 }
@@ -577,13 +645,15 @@ server_argv(server_t* server, i32 argc, char* const* argv)
 		{"udp-port",	required_argument,	0,  0 },
 		{"tcp-port",	required_argument,	0,  0 },
 		{"tickrate",	required_argument,	0, 't'},
+		{"routine-time",	required_argument,	0, 'r'},
+		{"client-timeout",	required_argument,	0, 'c'},
 		{"help",		no_argument,		0, 'h'},
 		{0, 0, 0, 0}
 	};
 	char* endptr;
 	i32 opt_idx;
 
-	while ((opt = getopt_long(argc, argv, "p:m:t:h", long_options, &opt_idx)) != -1)
+	while ((opt = getopt_long(argc, argv, "p:m:t:h:r:c:", long_options, &opt_idx)) != -1)
 	{
 		switch (opt) 
 		{
@@ -619,6 +689,28 @@ server_argv(server_t* server, i32 argc, char* const* argv)
 					server_set_port(&server->port, optarg);
 				break;
 			}
+			case 'r':
+			{
+				i32 time = strtoll(optarg, &endptr, 10);
+				if (endptr == optarg || *endptr != 0x00 || time >= INT32_MAX || time <= 0)
+				{
+					fprintf(stderr, "Invalid routine-time.\n");
+					return -1;
+				}
+				server->routine_time = (f64)time;
+				break;
+			}
+			case 'c':
+			{
+				i32 time = strtoll(optarg, &endptr, 10);
+				if (endptr == optarg || *endptr != 0x00 || time >= INT32_MAX || time <= 0)
+				{
+					fprintf(stderr, "Invalid client timeout time.\n");
+					return -1;
+				}
+				server->client_timeout_threshold = (f64)time;
+				break;
+			}
 			default:
 				return -1;
 				break;
@@ -633,6 +725,8 @@ server_init(server_t* server, i32 argc, char* const* argv)
 {
 	server->port = DEFAULT_PORT;
 	server->udp_port = DEFAULT_PORT + 1;
+	server->routine_time = 20.0;
+	server->client_timeout_threshold = 15.0;
 	server_set_tickrate(server, TICKRATE);
 
 	if (server_argv(server, argc, argv) == -1)
@@ -649,6 +743,8 @@ server_init(server_t* server, i32 argc, char* const* argv)
 	if (server_init_signalfd(server) == -1)
 		goto err;
 	if (server_init_coregame(server) == -1)
+		goto err;
+	if (server_init_timerfd(server) == -1)
 		goto err;
 	server_init_netdef(server);
 	mmframes_init(&server->mmf);
@@ -693,13 +789,15 @@ format_ns(char* buf, u64 max, i64 ns)
 }
 
 static void
-server_poll(server_t* server, struct timespec* prev_start_time, struct timespec* prev_end_time)
+server_poll(server_t* server)
 {
 	i32 nfds;
 	i64 prev_frame_time_ns;
 	i64 elapsed_time_ns;
 	i64 timeout_time_ns = 0;
 	u32 errors = 0;
+	struct timespec* prev_start_time = &server->start_time;
+	struct timespec* prev_end_time = &server->end_time;
 	struct timespec timeout = {0};
 	struct timespec current_time;
 	struct timespec* do_timeout = (server->clients.count == 0) ? NULL : &timeout;
@@ -770,23 +868,21 @@ server_run(server_t* server)
 		printf("Connect to TCP port.\n\n");
 	}
 
-	struct timespec start_time, end_time, prev_time;
-
-	clock_gettime(CLOCK_MONOTONIC, &start_time);
-	memcpy(&end_time, &start_time, sizeof(struct timespec));
-	memcpy(&prev_time, &start_time, sizeof(struct timespec));
+	clock_gettime(CLOCK_MONOTONIC, &server->start_time);
+	memcpy(&server->end_time, &server->start_time, sizeof(struct timespec));
+	memcpy(&server->prev_time, &server->start_time, sizeof(struct timespec));
 
 	while (server->running)
 	{
-		server_poll(server, &start_time, &end_time);
+		server_poll(server);
 
-		clock_gettime(CLOCK_MONOTONIC, &start_time);
+		clock_gettime(CLOCK_MONOTONIC, &server->start_time);
 
 		coregame_update(&server->game);
 		server_flush_udp_clients(server);
 		mmframes_clear(&server->mmf);
 
-		clock_gettime(CLOCK_MONOTONIC, &end_time);
+		clock_gettime(CLOCK_MONOTONIC, &server->end_time);
 	}
 }
 
@@ -801,7 +897,7 @@ server_cleanup_clients(server_t* server)
 			ssp_segbuff_add(&client->tcp_buf, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
 			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
 		}
-		close_client(server, client);
+		server_close_client(server, client);
 	});
 
 	ght_destroy(&server->clients);

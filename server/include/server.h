@@ -18,6 +18,7 @@ typedef struct server
 	ssp_tcp_sock_t tcp_sock;
 	i32 epfd;
 	i32 signalfd;
+	i32 timerfd;
 	u16 port;
 	u16 udp_port;
 	ght_t clients;
@@ -44,10 +45,18 @@ typedef struct server
 	const char* cgmap_path;
 	cg_map_t*	disk_map;
 	u32			disk_map_size;
+
+	struct timespec start_time;
+	struct timespec end_time;
+	struct timespec prev_time;
+
+	f64 routine_time;
+	f64 client_timeout_threshold;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, char* const* argv);
 void server_run(server_t* server);
 void server_cleanup(server_t* server);
+void server_close_client(server_t* server, client_t* client);
 
 #endif // _SERVER_H_
