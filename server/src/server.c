@@ -911,6 +911,9 @@ server_cleanup(server_t* server)
 	ssp_tcp_sock_close(&server->tcp_sock);
 	signalfd_close(server);
 
+	if (server->timerfd > 0 && close(server->timerfd) == -1)
+		perror("close timerfd");
+
 	if (server->udp_fd > 0 && close(server->udp_fd) == -1)
 		perror("close udp fd");
 
