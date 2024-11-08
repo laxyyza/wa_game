@@ -530,6 +530,7 @@ client_net_init(waapp_t* app)
 	callbacks[NET_TCP_CG_MAP] = (ssp_segmap_callback_t)game_cg_map;
 	callbacks[NET_TCP_SERVER_SHUTDOWN] = (ssp_segmap_callback_t)game_server_shutdown;
 	callbacks[NET_UDP_SERVER_STATS] = (ssp_segmap_callback_t)server_stats;
+	callbacks[NET_TCP_CHAT_MSG] = (ssp_segmap_callback_t)game_chat_msg;
 
 	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_state.user_data = app;

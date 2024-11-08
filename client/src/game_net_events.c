@@ -156,3 +156,18 @@ game_server_shutdown(UNUSED const ssp_segment_t* segment, waapp_t* app, UNUSED v
 	strcpy(mm->state, "Server shutdown");
 	waapp_state_switch(app, &app->sm.states.main_menu);
 }
+
+void 
+game_chat_msg(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	cg_player_t* player;
+	const net_tcp_chat_msg_t* chatmsg = (const void*)segment->data;
+	const char* name = "[[unknown]]";
+
+	if (chatmsg->player_id == 0)
+		name = NULL;
+	else if ((player = ght_get(&app->game->cg.players, chatmsg->player_id)))
+		name = player->username;
+
+	game_add_chatmsg(app->game, name, chatmsg->msg);
+}

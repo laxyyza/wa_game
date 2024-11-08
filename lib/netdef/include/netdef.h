@@ -6,6 +6,7 @@
 #include "ssp_tcp.h"
 
 #define DEFAULT_PORT 49420
+#define CHAT_MSG_MAX 128
 
 enum segtypes
 {
@@ -17,6 +18,7 @@ enum segtypes
 	NET_TCP_SERVER_SHUTDOWN,
 	NET_TCP_CG_MAP,
 	NET_TCP_WANT_SERVER_STATS,
+	NET_TCP_CHAT_MSG,
 
 	NET_UDP_PLAYER_MOVE,
 	NET_UDP_PLAYER_DIR,
@@ -66,6 +68,12 @@ typedef struct
 {
 	bool opt_in;
 } net_tcp_want_server_stats_t;
+
+typedef struct 
+{
+	u32 player_id;
+	char msg[CHAT_MSG_MAX];
+} net_tcp_chat_msg_t;
 
 typedef struct 
 {

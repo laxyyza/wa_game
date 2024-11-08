@@ -305,12 +305,157 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 		wa_window_stop(app->window);
 }
 
+static void
+game_ui_chat_window(client_game_t* game, struct nk_context* ctx)
+{
+	struct nk_rect rect = {
+		.w = 300,
+		.h = 300,
+		.x = 0,
+	};
+	rect.y = game->ren->viewport.y - rect.h;
+	bool show = game->open_chat;
+	bool fake_show = false;
+	nk_flags group_flags = 0;
+	struct nk_style_item og_bg = ctx->style.window.fixed_background;
+
+	struct nk_vec2 prev_padding = ctx->style.window.padding;
+	static bool should_focus = true;
+
+	if (game->new_msg && show == false)
+		show = fake_show = true;
+
+	if (show == false)
+	{
+		group_flags |= NK_WINDOW_NO_SCROLLBAR;
+		should_focus = true;
+		ctx->style.window.fixed_background = nk_style_item_color(nk_rgba(0, 0, 0, 0));
+	}
+	else if (fake_show)
+	{
+		ctx->style.window.fixed_background = nk_style_item_color(nk_rgba(0, 0, 0, 0));
+	}
+
+	if (show)
+		game->app->on_ui = true;
+
+	if (nk_begin(ctx, "Chat", rect, NK_WINDOW_BACKGROUND | NK_WINDOW_NO_SCROLLBAR))
+	{
+		nk_layout_row_dynamic(ctx, 250, 1);
+
+		const char* group_name = "chat_group";
+
+		if (nk_group_begin(ctx, group_name, group_flags))
+		{
+			nk_uint scroll_x, scroll_y = 0;
+			nk_group_get_scroll(ctx, group_name, &scroll_x, &scroll_y);
+
+			u32 fheight = (u32)ctx->style.font->height;
+
+			const chatmsg_t* msgs = (const chatmsg_t*)game->chat_msgs.buf;
+
+			for (u32 i = 0; i < game->chat_msgs.count; i++)
+			{
+				const chatmsg_t* msg = msgs + i;
+				u32 len = msg->name_len;
+				const char* name = msg->name;
+
+				struct nk_color name_color;
+
+				if (*name == 0x00)
+				{
+					name = "SERVER:";
+					name_color = nk_rgb_f(1.0, 0.0, 0);
+					len = strlen(name);
+				}
+				else
+					name_color = nk_rgb_f(0.0, 1.0, 0);
+
+				u32 width = fheight / 2 * len;
+				u32 msg_width = fheight / 2 * msg->msg_len;
+				
+				u32 x = nk_window_get_width(ctx);
+
+				u32 h = fheight + 1;
+				bool too_long = false;
+				u32 total = width + msg_width + h;
+				if (total >= x - h)
+					too_long = true;
+
+				if (too_long)
+				{
+					u32 cols = msg_width / (x - width) + 1;
+
+					nk_layout_row_dynamic(ctx, h, 1);
+					nk_label_colored(ctx, name, NK_TEXT_LEFT, name_color);
+
+					nk_layout_row_dynamic(ctx, h * cols, 1);
+					nk_label_colored_wrap(ctx, msg->msg, nk_rgb(255, 255, 255));
+				}
+				else
+				{
+					nk_layout_row_template_begin(ctx, h);
+					nk_layout_row_template_push_static(ctx, width);
+					nk_layout_row_template_push_dynamic(ctx);
+					nk_layout_row_template_end(ctx);
+					
+					nk_label_colored(ctx, name, NK_TEXT_LEFT, name_color);
+					nk_label_colored_wrap(ctx, msg->msg, nk_rgb(255, 255, 255));
+				}
+			}
+
+			if (game->new_msg)
+			{
+				nk_group_set_scroll(ctx, group_name, scroll_x, -1);
+				game->new_msg = false; 
+			}
+			nk_group_end(ctx);
+		}
+
+		ctx->style.window.padding = prev_padding;
+
+		if (show)
+		{
+			nk_layout_row_template_begin(ctx, 30);
+			nk_layout_row_template_push_static(ctx, 240);
+			
+			static char buffer[CHAT_MSG_MAX];
+			nk_flags flags = NK_EDIT_FIELD | NK_EDIT_SIG_ENTER | NK_EDIT_GOTO_END_ON_ACTIVATE;
+
+			if (should_focus)
+			{
+				nk_edit_focus(ctx, flags);
+			}
+
+			nk_flags ret;
+			if ((ret = nk_edit_string_zero_terminated(ctx, flags, buffer, CHAT_MSG_MAX, nk_filter_ascii)) && ret & NK_EDIT_COMMITED)
+			{
+				if (should_focus == false)
+				{
+					game_send_chatmsg(game, buffer);
+					*buffer = 0x00;
+				}
+				should_focus = false;
+			}
+			nk_layout_row_template_push_dynamic(ctx);
+			nk_button_label(ctx, "SEND");
+		}
+		if (nk_window_is_hovered(ctx))
+			game->app->on_ui = true;
+	}
+	nk_end(ctx);
+	
+	if (!show || fake_show)
+		ctx->style.window.fixed_background = og_bg;
+}
+
 void 
 game_ui_update(client_game_t* game)
 {
 	struct nk_context* ctx = game->nk_ctx;
 
 	game_ui_stats_window(game, ctx);
+	game_ui_chat_window(game, ctx);
 
 	gui_set_font(game->app, game->app->font_big);
 	struct nk_style_item og_bg = ctx->style.window.fixed_background;

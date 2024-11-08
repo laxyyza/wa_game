@@ -202,3 +202,22 @@ want_server_stats(const ssp_segment_t* segment, UNUSED server_t* server, client_
 
 	source_client->want_stats = stats->opt_in;
 }
+
+void 
+chat_msg(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	ght_t* clients = &server->clients;
+	const net_tcp_chat_msg_t* src_msg = (const void*)segment->data;
+	net_tcp_chat_msg_t new_msg = {
+		.player_id = source_client->player->id
+	};
+	strncpy(new_msg.msg, src_msg->msg, CHAT_MSG_MAX);
+
+	GHT_FOREACH(client_t* client, clients, {
+		if (client->player)
+		{
+			ssp_segbuff_add(&client->tcp_buf, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), &new_msg);
+			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+		}
+	});
+}

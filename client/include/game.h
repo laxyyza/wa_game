@@ -9,6 +9,14 @@
 
 typedef struct waapp waapp_t;
 
+typedef struct 
+{
+	char name[PLAYER_NAME_MAX];
+	u32  name_len;
+	char msg[CHAT_MSG_MAX];
+	u32  msg_len;
+} chatmsg_t;
+
 typedef struct client_game
 {
 	coregame_t cg;
@@ -30,6 +38,9 @@ typedef struct client_game
 	ren_t* ren;
 	waapp_t* app;
 	client_net_t* net;
+	bool open_chat;
+	bool new_msg;
+	array_t chat_msgs;
 
 	struct nk_context* nk_ctx;
 } client_game_t;
@@ -41,6 +52,8 @@ void game_cleanup(waapp_t* app, client_game_t* game);
 void game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev);
 void game_move_cam(waapp_t* app);
 void game_lock_cam(client_game_t* game);
+void game_add_chatmsg(client_game_t* game, const char* name, const char* msg);
+void game_send_chatmsg(client_game_t* game, const char* msg);
 
 #endif // _CLIENT_GAME_H_
 

@@ -71,6 +71,9 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
     wa_state_t* state = wa_window_get_state(window);
 	player_t* player = game->player;
 
+	if (game->open_chat && ev->key != WA_KEY_ESC)
+		return;
+
 	switch (ev->key)
 	{
 		case WA_KEY_V:
@@ -108,6 +111,14 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 		case WA_KEY_T:
 			if (ev->pressed)
 				game->trigger_shooting = !game->trigger_shooting;
+			break;
+		case WA_KEY_ENTER:
+			if (ev->pressed)
+				game->open_chat = true;
+			break;
+		case WA_KEY_ESC:
+			if (ev->pressed)
+				game->open_chat = false;
 			break;
 		default:
 			break;
@@ -210,6 +221,41 @@ game_update_logic(client_game_t* game)
 	game_move_cam(game->app);
 }
 
+void
+game_add_chatmsg(client_game_t* game, const char* name, const char* msg)
+{
+	if (msg == NULL || *msg == 0x00)
+		return;
+
+	chatmsg_t* chatmsg = array_add_into(&game->chat_msgs);
+	if (name)
+		chatmsg->name_len = snprintf(chatmsg->name, PLAYER_NAME_MAX, "%s:", name);
+	else
+	{
+		chatmsg->name[0] = 0x00;
+		chatmsg->name_len = 0;
+	}
+	chatmsg->msg_len = snprintf(chatmsg->msg, CHAT_MSG_MAX, "%s", msg);
+
+	if (game->chat_msgs.count >= 30)
+		array_erase(&game->chat_msgs, 0);
+
+	game->new_msg = true;
+}
+
+void 
+game_send_chatmsg(client_game_t* game, const char* msg)
+{
+	if (*msg == 0x00)
+		return;
+
+	net_tcp_chat_msg_t* chatmsg = mmframes_alloc(&game->app->mmf, sizeof(net_tcp_chat_msg_t));
+	strncpy(chatmsg->msg, msg, CHAT_MSG_MAX);
+
+	ssp_segbuff_add(&game->net->tcp.buf, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), chatmsg);
+	ssp_tcp_send_segbuf(&game->net->tcp.sock, &game->net->tcp.buf);
+}
+
 void* 
 game_init(waapp_t* app)
 {
@@ -250,6 +296,8 @@ game_init(waapp_t* app)
 	game->death_kill_time = 10.0;
 	app->current_map = game->cg.map;
 
+	array_init(&game->chat_msgs, sizeof(chatmsg_t), 10);
+	
 	return game;
 }
 
@@ -313,6 +361,7 @@ game_cleanup(waapp_t* app, client_game_t* game)
 	texture_del(game->tank_top_tex);
 
 	array_del(&game->player_deaths);
+	array_del(&game->chat_msgs);
 	ght_destroy(&game->players);
 	coregame_cleanup(&game->cg);
 	client_net_disconnect(app);
