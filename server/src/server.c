@@ -160,7 +160,8 @@ server_read_udp_packet(server_t* server, event_t* event)
 
 	set_udp_info(&info);
 	server->stats.udp_pps_in++;
-	server->stats.udp_pps_in_bytes += bytes_read;
+	if ((server->stats.udp_pps_in_bytes += bytes_read) > server->stats.udp_pps_in_bytes_highest)
+		server->stats.udp_pps_in_bytes_highest = server->stats.udp_pps_in_bytes;
 
 	ret = ssp_parse_buf(&server->netdef.ssp_state, NULL, buf, bytes_read, &info);
 	if (ret == SSP_FAILED)
@@ -267,14 +268,24 @@ server_flush_udp_clients(server_t* server)
 		if (client->udp_connected)
 		{
 			if (server->send_stats && client->want_stats)
+			{
+				server->stats.udp_pps_out++;
+				server->stats.udp_pps_out_bytes += ssp_segbuf_serialized_size(&client->udp_buf) + sizeof(server_stats_t);
+				if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
+					server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
+
 				ssp_segbuff_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
+			}
 
 			ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
 
 			if (packet)
 			{
-				server->stats.udp_pps_out++;
-				server->stats.udp_pps_out_bytes += packet->size;
+				if (!(server->send_stats && client->want_stats))
+				{
+					server->stats.udp_pps_out++;
+					server->stats.udp_pps_out_bytes += packet->size;
+				}
 
 				client_send(server, client, packet);
 			}
@@ -283,12 +294,12 @@ server_flush_udp_clients(server_t* server)
 
 	if (server->send_stats)
 	{
+		server->send_stats = false;
 		server->stats.udp_pps_in = 0;
 		server->stats.udp_pps_in_bytes = 0;
 
 		server->stats.udp_pps_out = 0;
 		server->stats.udp_pps_out_bytes = 0;
-		server->send_stats = false;
 	}
 }
 
@@ -329,12 +340,6 @@ server_poll(server_t* server)
 	
 	if (time_elapsed >= 1.0)
 	{
-		if (server->stats.udp_pps_in_bytes > server->stats.udp_pps_in_bytes_highest)
-			server->stats.udp_pps_in_bytes_highest = server->stats.udp_pps_in_bytes;
-
-		if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
-			server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
-
 		server->send_stats = true;
 
 		server->last_stat_update = current_time_s;

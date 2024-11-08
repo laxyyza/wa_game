@@ -67,6 +67,7 @@ typedef struct server
 	server_stats_t stats;
 	f64 last_stat_update;
 	bool send_stats;
+	bool reset_stats;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, char* const* argv);
