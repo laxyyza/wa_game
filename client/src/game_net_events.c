@@ -13,6 +13,10 @@ game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 
 	player_t* player = player_new_from(app->game, cg_player);
 
+	char msg[CHAT_MSG_MAX];
+	snprintf(msg, CHAT_MSG_MAX, "[%s entered the game]", cg_player->username);
+	game_add_chatmsg(app->game, NULL, msg);
+
 	if (cg_player->id == app->net.player_id)
 	{
 		app->game->player = player;
@@ -28,6 +32,11 @@ game_delete_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	const net_tcp_delete_player_t* del_player = (const net_tcp_delete_player_t*)segment->data;
 
 	cg_player_t* player = ght_get(&app->game->cg.players, del_player->player_id);
+
+	char msg[CHAT_MSG_MAX];
+	snprintf(msg, CHAT_MSG_MAX, "[%s left the game]", player->username);
+	game_add_chatmsg(app->game, NULL, msg);
+
 	if (player)
 	{
 		coregame_free_player(&app->game->cg, player);
