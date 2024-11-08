@@ -69,9 +69,9 @@ waapp_state_update(wa_window_t* window, waapp_t* app)
 
 	ren_clear(&app->ren, &app->bg_color);
 
+	sm->current->update(app, sm->current->data);
 	gui_new_frame(app);
 	app->on_ui = nk_window_is_any_hovered(app->nk_ctx);
-	sm->current->update(app, sm->current->data);
 	gui_render(app);
 
 	if (state->window.vsync == false)

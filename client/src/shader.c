@@ -15,8 +15,7 @@ shader_readfile(const char* path)
         return NULL;
     }
     u64 size = file_size(f);
-    buf = malloc(size + 1);
-    buf[size] = 0x00;
+    buf = calloc(1, size + 1);
     fread(buf, 1, size, f);
     fclose(f);
     return buf;
