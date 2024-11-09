@@ -202,6 +202,7 @@ coregame_update_projectiles(coregame_t* coregame)
 	while (proj)
 	{
 		proj_next = proj->next;
+		proj->prev_pos = proj->rect.pos;
 		proj->rect.pos.x += proj->dir.x * PROJ_SPEED * coregame->delta;
 		proj->rect.pos.y += proj->dir.y * PROJ_SPEED * coregame->delta;
 
@@ -295,9 +296,10 @@ coregame_add_projectile(coregame_t* coregame, cg_player_t* player)
 	cg_projectile_t* proj = calloc(1, sizeof(cg_projectile_t));
 	proj->owner = player->id;
 	proj->rect.pos = player->pos;
-	proj->rect.pos.x += player->size.x / 2;
-	proj->rect.pos.y += player->size.y / 2;
-	proj->rect.size = vec2f(20, 20);
+	proj->rect.size = vec2f(5, 5);
+	proj->rect.pos.x += (player->size.x / 2) + (player->dir.x * PLAYER_SPEED * coregame->delta);
+	proj->rect.pos.y += (player->size.y / 2) + (player->dir.y * PLAYER_SPEED * coregame->delta);
+	proj->prev_pos = proj->rect.pos;
 
 	if (coregame->proj.tail == NULL)
 	{

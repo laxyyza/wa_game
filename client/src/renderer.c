@@ -213,6 +213,7 @@ ren_new_bro(ren_t* ren, const bro_param_t* param)
 	array_init(&bro->current_textures, sizeof(u32), 10);
 
 	bro->draw_rect = param->draw_rect;
+	bro->draw_misc = param->draw_misc;
 	bro->draw_line = param->draw_line;
 
     return bro;
@@ -642,4 +643,38 @@ main_menu_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect)
     ren_add_rect_indices(bro, v);
 
     bro->vbo.count += RECT_VERT;
+}
+
+void 
+ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
+{
+    if (bro->vbo.count + RECT_VERT > bro->vbo.max_count)
+        bro_draw_batch(ren, bro);
+
+    const u32 v = bro->vbo.count;
+    laser_vertex_t* vertices = (laser_vertex_t*)bro->vbo.buf + v;
+	const laser_vertex_t* data = draw_data;
+
+	vertices->pos = vec2f(-1, -1);
+	vertices->pos_a = data->pos_a;
+	vertices->pos_b = data->pos_b;
+	vertices++;
+
+	vertices->pos = vec2f(1, -1);
+	vertices->pos_a = data->pos_a;
+	vertices->pos_b = data->pos_b;
+	vertices++;
+
+	vertices->pos = vec2f(1, 1);
+	vertices->pos_a = data->pos_a;
+	vertices->pos_b = data->pos_b;
+	vertices++;
+
+	vertices->pos = vec2f(-1, 1);
+	vertices->pos_a = data->pos_a;
+	vertices->pos_b = data->pos_b;
+
+	ren_add_rect_indices(bro, v);
+
+	bro->vbo.count += RECT_VERT;
 }

@@ -15,6 +15,7 @@ typedef struct
     vec4f_t color;
     texture_t* texture;
     f32 rotation; // radians
+	void* draw_data;
 } rect_t;
 
 void rect_init(rect_t* rect, vec2f_t pos, vec2f_t size, u32 color, texture_t* texture);

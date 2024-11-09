@@ -42,6 +42,7 @@ typedef struct client_game
 	bool new_msg;
 	f64 last_chatmsg;
 	array_t chat_msgs;
+	bro_t* laser_bro;
 
 	struct nk_context* nk_ctx;
 } client_game_t;

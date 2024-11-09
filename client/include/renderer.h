@@ -14,6 +14,7 @@
 typedef struct renderer ren_t;
 typedef struct batch_render_obj bro_t;
 typedef void (*ren_draw_rect_t)(ren_t* ren, bro_t* bro, const rect_t* rect);
+typedef void (*ren_draw_misc_t)(ren_t* ren, bro_t* bro, const void* data);
 typedef void (*ren_draw_line_t)(ren_t* ren, 
 								bro_t* bro, 
 								const vec2f_t* a, 
@@ -46,6 +47,13 @@ typedef struct
 	vec4f_t color;
 } projectile_vertex_t;
 
+typedef struct 
+{
+	vec2f_t pos;
+	vec2f_t pos_a;
+	vec2f_t pos_b;
+} laser_vertex_t;
+
 typedef struct batch_render_obj
 {
     vertarray_t vao;
@@ -60,6 +68,7 @@ typedef struct batch_render_obj
     u32 draw_mode;
 
 	ren_draw_rect_t draw_rect;
+	ren_draw_misc_t draw_misc;
 	ren_draw_line_t draw_line;
 } bro_t;
 
@@ -85,6 +94,7 @@ typedef struct
 	const i32* vertlayout;
 	
 	ren_draw_rect_t draw_rect;
+	ren_draw_misc_t draw_misc;
 	ren_draw_line_t draw_line;
 } bro_param_t;
 
@@ -135,5 +145,6 @@ void ren_default_draw_line(ren_t* ren, bro_t* bro, const vec2f_t* a, const vec2f
 void main_menu_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect);
 void ren_default_draw_rect_lines(ren_t* ren, bro_t* bro, const rect_t* rect);
 void bro_draw_batch(ren_t* ren, bro_t* bro);
+void ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data);
 
 #endif // _RENDERER_H_

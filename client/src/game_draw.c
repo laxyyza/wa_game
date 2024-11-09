@@ -31,10 +31,16 @@ game_render_projectiles(client_game_t* game)
 
 	while (proj)
 	{
-		rect_t rect;
-		rect_init(&rect, proj->rect.pos, proj->rect.size, 0xFF0000FF, NULL);
-		rect.rotation = proj->rotation;
-		ren_draw_rect(game->ren, &rect);
+		laser_vertex_t v = {
+			.pos_a = proj->prev_pos,
+			.pos_b = proj->rect.pos,
+		};
+		game->laser_bro->draw_misc(game->ren, game->laser_bro, &v);
+
+		// rect_t rect;
+		// rect_init(&rect, proj->rect.pos, proj->rect.size, 0xFF0000FF, NULL);
+		// rect.rotation = proj->rotation;
+		// ren_draw_rect(game->ren, &rect);
 
 		proj = proj->next;
 	}
@@ -145,4 +151,6 @@ game_draw(client_game_t* game)
 
 	ren_bind_bro(ren, ren->line_bro);
     ren_draw_batch(ren);
+
+	bro_draw_batch(ren, game->laser_bro);
 }

@@ -167,6 +167,10 @@ game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 
 	ren_set_scale(&app->ren, &app->ren.scale);
 
+	shader_t* shader = &app->game->laser_bro->shader;
+	shader_bind(shader);
+	shader_uniform1f(shader, "scale", app->ren.scale.x);
+
 	if (app->game && app->game->lock_cam)
 		game_lock_cam(app->game);
 	else
@@ -299,7 +303,31 @@ game_init(waapp_t* app)
 	app->current_map = game->cg.map;
 
 	array_init(&game->chat_msgs, sizeof(chatmsg_t), 10);
-	
+
+	const i32 layout[] = {
+		VERTLAYOUT_F32, 2, // vertex position
+		VERTLAYOUT_F32, 2, // position a
+		VERTLAYOUT_F32, 2, // position b
+		VERTLAYOUT_END
+	};
+	const bro_param_t param = {
+		.draw_mode = DRAW_TRIANGLES,
+		.max_vb_count = 4096,
+		.vert_path = "client/src/shaders/laser_vert.glsl",
+		.frag_path = "client/src/shaders/laser_frag.glsl",
+		.shader = NULL,
+		.vertlayout = layout,
+		.vertex_size = sizeof(laser_vertex_t),
+		.draw_misc = ren_laser_draw_misc,
+		.draw_line = NULL, 
+		.draw_rect = NULL
+	};
+	game->laser_bro = ren_new_bro(game->ren, &param);
+
+	shader_t* shader = &game->laser_bro->shader;
+	shader_bind(shader);
+	shader_uniform1f(shader, "scale", game->ren->scale.x);
+
 	return game;
 }
 
@@ -358,6 +386,8 @@ game_event(waapp_t* app, client_game_t* game, const wa_event_t* ev)
 void 
 game_cleanup(waapp_t* app, client_game_t* game)
 {
+	ren_delete_bro(game->laser_bro);
+
 	texture_del(game->tank_bottom_tex);
 	texture_del(game->tank_top_tex);
 
