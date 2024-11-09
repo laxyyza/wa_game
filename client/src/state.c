@@ -17,7 +17,7 @@ waapp_state_manager_init(waapp_t* app)
 	sm->states.main_menu.event = (state_event_callback_t)main_menu_event;
 	sm->states.main_menu.exit = (state_callback_t)main_menu_exit;
 	sm->states.main_menu.cleanup = (state_callback_t)main_menu_cleanup;
-	sm->states.main_menu.flags = STATE_DO_CLEANUP | STATE_CLEANED_UP;
+	sm->states.main_menu.flags = STATE_CLEANED_UP;
 
 	sm->states.game.init = game_init;
 	sm->states.game.update = (state_callback_t)game_update;
