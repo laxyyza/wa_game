@@ -242,6 +242,7 @@ game_add_chatmsg(client_game_t* game, const char* name, const char* msg)
 		array_erase(&game->chat_msgs, 0);
 
 	game->new_msg = true;
+	game->last_chatmsg = (game->app->start_time.tv_nsec / 1e9) + game->app->start_time.tv_sec;
 }
 
 void 

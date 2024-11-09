@@ -308,6 +308,16 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 static void
 game_ui_chat_window(client_game_t* game, struct nk_context* ctx)
 {
+	f64 current_time = (game->app->start_time.tv_nsec / 1e9) + game->app->start_time.tv_sec;
+	if (game->open_chat == false)
+	{
+		f64 elapsed_time = current_time - game->last_chatmsg;
+		if (elapsed_time > 10.0)
+			return;
+	}
+	else 
+		game->last_chatmsg = current_time;
+
 	struct nk_rect rect = {
 		.w = 300,
 		.h = 300,
