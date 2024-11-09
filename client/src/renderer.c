@@ -411,7 +411,7 @@ ren_default_draw_rect_norm(ren_t* ren, bro_t* bro, const rect_t* rect)
 static bool 
 rect_in_frustum(ren_t* ren, const rect_t* rect)
 {
-	rect_t frustum = {
+	const rect_t frustum = {
 		.pos.x = -ren->cam.x / ren->scale.x,
 		.pos.y = -ren->cam.y / ren->scale.y,
 		.size.x = ren->viewport.x / ren->scale.x,
@@ -426,6 +426,26 @@ rect_in_frustum(ren_t* ren, const rect_t* rect)
 		return false;
 	}
 
+	return true;
+}
+
+static bool 
+point_in_frustum(ren_t* ren, const vec2f_t* point)
+{
+	const rect_t frustum = {
+		.pos.x = -ren->cam.x / ren->scale.x,
+		.pos.y = -ren->cam.y / ren->scale.y,
+		.size.x = ren->viewport.x / ren->scale.x,
+		.size.y = ren->viewport.y / ren->scale.y,
+	};
+
+	if (point->x < frustum.pos.x || 
+		point->y < frustum.pos.y || 
+		point->x > frustum.pos.x + frustum.size.x ||
+		point->y > frustum.pos.y + frustum.size.y)
+	{
+		return false;
+	}
 	return true;
 }
 
@@ -648,12 +668,17 @@ main_menu_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect)
 void 
 ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
 {
+	const laser_vertex_t* data = draw_data;
+
+	bool in_frustum = point_in_frustum(ren, &data->pos_a);
+	if (in_frustum == false)
+		return;
+
     if (bro->vbo.count + RECT_VERT > bro->vbo.max_count)
         bro_draw_batch(ren, bro);
 
     const u32 v = bro->vbo.count;
     laser_vertex_t* vertices = (laser_vertex_t*)bro->vbo.buf + v;
-	const laser_vertex_t* data = draw_data;
 
 	vertices->pos = vec2f(-1, -1);
 	vertices->pos_a = data->pos_a;
