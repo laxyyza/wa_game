@@ -68,6 +68,8 @@ typedef struct server
 	f64 last_stat_update;
 	bool send_stats;
 	bool reset_stats;
+
+	ssp_segbuff_t segbuf;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, char* const* argv);

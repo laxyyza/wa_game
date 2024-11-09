@@ -155,15 +155,24 @@ client_net_on_connect(waapp_t* app)
 	client_net_t* net = &app->net;
 	waapp_main_menu_t* mm = (waapp_main_menu_t*)app->sm.states.main_menu.data;
 	net->tcp.sock.connected = true;
+	const char* username;
+
+	if (app->save_username)
+		username = app->save_username;
+	else
+		username = mm->sd.username;
 
 	net_tcp_connect_t connect;
 	memset(&connect, 9, sizeof(net_tcp_connect_t));
-	strncpy(connect.username, mm->sd.username, PLAYER_NAME_MAX);
+	strncpy(connect.username, username, PLAYER_NAME_MAX);
 
 	ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
 	ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
 
 	client_net_udp_init(app);
+
+	if (app->save_username)
+		free((void*)app->save_username);
 }
 
 void
@@ -509,6 +518,19 @@ client_net_async_connect(waapp_t* app, const char* addr)
 	return ret;
 }
 
+static void 
+do_reconnect(UNUSED const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
+{
+	cg_player_t* player = app->game->player->core;
+	client_net_disconnect(app);
+	const char* ret = client_net_async_connect(app, app->net.tcp.sock.ipstr);
+	printf("do reconnect: %s\n", ret);
+	app->save_username = strndup(player->username, PLAYER_NAME_MAX);
+	app->game->player = NULL;
+
+	coregame_free_player(&app->game->cg, player);
+}
+
 i32 
 client_net_init(waapp_t* app)
 {
@@ -531,6 +553,7 @@ client_net_init(waapp_t* app)
 	callbacks[NET_TCP_SERVER_SHUTDOWN] = (ssp_segmap_callback_t)game_server_shutdown;
 	callbacks[NET_UDP_SERVER_STATS] = (ssp_segmap_callback_t)server_stats;
 	callbacks[NET_TCP_CHAT_MSG] = (ssp_segmap_callback_t)game_chat_msg;
+	callbacks[NET_UDP_DO_RECONNECT] = (ssp_segmap_callback_t)do_reconnect;
 
 	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_state.user_data = app;

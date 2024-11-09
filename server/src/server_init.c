@@ -292,6 +292,7 @@ server_init(server_t* server, i32 argc, char* const* argv)
 		goto err;
 	server_init_netdef(server);
 	mmframes_init(&server->mmf);
+	ssp_segbuff_init(&server->segbuf, 4, 0);
 
 	server->running = true;
 

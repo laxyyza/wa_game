@@ -40,6 +40,9 @@ waapp_state_switch(waapp_t* app, waapp_state_t* state)
 {
 	waapp_state_manager_t* sm = &app->sm;
 
+	if (sm->current == state)
+		return;
+
 	sm->prev = sm->current;
 	if (sm->prev)
 	{

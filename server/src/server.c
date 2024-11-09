@@ -171,6 +171,22 @@ server_read_udp_packet(server_t* server, event_t* event)
 	free(buf);
 }
 
+static void
+server_ask_client_reconnect(server_t* server, udp_addr_t* client)
+{
+	ssp_packet_t* packet = ssp_insta_packet(&server->segbuf, NET_UDP_DO_RECONNECT, NULL, 0);
+	
+	if (sendto(server->udp_fd, packet->buf, packet->size, 0, 
+			(struct sockaddr*)&client->addr, client->addr_len) == -1)
+	{
+		perror("server_ask_client_reconnect sendto");
+		goto free_packet;
+	}
+
+free_packet:
+	ssp_packet_free(packet);
+}
+
 bool 
 server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_segbuff_t** segbuf)
 {
@@ -180,6 +196,7 @@ server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data,
 	if (client == NULL)
 	{
 		printf("No client with session ID: %u\n", session_id);
+		server_ask_client_reconnect(server, source_data);
 		return false;
 	}
 

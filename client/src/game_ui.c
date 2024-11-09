@@ -453,6 +453,9 @@ game_ui_chat_window(client_game_t* game, struct nk_context* ctx)
 void 
 game_ui_update(client_game_t* game)
 {
+	if (game->player == NULL)
+		return;
+
 	struct nk_context* ctx = game->nk_ctx;
 
 	game_ui_stats_window(game, ctx);
