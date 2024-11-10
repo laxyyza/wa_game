@@ -668,7 +668,9 @@ main_menu_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect)
 void 
 ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
 {
-	const laser_vertex_t* data = draw_data;
+	const laser_draw_data_t* d_data = draw_data;
+	const laser_vertex_t* data = &d_data->v;
+	client_game_t* game = d_data->game;
 
 	bool in_frustum = point_in_frustum(ren, &data->pos_a);
 	if (in_frustum == false)
@@ -678,24 +680,50 @@ ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
         bro_draw_batch(ren, bro);
 
     const u32 v = bro->vbo.count;
+	const f32 line_thicc = game->laser_thicc_px;
+	const vec2f_t* a = &data->pos_a;
+	const vec2f_t* b = &data->pos_b;
     laser_vertex_t* vertices = (laser_vertex_t*)bro->vbo.buf + v;
+	vec2f_t dir = {
+		.x = b->x - a->x,
+		.y = b->y - a->y
+	};
+	vec2f_norm(&dir);
+	vec2f_t perpendicular = vec2f(-dir.y, dir.x);
 
-	vertices->pos = vec2f(-1, -1);
+	vec2f_t offset = {
+		.x = (line_thicc / 2.0) * perpendicular.x,
+		.y = (line_thicc / 2.0) * perpendicular.y
+	};
+
+	vertices->pos = vec2f(
+		a->x - offset.x,
+		a->y - offset.y
+	);
 	vertices->pos_a = data->pos_a;
 	vertices->pos_b = data->pos_b;
 	vertices++;
 
-	vertices->pos = vec2f(1, -1);
+	vertices->pos = vec2f(
+		a->x + offset.x,
+		a->y + offset.y
+	);
 	vertices->pos_a = data->pos_a;
 	vertices->pos_b = data->pos_b;
 	vertices++;
 
-	vertices->pos = vec2f(1, 1);
+	vertices->pos = vec2f(
+		b->x + offset.x,
+		b->y + offset.y
+	);
 	vertices->pos_a = data->pos_a;
 	vertices->pos_b = data->pos_b;
 	vertices++;
 
-	vertices->pos = vec2f(-1, 1);
+	vertices->pos = vec2f(
+		b->x - offset.x,
+		b->y - offset.y
+	);
 	vertices->pos_a = data->pos_a;
 	vertices->pos_b = data->pos_b;
 

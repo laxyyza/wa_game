@@ -45,6 +45,8 @@ typedef struct client_game
 	bro_t* laser_bro;
 
 	struct nk_context* nk_ctx;
+
+	f32 laser_thicc_px;
 } client_game_t;
 
 void* game_init(waapp_t* app);

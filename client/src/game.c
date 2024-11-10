@@ -262,6 +262,18 @@ game_send_chatmsg(client_game_t* game, const char* msg)
 	ssp_tcp_send_segbuf(&game->net->tcp.sock, &game->net->tcp.buf);
 }
 
+static void
+game_set_laser_thickness(client_game_t* game)
+{
+	shader_t* shader = &game->laser_bro->shader;
+	shader_bind(shader);
+
+	f32 lt_x = (game->laser_thicc_px / game->ren->viewport.x) * 2.0;
+	f32 lt_y = (game->laser_thicc_px / game->ren->viewport.y) * 2.0;
+
+	shader_uniform1f(shader, "line_thick", fminf(lt_x, lt_y));
+}
+
 void* 
 game_init(waapp_t* app)
 {
@@ -324,8 +336,9 @@ game_init(waapp_t* app)
 	};
 	game->laser_bro = ren_new_bro(game->ren, &param);
 
+	game->laser_thicc_px = 25.0;
 	shader_t* shader = &game->laser_bro->shader;
-	shader_bind(shader);
+	game_set_laser_thickness(game);
 	shader_uniform1f(shader, "scale", game->ren->scale.x);
 
 	return game;
@@ -377,6 +390,9 @@ game_event(waapp_t* app, client_game_t* game, const wa_event_t* ev)
 			return 0;
 		case WA_EVENT_MOUSE_WHEEL:
 			game_handle_mouse_wheel(app, &ev->wheel);
+			return 0;
+		case WA_EVENT_RESIZE:
+			game_set_laser_thickness(game);
 			return 0;
 		default:
 			return 1;

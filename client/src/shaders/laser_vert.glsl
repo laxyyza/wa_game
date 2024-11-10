@@ -14,6 +14,6 @@ void main()
 {
 	v_pos_a = (mvp * vec4(pos_a, 0.0, 1.0)).xy;
 	v_pos_b = (mvp * vec4(pos_b, 0.0, 1.0)).xy;
-	v_pos = pos;
-	gl_Position = vec4(pos, 0.0, 1.0);
+	gl_Position = mvp * vec4(pos, 0.0, 1.0);
+	v_pos = gl_Position.xy;
 }

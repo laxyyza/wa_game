@@ -54,6 +54,14 @@ typedef struct
 	vec2f_t pos_b;
 } laser_vertex_t;
 
+typedef struct client_game client_game_t;
+
+typedef struct 
+{
+	laser_vertex_t v;
+	client_game_t* game;
+} laser_draw_data_t;
+
 typedef struct batch_render_obj
 {
     vertarray_t vao;

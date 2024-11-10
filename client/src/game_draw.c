@@ -31,11 +31,14 @@ game_render_projectiles(client_game_t* game)
 
 	while (proj)
 	{
-		laser_vertex_t v = {
-			.pos_a = proj->prev_pos,
-			.pos_b = proj->rect.pos,
+		laser_draw_data_t draw_data = {
+			.v = {
+				.pos_a = proj->prev_pos,
+				.pos_b = proj->rect.pos,
+			},
+			.game = game
 		};
-		game->laser_bro->draw_misc(game->ren, game->laser_bro, &v);
+		game->laser_bro->draw_misc(game->ren, game->laser_bro, &draw_data);
 
 		// rect_t rect;
 		// rect_init(&rect, proj->rect.pos, proj->rect.size, 0xFF0000FF, NULL);
@@ -44,6 +47,7 @@ game_render_projectiles(client_game_t* game)
 
 		proj = proj->next;
 	}
+	bro_draw_batch(game->ren, game->laser_bro);
 }
 
 static void
@@ -143,6 +147,7 @@ game_draw(client_game_t* game)
 	game_move_cam(app);
 
 	game_render_map(app, game->cg.map, false);
+	ren_draw_batch(ren);
 
 	game_render_projectiles(game);
 	game_render_players(game);
@@ -151,6 +156,4 @@ game_draw(client_game_t* game)
 
 	ren_bind_bro(ren, ren->line_bro);
     ren_draw_batch(ren);
-
-	bro_draw_batch(ren, game->laser_bro);
 }
