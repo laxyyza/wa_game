@@ -173,9 +173,12 @@ game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 
 	ren_set_scale(&app->ren, &app->ren.scale);
 
-	shader_t* shader = &app->game->laser_bro->shader;
-	shader_bind(shader);
-	shader_uniform1f(shader, "scale", app->ren.scale.x);
+	if (app->game)
+	{
+		shader_t* shader = &app->game->laser_bro->shader;
+		shader_bind(shader);
+		shader_uniform1f(shader, "scale", app->ren.scale.x);
+	}
 
 	if (app->game && app->game->lock_cam)
 		game_lock_cam(app->game);
