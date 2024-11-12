@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "cutils.h"
 
 #ifdef __linux__
 #include <sys/random.h>
@@ -155,7 +156,7 @@ coregame_update_players(coregame_t* coregame)
 {
 	const ght_t* players = &coregame->players;
 	GHT_FOREACH(cg_player_t* player, players, {
-		if (player->gun && player->shoot)
+		if (player->gun)
 			coregame_gun_update(coregame, player->gun);
 
 		if (player->interpolate)
@@ -395,7 +396,14 @@ coregame_randb(void* buf, u64 count)
 void
 coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 {
-	gun->bullet_timer += cg->delta;
+	if (gun->owner->shoot)
+		gun->bullet_timer += cg->delta;
+	else if (gun->bullet_timer > 0)
+	{
+		gun->bullet_timer -= cg->delta;
+		if (gun->bullet_timer < 0)
+			gun->bullet_timer = 0;
+	}
 
 	while (gun->bullet_timer >= gun->bullet_spawn_interval)
 	{
@@ -438,10 +446,14 @@ cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
 static void
 cg_default_gun_shoot(coregame_t* cg, cg_gun_t* gun)
 {
+	cg_player_t* player = gun->owner;
 	cg_bullet_t* bullet = cg_add_bullet(cg, gun);
 
 	bullet->velocity.x = bullet->dir.x * gun->bullet_speed;
 	bullet->velocity.y = bullet->dir.y * gun->bullet_speed;
+
+	player->pos.x += (bullet->dir.x * -1.0) * gun->knockback_force * cg->delta;
+	player->pos.y += (bullet->dir.y * -1.0) * gun->knockback_force * cg->delta;
 }
 
 cg_gun_t* 
@@ -455,6 +467,7 @@ coregame_default_gun(UNUSED coregame_t* cg, cg_player_t* owner)
 	gun->owner = owner;
 	gun->bullet_speed = BULLET_SPEED;
 	gun->dmg = BULLET_DMG;
+	gun->knockback_force = 0;
 
 	return gun;
 }

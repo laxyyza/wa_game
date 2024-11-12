@@ -21,6 +21,7 @@ typedef struct
 	rect_t top;
 	u8 movement_dir;
 	healthbar_t hpbar; 
+	healthbar_t guncharge; 
 } player_t;
 
 typedef struct 
@@ -32,6 +33,7 @@ typedef struct
 
 player_t* player_new(client_game_t* game, const char* name);
 player_t* player_new_from(client_game_t* game, cg_player_t* cg_player);
-void	  player_set_health(player_t* player, i32 new_hp);
+void	  player_set_health(player_t* player, f32 new_hp);
+void	  player_update_guncharge(player_t* player);
 
 #endif // _CLIENT_PLAYER_H_

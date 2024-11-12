@@ -8,6 +8,8 @@ game_render_player(ren_t* ren, player_t* player)
 {
 	healthbar_t* hpbar = &player->hpbar;
 
+	player_update_guncharge(player);
+
 	player->rect.pos = player->core->pos;
 	player->top.pos = player->core->pos;
 
@@ -17,11 +19,20 @@ game_render_player(ren_t* ren, player_t* player)
 	);
 	player->hpbar.fill.pos = hpbar->background.pos; 
 
+	player->guncharge.background.pos = vec2f(
+		player->hpbar.background.pos.x, 
+		player->hpbar.background.pos.y - (player->hpbar.background.size.y + 3)
+	);
+	player->guncharge.fill.pos = player->guncharge.background.pos;
+
 	ren_draw_rect(ren, &player->rect);
 	ren_draw_rect(ren, &player->top);
 
 	ren_draw_rect(ren, &player->hpbar.background);
 	ren_draw_rect(ren, &player->hpbar.fill);
+
+	ren_draw_rect(ren, &player->guncharge.background);
+	ren_draw_rect(ren, &player->guncharge.fill);
 }
 
 static void

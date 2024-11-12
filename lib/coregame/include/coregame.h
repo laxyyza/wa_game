@@ -85,6 +85,7 @@ typedef struct cg_gun
 	f32 bullet_speed;
 	f32 dmg;
 	cg_player_t* owner;
+	f32 knockback_force;
 
 	/**	`shoot`
 	 *	The creation of a new bullet.

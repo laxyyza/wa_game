@@ -26,6 +26,19 @@ player_new_from(client_game_t* game, cg_player_t* cg_player)
 
 	player_set_health(player, player->core->health);
 
+	rect_init(&player->guncharge.background, player->rect.pos, vec2f(150, 15), 0x000000AA, NULL);
+	rect_init(
+		&player->guncharge.fill, 
+		vec2f(
+			player->guncharge.background.pos.x,
+			player->guncharge.background.pos.y - player->guncharge.background.size.y + 3
+		), 
+		player->guncharge.background.size,
+		0x0000FFCC, 
+		NULL
+	);
+	player->guncharge.fill_width = player->guncharge.fill.size.x;
+
 	cg_player->user_data = player;
 
 	return player;
@@ -40,14 +53,24 @@ player_new(client_game_t* game, const char* name)
 }
 
 void 
-player_set_health(player_t* player, i32 new_hp)
+player_set_health(player_t* player, f32 new_hp)
 {
 	if (new_hp > player->core->max_health)
 		new_hp = player->core->max_health;
 	player->core->health = new_hp;
 
-	i32 hp_per = ((f32)new_hp / (f32)player->core->max_health) * 100.0;
+	f32 hp_per = ((f32)new_hp / (f32)player->core->max_health) * 100.0;
 
 	f32 hpbar_fill = (hp_per * player->hpbar.fill_width) / 100.0;
 	player->hpbar.fill.size.x = hpbar_fill;
+}
+
+void 
+player_update_guncharge(player_t* player)
+{
+	const cg_gun_t* gun = player->core->gun;
+	f32 hp_per = ((f32)gun->bullet_timer / (f32)gun->bullet_spawn_interval) * 100.0;
+
+	f32 hpbar_fill = (hp_per * player->guncharge.fill_width) / 100.0;
+	player->guncharge.fill.size.x = hpbar_fill;
 }
