@@ -23,28 +23,6 @@ game_clamp_cam(vec3f_t* cam, const cg_map_t* cg_map, const ren_t* ren)
 	cam->y = clampf(cam->y, -max_y, offset);
 }
 
-static void 
-game_client_shoot(client_game_t* game)
-{
-	if (game->app->on_ui)
-		return;
-
-	const player_t* player = game->player;
-
-	const vec2f_t mpos = screen_to_world(game->ren, &game->app->mouse);
-	vec2f_t dir = vec2f(
-		mpos.x - (player->core->pos.x + (player->core->size.x / 2)),
-		mpos.y - (player->core->pos.y + (player->core->size.y / 2))
-	);
-	vec2f_norm(&dir);
-
-	coregame_player_shoot(&game->cg, game->player->core, dir);
-
-	net_udp_player_shoot_t* shoot = mmframes_alloc(&game->app->mmf, sizeof(net_udp_player_shoot_t));
-	shoot->shoot_dir = dir;
-	ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), shoot);
-}
-
 void
 game_lock_cam(client_game_t* game)
 {
@@ -139,8 +117,12 @@ game_handle_pointer(client_game_t* game, UNUSED const wa_event_pointer_t* ev)
 static void 
 game_handle_mouse_button(client_game_t* game, const wa_event_mouse_t* ev)
 {
-	if (ev->button == WA_MOUSE_LEFT && ev->pressed)
-		game_client_shoot(game);
+	if (ev->button == WA_MOUSE_LEFT)
+	{
+		game->player->core->shoot = ev->pressed;
+
+		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(bool), &game->player->core->shoot);
+	}
 }
 
 void 
@@ -188,40 +170,53 @@ game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 }
 
 static void 
-on_player_free(cg_player_t* player, void* data)
+on_player_free(cg_player_t* player, UNUSED void* data)
 {
-	client_game_t* game = data;
-	ght_del(&game->players, player->id);
+	free(player->user_data);
 }
 
 static void 
 game_update_logic(client_game_t* game)
 {
 	player_t* player = game->player;
+	if (player == NULL)
+		return;
 
-	if (player)
+	coregame_set_player_dir(player->core, player->movement_dir);
+
+	coregame_update(&game->cg);
+
+	if (game->prev_pos.x != player->core->pos.x || game->prev_pos.y != player->core->pos.y)
 	{
-		coregame_set_player_dir(player->core, player->movement_dir);
-
-		coregame_update(&game->cg);
-
-		if (game->prev_pos.x != player->core->pos.x || game->prev_pos.y != player->core->pos.y)
-		{
-			if (game->lock_cam)
-				game_lock_cam(game);
-			game->prev_pos = player->core->pos;
-		}
-		if (game->prev_dir.x != player->core->dir.x || game->prev_dir.y != player->core->dir.y)
-		{
-			ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
-			game->prev_dir = player->core->dir;
-		}
-
-		if (game->trigger_shooting)
-			game_client_shoot(game);
-
-		client_net_try_udp_flush(game->app);
+		if (game->lock_cam)
+			game_lock_cam(game);
+		game->prev_pos = player->core->pos;
 	}
+	if (game->prev_dir.x != player->core->dir.x || game->prev_dir.y != player->core->dir.y)
+	{
+		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
+		game->prev_dir = player->core->dir;
+	}
+
+	// if (state->mouse_map[WA_MOUSE_LEFT])
+	// {
+	// 	cg->accumulator += cg->delta;
+	//
+	// 	while (cg->accumulator >= cg->fixed_update_interval)
+	// 	{
+	// 		cg->bullet_timer += cg->fixed_update_interval;
+	//
+	// 		while (cg->bullet_timer >= cg->bullet_spawn_interval)
+	// 		{
+	// 			game_client_shoot(game);
+	// 			cg->bullet_timer -= cg->bullet_spawn_interval;
+	// 		}
+	//
+	// 		cg->accumulator -= cg->fixed_update_interval;
+	// 	}
+	// }
+
+	client_net_try_udp_flush(game->app);
 
 	game_move_cam(game->app);
 }
@@ -293,8 +288,6 @@ game_init(waapp_t* app)
 	game->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
 	game->tank_top_tex->name = "Tank Top";
 	game->lock_cam = true;
-
-	ght_init(&game->players, 10, free);
 
 	app->keybind.cam_move = WA_MOUSE_RIGHT;
 
@@ -409,7 +402,6 @@ game_cleanup(waapp_t* app, client_game_t* game)
 
 	array_del(&game->player_deaths);
 	array_del(&game->chat_msgs);
-	ght_destroy(&game->players);
 	coregame_cleanup(&game->cg);
 	client_net_disconnect(app);
 	game->player = NULL;

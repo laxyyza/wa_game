@@ -48,22 +48,22 @@ game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	const net_udp_player_move_t* move = (net_udp_player_move_t*)segment->data;
 	const vec2f_t* server_pos = &move->pos;
 	const vec2f_t* client_pos;
-	player_t* player = ght_get(&app->game->players, move->player_id);
+	cg_player_t* player = ght_get(&app->game->cg.players, move->player_id);
 
 	if (player)
 	{
-		client_pos = &player->core->pos;
+		client_pos = &player->pos;
 
 		f32 dist = coregame_dist(client_pos, server_pos);
 
 		if (dist > app->game->cg.interp_threshold_dist)
 		{
-			player->core->interpolate = true;
-			player->core->server_pos = *server_pos;
+			player->interpolate = true;
+			player->server_pos = *server_pos;
 		}
 		else
-			player->core->pos = *server_pos;
-		player->core->dir = move->dir;
+			player->pos = *server_pos;
+		player->dir = move->dir;
 	}
 }
 
@@ -84,34 +84,34 @@ game_player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	const net_udp_player_shoot_t* shoot = (net_udp_player_shoot_t*)segment->data;
 	cg_player_t* player = ght_get(&app->game->cg.players, shoot->player_id);
 	if (player)
-		coregame_player_shoot(&app->game->cg, player, shoot->shoot_dir);
+		player->shoot = shoot->shoot;
 }
 
 void 
 game_player_health(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_health_t* health = (net_udp_player_health_t*)segment->data;
-	player_t* player = ght_get(&app->game->players, health->player_id);
+	cg_player_t* player = ght_get(&app->game->cg.players, health->player_id);
 	if (player)
-		player_set_health(player, health->health);
+		player_set_health(player->user_data, health->health);
 }
 
 void 
 game_player_died(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_died_t* died = (const net_udp_player_died_t*)segment->data;
-	player_t* target;
-	player_t* attacker;
+	cg_player_t* target;
+	cg_player_t* attacker;
 	player_kill_t* kill;
 
-	target = ght_get(&app->game->players, died->target_player_id);
+	target = ght_get(&app->game->cg.players, died->target_player_id);
 	if (target == NULL)
 	{
 		errorf("player_died: target player %u not found.\n",
 			died->target_player_id);
 		return;
 	}
-	attacker = ght_get(&app->game->players, died->attacker_player_id);
+	attacker = ght_get(&app->game->cg.players, died->attacker_player_id);
 	if (attacker == NULL)
 	{
 		errorf("player_died: attacker player %u not found.\n",
@@ -120,8 +120,8 @@ game_player_died(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	}
 
 	kill = array_add_into(&app->game->player_deaths);
-	strncpy(kill->target_name, target->core->username, PLAYER_NAME_MAX);
-	strncpy(kill->attacker_name, attacker->core->username, PLAYER_NAME_MAX);
+	strncpy(kill->target_name, target->username, PLAYER_NAME_MAX);
+	strncpy(kill->attacker_name, attacker->username, PLAYER_NAME_MAX);
 	clock_gettime(CLOCK_MONOTONIC, &kill->timestamp);
 }
 
@@ -129,13 +129,13 @@ void
 game_player_stats(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_stats_t* stats = (const net_udp_player_stats_t*)segment->data;
-	player_t* player;
+	cg_player_t* player;
 
-	player = ght_get(&app->game->players, stats->player_id);
+	player = ght_get(&app->game->cg.players, stats->player_id);
 	if (player)
 	{
-		player->core->stats.kills = stats->kills;
-		player->core->stats.deaths = stats->deaths;
+		player->stats.kills = stats->kills;
+		player->stats.deaths = stats->deaths;
 	}
 }
 

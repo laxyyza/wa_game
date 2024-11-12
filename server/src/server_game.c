@@ -156,16 +156,14 @@ player_shoot(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 	ght_t* clients = &server->clients;
 
 	const net_udp_player_shoot_t* shoot = (const net_udp_player_shoot_t*)segment->data;
-
-	coregame_player_shoot(&server->game, source_client->player, shoot->shoot_dir);
+	source_client->player->shoot = shoot->shoot;
 
 	net_udp_player_shoot_t* new_shoot = mmframes_alloc(&server->mmf, sizeof(net_udp_player_shoot_t));
 	new_shoot->player_id = source_client->player->id;
-	new_shoot->shoot_dir = shoot->shoot_dir;
+	new_shoot->shoot = shoot->shoot;
 
 	GHT_FOREACH(client_t* client, clients, {
-		if (client != source_client)
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), new_shoot);
+		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), new_shoot);
 	});
 }
 

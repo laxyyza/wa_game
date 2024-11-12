@@ -12,7 +12,6 @@ player_new_from(client_game_t* game, cg_player_t* cg_player)
 			game->tank_bottom_tex);
 	memcpy(&player->top, &player->rect, sizeof(rect_t));
 	player->top.texture = game->tank_top_tex;
-	ght_insert(&game->players, player->core->id, player);
 
 	rect_init(&player->hpbar.background, player->rect.pos, vec2f(150, 15), 0x000000AA, NULL);
 
@@ -26,6 +25,8 @@ player_new_from(client_game_t* game, cg_player_t* cg_player)
 	player->hpbar.fill_width = player->hpbar.fill.size.x;
 
 	player_set_health(player, player->core->health);
+
+	cg_player->user_data = player;
 
 	return player;
 }

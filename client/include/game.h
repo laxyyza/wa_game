@@ -20,7 +20,6 @@ typedef struct
 typedef struct client_game
 {
 	coregame_t cg;
-	ght_t players;
 	player_t* player;
 	vec2f_t prev_dir;
 	vec2f_t prev_pos;

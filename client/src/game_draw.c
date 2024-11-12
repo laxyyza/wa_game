@@ -25,38 +25,64 @@ game_render_player(ren_t* ren, player_t* player)
 }
 
 static void
-game_render_projectiles(client_game_t* game)
+game_render_bullets(client_game_t* game)
 {
-	cg_projectile_t* proj = game->cg.proj.head;
+	cg_bullet_t* bullet = game->cg.bullets.head;
 
-	while (proj)
+	while (bullet)
 	{
+		static const f32 laser_len = 60.0;
 		laser_draw_data_t draw_data = {
 			.v = {
-				.pos_a = proj->prev_pos,
-				.pos_b = proj->rect.pos,
+				.pos_a = bullet->r.pos,
 			},
 			.game = game
 		};
+		draw_data.v.pos_b.x = draw_data.v.pos_a.x + laser_len * bullet->dir.x;
+		draw_data.v.pos_b.y = draw_data.v.pos_a.y + laser_len * bullet->dir.y;
 		game->laser_bro->draw_misc(game->ren, game->laser_bro, &draw_data);
 
-		// rect_t rect;
-		// rect_init(&rect, proj->rect.pos, proj->rect.size, 0xFF0000FF, NULL);
-		// rect.rotation = proj->rotation;
-		// ren_draw_rect(game->ren, &rect);
-
-		proj = proj->next;
+		bullet = bullet->next;
 	}
 	bro_draw_batch(game->ren, game->laser_bro);
 }
 
+// static void
+// game_render_projectiles(client_game_t* game)
+// {
+// 	cg_projectile_t* proj = game->cg.proj.head;
+//
+// 	while (proj)
+// 	{
+// 		static const f32 laser_len = 60.0;
+// 		laser_draw_data_t draw_data = {
+// 			.v = {
+// 				.pos_a = proj->prev_pos,
+// 			},
+// 			.game = game
+// 		};
+// 		draw_data.v.pos_b.x = draw_data.v.pos_a.x + laser_len * proj->dir.x;
+// 		draw_data.v.pos_b.y = draw_data.v.pos_a.y + laser_len * proj->dir.y;
+// 		game->laser_bro->draw_misc(game->ren, game->laser_bro, &draw_data);
+//
+// 		// rect_t rect;
+// 		// rect_init(&rect, proj->rect.pos, proj->rect.size, 0xFF0000FF, NULL);
+// 		// rect.rotation = proj->rotation;
+// 		// ren_draw_rect(game->ren, &rect);
+//
+// 		proj = proj->next;
+// 	}
+// 	bro_draw_batch(game->ren, game->laser_bro);
+// }
+
 static void
 game_render_players(client_game_t* game)
 {
-	const ght_t* players = &game->players;
-	GHT_FOREACH(player_t* player, players, {
-		if (player->core->dir.x || player->core->dir.y)
-			player->rect.rotation = atan2(player->core->dir.y, player->core->dir.x) + M_PI / 2;
+	const ght_t* players = &game->cg.players;
+	GHT_FOREACH(cg_player_t* cg_player, players, {
+		player_t* player = cg_player->user_data;
+		if (cg_player->dir.x || cg_player->dir.y)
+			player->rect.rotation = atan2(cg_player->dir.y, cg_player->dir.x) + M_PI / 2;
 
 		const vec2f_t origin = rect_origin(&player->rect);
 		player->top.rotation = angle(&origin, &player->core->cursor);
@@ -149,7 +175,7 @@ game_draw(client_game_t* game)
 	game_render_map(app, game->cg.map, false);
 	ren_draw_batch(ren);
 
-	game_render_projectiles(game);
+	game_render_bullets(game);
 	game_render_players(game);
 
     ren_draw_batch(ren);

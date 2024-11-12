@@ -96,8 +96,8 @@ typedef struct
 
 typedef struct 
 {
+	bool shoot;
 	u32 player_id;
-	vec2f_t shoot_dir;
 } net_udp_player_shoot_t;
 
 typedef struct 

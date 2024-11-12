@@ -30,12 +30,6 @@ typedef struct
 	struct timespec timestamp;
 } player_kill_t;
 
-typedef struct 
-{
-	cg_projectile_t* core;
-	rect_t rect;
-} projectile_t;
-
 player_t* player_new(client_game_t* game, const char* name);
 player_t* player_new_from(client_game_t* game, cg_player_t* cg_player);
 void	  player_set_health(player_t* player, i32 new_hp);

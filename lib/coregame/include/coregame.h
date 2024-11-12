@@ -12,10 +12,11 @@
 #define INTERPOLATE_FACTOR			0.2
 #define INTERPOLATE_THRESHOLD_DIST	0.001
 
-#define PROJ_SPEED	  7000
+#define GUN_BPS 20.0
+#define BULLET_SPEED  7000
 #define PLAYER_SPEED  1400
 #define PLAYER_HEALTH 100
-#define	PROJ_DMG	  10
+#define	BULLET_DMG	  2.5
 #define PLAYER_NAME_MAX 32
 #define UNUSED __attribute__((unused))
 
@@ -30,6 +31,9 @@ typedef void (*cg_player_changed_callback_t)(cg_player_t* player, void* user_dat
 typedef void (*cg_player_damaged_callback_t)(cg_player_t* target_player, 
 											 cg_player_t* attacker_player, void* user_data);
 
+typedef struct coregame coregame_t;
+typedef struct cg_gun cg_gun_t;
+
 typedef struct 
 {
 	u16 kills;
@@ -42,8 +46,9 @@ typedef struct cg_player
 	u32		id;
 	vec2f_t pos;
 	vec2f_t dir;
-	i32		health;
-	i32		max_health;
+	f32		health;
+	f32		max_health;
+	cg_gun_t* gun;
 
 	vec2f_t size;
 	vec2f_t prev_pos;
@@ -56,27 +61,50 @@ typedef struct cg_player
 		bool	interpolate;
 	};
 	cg_player_stats_t stats;
+	void*	user_data;
+	bool	shoot;
 } cg_player_t;
 
-typedef struct cg_projectile
+typedef struct cg_bullet
 {
-	u32 owner;
-	cg_rect_t rect;
+	u32		owner;
+	cg_rect_t r;
 	vec2f_t dir;
-	vec2f_t prev_pos;
-	f32 rotation;
+	vec2f_t velocity;
+	f32		dmg;
 
-	struct cg_projectile* next;
-	struct cg_projectile* prev;
-} cg_projectile_t;
+	struct cg_bullet* next;
+	struct cg_bullet* prev;
+} cg_bullet_t;
+
+typedef struct cg_gun
+{
+	f32 bps;
+	f32 bullet_spawn_interval;
+	f32 bullet_timer;
+	f32 bullet_speed;
+	f32 dmg;
+	cg_player_t* owner;
+
+	/**	`shoot`
+	 *	The creation of a new bullet.
+	 */
+	void (*shoot)(coregame_t* cg, struct cg_gun* gun);
+
+	/**	`data[]`
+	 *	I'm think of having multiple different guns.
+	 *	So they might have gun-specific data, it will here in `u8 data[]`.
+	 */
+	u8 data[];
+} cg_gun_t;
 
 typedef struct coregame 
 {
 	ght_t players;
 	struct {
-		cg_projectile_t* head;
-		cg_projectile_t* tail;
-	} proj;
+		cg_bullet_t* head;
+		cg_bullet_t* tail;
+	} bullets;
 	cg_rect_t world_border;
 	cg_map_t* map;
 
@@ -84,7 +112,7 @@ typedef struct coregame
 	f64 delta;
 	void* user_data;
 
-	void (*proj_free_callback)(cg_projectile_t* proj, void* data);
+	void (*bullet_free_callback)(cg_bullet_t* bullet, void* data);
 	void (*player_free_callback)(cg_player_t* proj, void* data);
 	cg_player_changed_callback_t player_changed;
 	cg_player_damaged_callback_t player_damaged;
@@ -104,12 +132,16 @@ cg_player_t* coregame_add_player(coregame_t* coregame, const char* name);
 void coregame_add_player_from(coregame_t* coregame, cg_player_t* player);
 void coregame_free_player(coregame_t* coregame, cg_player_t* player);
 void coregame_set_player_dir(cg_player_t* player, u8 dir);
-cg_projectile_t* coregame_player_shoot(coregame_t* coregame, cg_player_t* player, vec2f_t dir);
+// cg_projectile_t* coregame_player_shoot(coregame_t* coregame, cg_player_t* player, vec2f_t dir);
 
-cg_projectile_t* coregame_add_projectile(coregame_t* coregame, cg_player_t* player);
-void coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj);
+// cg_projectile_t* coregame_add_projectile(coregame_t* coregame, cg_player_t* player);
+// void coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj);
+void coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet);
 
 f32  coregame_dist(const vec2f_t* a, const vec2f_t* b);
 void coregame_randb(void* buf, u64 count);
+
+cg_gun_t* coregame_default_gun(coregame_t* cg, cg_player_t* owner);
+void coregame_gun_update(coregame_t* cg, cg_gun_t* gun);
 
 #endif // _CORE_GAME_H_
