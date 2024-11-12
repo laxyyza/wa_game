@@ -421,3 +421,17 @@ coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec)
 	memcpy(new_spec, spec, sizeof(cg_gun_spec_t));
 	new_spec->bullet_spawn_interval = 1.0 / spec->bps;
 }
+
+bool
+coregame_player_change_gun(coregame_t* cg, cg_player_t* player, enum cg_gun_id id)
+{
+	if (player->gun)
+	{
+		if (player->gun->spec->id == id)
+			return false;
+
+		free(player->gun);
+	}
+
+	return coregame_create_gun(cg, id, player) != NULL;
+}

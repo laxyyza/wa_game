@@ -555,6 +555,7 @@ client_net_init(waapp_t* app)
 	callbacks[NET_TCP_CHAT_MSG] = (ssp_segmap_callback_t)game_chat_msg;
 	callbacks[NET_UDP_DO_RECONNECT] = (ssp_segmap_callback_t)do_reconnect;
 	callbacks[NET_TCP_GUN_SPEC] = (ssp_segmap_callback_t)game_gun_spec;
+	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segmap_callback_t)game_player_gun_id;
 
 	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_state.user_data = app;

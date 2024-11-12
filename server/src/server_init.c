@@ -212,6 +212,7 @@ server_init_netdef(server_t* server)
 	callbacks[NET_UDP_PING] = (ssp_segmap_callback_t)udp_ping;
 	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)player_ping;
 	callbacks[NET_TCP_CHAT_MSG] = (ssp_segmap_callback_t)chat_msg;
+	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segmap_callback_t)player_gun_id;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_state.user_data = server;

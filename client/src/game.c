@@ -45,6 +45,26 @@ game_lock_cam(client_game_t* game)
 }
 
 static void
+game_handle_num_keys(client_game_t* game, const wa_event_key_t* ev)
+{
+	enum cg_gun_id gun_id;
+
+	if (ev->key == WA_KEY_1)
+		gun_id = CG_GUN_ID_SMALL;
+	else if (ev->key == WA_KEY_2)
+		gun_id = CG_GUN_ID_BIG;
+	else
+		return;
+	
+	if (coregame_player_change_gun(&game->cg, game->player->core, gun_id))
+	{
+		net_udp_player_gun_id_t* udp_gun_id = mmframes_alloc(&game->app->mmf, sizeof(net_udp_player_gun_id_t));
+		udp_gun_id->gun_id = gun_id;
+		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_gun_id);
+	}
+}
+
+static void
 game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* ev)
 {
     wa_state_t* state = wa_window_get_state(window);
@@ -98,6 +118,10 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 		case WA_KEY_ESC:
 			if (ev->pressed)
 				game->open_chat = false;
+			break;
+		case WA_KEY_1:
+		case WA_KEY_2:
+			game_handle_num_keys(game, ev);
 			break;
 		default:
 			break;

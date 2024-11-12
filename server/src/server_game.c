@@ -249,3 +249,23 @@ chat_msg(const ssp_segment_t* segment, server_t* server, client_t* source_client
 		}
 	});
 }
+
+void 
+player_gun_id(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	ght_t* clients = &server->clients;
+	const net_udp_player_gun_id_t* player_gun_id = (const net_udp_player_gun_id_t*)segment->data;
+	net_udp_player_gun_id_t* udp_player_gun_id;
+
+	if (coregame_player_change_gun(&server->game, source_client->player, player_gun_id->gun_id))
+	{
+		udp_player_gun_id = mmframes_alloc(&server->mmf, sizeof(net_udp_player_gun_id_t));
+		udp_player_gun_id->player_id = source_client->player->id;
+		udp_player_gun_id->gun_id = player_gun_id->gun_id;
+
+		GHT_FOREACH(client_t* client, clients, {
+			if (client->player)
+				ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
+		});
+	}
+}

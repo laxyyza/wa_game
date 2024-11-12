@@ -213,3 +213,13 @@ game_gun_spec(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		memcpy(new_spec, gun_spec, sizeof(cg_gun_spec_t));
 	}
 }
+
+void 
+game_player_gun_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	const net_udp_player_gun_id_t* player_gun_id = (const net_udp_player_gun_id_t*)segment->data;
+	cg_player_t* player = ght_get(&app->game->cg.players, player_gun_id->player_id);
+
+	if (player)
+		coregame_player_change_gun(&app->game->cg, player, player_gun_id->gun_id);
+}

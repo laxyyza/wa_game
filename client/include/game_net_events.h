@@ -16,5 +16,6 @@ void game_cg_map(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _);
 void game_server_shutdown(UNUSED const ssp_segment_t* segment, waapp_t* app, UNUSED void* _);
 void game_chat_msg(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _);
 void game_gun_spec(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _);
+void game_player_gun_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _);
 
 #endif // _CLIENT_GAME_NET_EVENTS_H_
