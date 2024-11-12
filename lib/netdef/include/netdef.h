@@ -19,6 +19,7 @@ enum segtypes
 	NET_TCP_CG_MAP,
 	NET_TCP_WANT_SERVER_STATS,
 	NET_TCP_CHAT_MSG,
+	NET_TCP_GUN_SPEC,
 
 	NET_UDP_PLAYER_MOVE,
 	NET_UDP_PLAYER_DIR,
@@ -28,6 +29,7 @@ enum segtypes
 	NET_UDP_PLAYER_STATS,
 	NET_UDP_PLAYER_DIED,
 	NET_UDP_PLAYER_PING,
+	NET_UDP_PLAYER_GUN_ID,
 
 	NET_UDP_PING,
 	NET_UDP_PONG,
@@ -39,6 +41,9 @@ enum segtypes
 
 	NET_SEGTYPES_LEN
 };
+
+typedef cg_map_t net_tcp_cg_map_t;
+typedef cg_gun_spec_t net_tcp_gun_spec_t;
 
 typedef struct 
 {
@@ -62,8 +67,6 @@ typedef struct
 	f64 tickrate;
 	u8  ssp_flags;
 } net_tcp_udp_info_t;
-
-typedef cg_map_t net_tcp_cg_map_t;
 
 typedef struct 
 {
@@ -130,7 +133,25 @@ typedef struct
 	f32 ms;
 } net_udp_player_ping_t;
 
-typedef struct cg_player net_tcp_new_player_t;
+typedef struct 
+{
+	u32 gun_id;
+	u32 player_id;
+} net_udp_player_gun_id_t;
+
+typedef struct 
+{
+	u32 id;
+	u32 gun_id;
+	vec2f_t pos;
+	vec2f_t size;
+	vec2f_t dir;
+	vec2f_t cursor;
+	f32 health;
+	f32 max_health;
+	char username[PLAYER_NAME_MAX];
+	bool shoot;
+} net_tcp_new_player_t;
 
 typedef struct 
 {

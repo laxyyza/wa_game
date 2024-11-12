@@ -25,7 +25,7 @@ typedef struct client_game
 	vec2f_t prev_pos;
 
 	texture_t* tank_bottom_tex;
-	texture_t* tank_top_tex;
+	texture_t* gun_textures[CG_GUN_ID_TOTAL];
 
 	bool	lock_cam;
 	bool	trigger_shooting;

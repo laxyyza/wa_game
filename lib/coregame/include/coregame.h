@@ -34,6 +34,14 @@ typedef void (*cg_player_damaged_callback_t)(cg_player_t* target_player,
 typedef struct coregame coregame_t;
 typedef struct cg_gun cg_gun_t;
 
+enum cg_gun_id
+{
+	CG_GUN_ID_SMALL,
+	CG_GUN_ID_BIG,
+
+	CG_GUN_ID_TOTAL
+};
+
 typedef struct 
 {
 	u16 kills;
@@ -77,15 +85,21 @@ typedef struct cg_bullet
 	struct cg_bullet* prev;
 } cg_bullet_t;
 
-typedef struct cg_gun
+typedef struct cg_gun_spec
 {
+	enum cg_gun_id id;
 	f32 bps;
 	f32 bullet_spawn_interval;
-	f32 bullet_timer;
 	f32 bullet_speed;
 	f32 dmg;
-	cg_player_t* owner;
 	f32 knockback_force;
+} cg_gun_spec_t;
+
+typedef struct cg_gun
+{
+	const cg_gun_spec_t* spec;
+	f32 bullet_timer;
+	cg_player_t* owner;
 
 	/**	`shoot`
 	 *	The creation of a new bullet.
@@ -109,6 +123,7 @@ typedef struct coregame
 	cg_rect_t world_border;
 	cg_map_t* map;
 
+	array_t gun_specs;
 	struct timespec last_time;
 	f64 delta;
 	void* user_data;
@@ -142,7 +157,8 @@ void coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet);
 f32  coregame_dist(const vec2f_t* a, const vec2f_t* b);
 void coregame_randb(void* buf, u64 count);
 
-cg_gun_t* coregame_default_gun(coregame_t* cg, cg_player_t* owner);
+cg_gun_t* coregame_create_gun(coregame_t* cg, enum cg_gun_id id, cg_player_t* owner);
+void coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec);
 void coregame_gun_update(coregame_t* cg, cg_gun_t* gun);
 
 #endif // _CORE_GAME_H_

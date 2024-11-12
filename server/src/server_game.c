@@ -1,17 +1,40 @@
 #include "server_game.h"
 
+static net_tcp_new_player_t*
+client_to_tcp_new_player(server_t* server, const client_t* client)
+{
+	const cg_player_t* player = client->player;
+
+	net_tcp_new_player_t* tcp_new_player = mmframes_alloc(&server->mmf, sizeof(net_tcp_new_player_t));
+	tcp_new_player->id = player->id;
+	tcp_new_player->gun_id = player->gun->spec->id;
+	tcp_new_player->pos = player->pos;
+	tcp_new_player->size = player->size;
+	tcp_new_player->dir = player->dir;
+	tcp_new_player->cursor = player->cursor;
+	tcp_new_player->health = player->health;
+	tcp_new_player->max_health = player->max_health;
+	tcp_new_player->shoot = player->shoot;
+	strncpy(tcp_new_player->username, player->username, PLAYER_NAME_MAX);
+
+	return tcp_new_player;
+}
+
 static void 
 broadcast_new_player(server_t* server, client_t* new_client)
 {
 	ght_t* clients = &server->clients;
+	const net_tcp_new_player_t* new_player = client_to_tcp_new_player(server, new_client);
 
 	GHT_FOREACH(client_t* client, clients, {
 		if (client->player)
 		{
-			ssp_segbuff_add(&client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(cg_player_t), new_client->player);
+			ssp_segbuff_add(&client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), new_player);
 			if (client != new_client)
 			{
-				ssp_segbuff_add(&new_client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(cg_player_t), client->player);
+				const net_tcp_new_player_t* other_player = client_to_tcp_new_player(server, client);
+				ssp_segbuff_add(&new_client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), other_player);
+
 				ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
 			}
 		}
@@ -110,6 +133,8 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
 	client->player = coregame_add_player(&server->game, connect->username);
+	coregame_create_gun(&server->game, CG_GUN_ID_SMALL, client->player);
+
 	client->player->pos = server_next_spawn(server);
 
 	session->session_id = client->session_id;
@@ -121,6 +146,11 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 	ssp_segbuff_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), session);
 	ssp_segbuff_add(&client->tcp_buf, NET_TCP_CG_MAP, server->disk_map_size, server->disk_map);
 	ssp_segbuff_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), udp_info);
+
+	const cg_gun_spec_t* gun_specs = (const cg_gun_spec_t*)server->game.gun_specs.buf;
+	for (u32 i = 0; i < server->game.gun_specs.count; i++)
+		ssp_segbuff_add(&client->tcp_buf, NET_TCP_GUN_SPEC, sizeof(cg_gun_spec_t), gun_specs + i);
+
 	broadcast_new_player(server, client);
 }
 

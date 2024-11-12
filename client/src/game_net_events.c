@@ -6,10 +6,20 @@
 void 
 game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
-	const cg_player_t* new_player = (const cg_player_t*)segment->data;
+	const net_tcp_new_player_t* new_player = (const net_tcp_new_player_t*)segment->data;
 
-	cg_player_t* cg_player = malloc(sizeof(cg_player_t));
-	memcpy(cg_player, new_player, sizeof(cg_player_t));
+	cg_player_t* cg_player = calloc(1, sizeof(cg_player_t));
+	cg_player->id = new_player->id;
+	cg_player->pos = new_player->pos;
+	cg_player->size = new_player->size;
+	cg_player->dir = new_player->dir;
+	cg_player->cursor = new_player->cursor;
+	cg_player->health = new_player->health;
+	cg_player->max_health = new_player->max_health;
+	cg_player->shoot = new_player->shoot;
+	strncpy(cg_player->username, new_player->username, PLAYER_NAME_MAX);
+
+	coregame_create_gun(&app->game->cg, new_player->gun_id, cg_player);
 
 	player_t* player = player_new_from(app->game, cg_player);
 
@@ -178,4 +188,28 @@ game_chat_msg(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		name = player->username;
 
 	game_add_chatmsg(app->game, name, chatmsg->msg);
+}
+
+void 
+game_gun_spec(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	const cg_gun_spec_t* gun_spec = (const cg_gun_spec_t*)segment->data;
+
+	if (app->game)
+	{
+		coregame_add_gun_spec(&app->game->cg, gun_spec);
+	}
+	else
+	{
+		cg_gun_spec_t* new_spec;
+
+		if (app->tmp_gun_specs == NULL)
+		{
+			app->tmp_gun_specs = calloc(1, sizeof(array_t));
+			array_init(app->tmp_gun_specs, sizeof(cg_gun_spec_t), 4);
+		}
+
+		new_spec = array_add_into(app->tmp_gun_specs);
+		memcpy(new_spec, gun_spec, sizeof(cg_gun_spec_t));
+	}
 }

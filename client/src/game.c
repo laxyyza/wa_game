@@ -269,6 +269,36 @@ game_set_laser_thickness(client_game_t* game)
 	shader_uniform1f(shader, "line_thick", fminf(lt_x, lt_y));
 }
 
+static void 
+game_init_add_gun_specs(waapp_t* app, client_game_t* game)
+{
+	if (app->tmp_gun_specs == NULL)
+		return;
+
+	const cg_gun_spec_t* gun_specs = (const cg_gun_spec_t*)app->tmp_gun_specs->buf;
+	for (u32 i = 0; i < app->tmp_gun_specs->count; i++)
+		coregame_add_gun_spec(&game->cg, gun_specs + i);
+
+	array_del(app->tmp_gun_specs);
+	free(app->tmp_gun_specs);
+	app->tmp_gun_specs = NULL;
+}
+
+static void
+game_load_gun_textures(client_game_t* game)
+{
+	const char* texture_paths[CG_GUN_ID_TOTAL] = {
+		"res/default_gun.png",
+		"res/big_gun.png"
+	};
+
+	for (u32 i = 0; i < CG_GUN_ID_TOTAL; i++)
+	{
+		game->gun_textures[i] = texture_load(texture_paths[i], TEXTURE_NEAREST);
+		game->gun_textures[i]->name = texture_paths[i];
+	}
+}
+
 void* 
 game_init(waapp_t* app)
 {
@@ -280,13 +310,15 @@ game_init(waapp_t* app)
 	game->nk_ctx = app->nk_ctx;
 
 	coregame_init(&game->cg, true, app->map_from_server);
+	game_init_add_gun_specs(app, game);
 	game->cg.user_data = game;
 	game->cg.player_free_callback = on_player_free;
 
 	game->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
 	game->tank_bottom_tex->name = "Tank Bottom";
-	game->tank_top_tex = texture_load("res/tank_top.png", TEXTURE_NEAREST);
-	game->tank_top_tex->name = "Tank Top";
+
+	game_load_gun_textures(game);
+
 	game->lock_cam = true;
 
 	app->keybind.cam_move = WA_MOUSE_RIGHT;
@@ -398,7 +430,8 @@ game_cleanup(waapp_t* app, client_game_t* game)
 	ren_delete_bro(game->laser_bro);
 
 	texture_del(game->tank_bottom_tex);
-	texture_del(game->tank_top_tex);
+	for (u32 i = 0; i < CG_GUN_ID_TOTAL; i++)
+		texture_del(game->gun_textures[i]);
 
 	array_del(&game->player_deaths);
 	array_del(&game->chat_msgs);

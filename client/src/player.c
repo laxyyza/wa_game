@@ -5,13 +5,14 @@ player_t*
 player_new_from(client_game_t* game, cg_player_t* cg_player)
 {
 	player_t* player = calloc(1, sizeof(player_t));
+	vec2f_t gun_size = vec2f(250, 250);
 
 	player->core = cg_player;
 	rect_init(&player->rect, player->core->pos, 
 			player->core->size, 0x000000FF, 
 			game->tank_bottom_tex);
-	memcpy(&player->top, &player->rect, sizeof(rect_t));
-	player->top.texture = game->tank_top_tex;
+
+	rect_init(&player->gun_rect, player->rect.pos, gun_size, 0, NULL);
 
 	rect_init(&player->hpbar.background, player->rect.pos, vec2f(150, 15), 0x000000AA, NULL);
 
@@ -69,7 +70,10 @@ void
 player_update_guncharge(player_t* player)
 {
 	const cg_gun_t* gun = player->core->gun;
-	f32 hp_per = ((f32)gun->bullet_timer / (f32)gun->bullet_spawn_interval) * 100.0;
+	if (gun == NULL)
+		return;
+
+	f32 hp_per = ((f32)gun->bullet_timer / (f32)gun->spec->bullet_spawn_interval) * 100.0;
 
 	f32 hpbar_fill = (hp_per * player->guncharge.fill_width) / 100.0;
 	player->guncharge.fill.size.x = hpbar_fill;

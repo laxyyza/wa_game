@@ -218,6 +218,29 @@ server_init_netdef(server_t* server)
 	server->netdef.ssp_state.verify_session = (ssp_session_verify_callback_t)server_verify_session;
 }
 
+static void
+server_init_coregame_gun_specs(server_t* server)
+{
+	const cg_gun_spec_t small_gun_spec = {
+		.id = CG_GUN_ID_SMALL,
+		.bps = 20.0,
+		.dmg = 2.0,
+		.knockback_force = 0.0,
+		.bullet_speed = 7000,
+	};
+
+	const cg_gun_spec_t big_gun_spec = {
+		.id = CG_GUN_ID_BIG,
+		.bps = 1.0,
+		.dmg = 95.0,
+		.knockback_force = 1000.0,
+		.bullet_speed = 10000,
+	};
+
+	coregame_add_gun_spec(&server->game, &small_gun_spec);
+	coregame_add_gun_spec(&server->game, &big_gun_spec);
+}
+
 static i32 
 server_init_coregame(server_t* server)
 {
@@ -245,6 +268,8 @@ server_init_coregame(server_t* server)
 				array_add_voidp(&server->spawn_points, cell);
 		}
 	}
+
+	server_init_coregame_gun_specs(server);
 
 	return 0;
 }

@@ -24,6 +24,53 @@ coregame_get_delta_time(coregame_t* cg)
 	memcpy(&cg->last_time, &current_time, sizeof(struct timespec));
 }
 
+static cg_bullet_t*
+cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
+{
+	cg_bullet_t* bullet = calloc(1, sizeof(cg_bullet_t));
+	const cg_player_t* player = gun->owner;
+
+	bullet->owner = player->id;
+	bullet->r.pos = player->pos;
+	bullet->r.size = vec2f(5, 5);
+	bullet->r.pos.x += (player->size.x / 2) + (player->dir.x * PLAYER_SPEED * cg->delta);
+	bullet->r.pos.y += (player->size.y / 2) + (player->dir.y * PLAYER_SPEED * cg->delta);
+	bullet->dmg = gun->spec->dmg;
+
+	bullet->dir.x = player->cursor.x - bullet->r.pos.x;
+	bullet->dir.y = player->cursor.y - bullet->r.pos.y;
+	vec2f_norm(&bullet->dir);
+
+	if (cg->bullets.tail == NULL)
+	{
+		cg->bullets.tail = cg->bullets.head = bullet;
+	}
+	else
+	{
+		cg->bullets.tail->next = bullet;
+		bullet->prev = cg->bullets.tail;
+		cg->bullets.tail = bullet;
+	}
+
+	return bullet;
+}
+
+static void
+cg_default_gun_shoot(coregame_t* cg, cg_gun_t* gun)
+{
+	cg_player_t* player = gun->owner;
+	cg_bullet_t* bullet = cg_add_bullet(cg, gun);
+
+	bullet->velocity.x = bullet->dir.x * gun->spec->bullet_speed;
+	bullet->velocity.y = bullet->dir.y * gun->spec->bullet_speed;
+
+	if (gun->spec->knockback_force)
+	{
+		// TODO: Actually implement knockback force.
+		player->pos.x += (bullet->dir.x * -1.0) * gun->spec->knockback_force * cg->delta;
+		player->pos.y += (bullet->dir.y * -1.0) * gun->spec->knockback_force * cg->delta;
+	}
+}
 
 void 
 coregame_init(coregame_t* coregame, bool client, cg_map_t* map)
@@ -46,6 +93,8 @@ coregame_init(coregame_t* coregame, bool client, cg_map_t* map)
 		coregame->map = map;
 	// else
 	// 	coregame->map = cg_map_load(MAP_PATH "/test.cgmap");
+	
+	array_init(&coregame->gun_specs, sizeof(cg_gun_spec_t), 4);
 }
 
 static inline bool 
@@ -197,28 +246,6 @@ coregame_bullet_hit_player_test(coregame_t* coregame, cg_bullet_t* bullet)
 	return false;
 }
 
-// static void 
-// coregame_update_projectiles(coregame_t* coregame)
-// {
-// 	cg_projectile_t* proj = coregame->proj.head;
-// 	cg_projectile_t* proj_next;
-//
-// 	while (proj)
-// 	{
-// 		proj_next = proj->next;
-// 		proj->prev_pos = proj->rect.pos;
-// 		proj->rect.pos.x += proj->dir.x * PROJ_SPEED * coregame->delta;
-// 		proj->rect.pos.y += proj->dir.y * PROJ_SPEED * coregame->delta;
-//
-// 		if (coregame_proj_hit_player_test(coregame, proj) || 
-// 			rect_collide_map(coregame, &proj->rect))
-// 		{
-// 			coregame_free_projectile(coregame, proj);
-// 		}
-// 		proj = proj_next;
-// 	}
-// }
-
 static void
 coregame_update_bullets(coregame_t* cg)
 {
@@ -256,6 +283,7 @@ void
 coregame_cleanup(coregame_t* cg)
 {
 	free(cg->map);
+	array_del(&cg->gun_specs);
 	ght_destroy(&cg->players);
 }
 
@@ -276,11 +304,9 @@ coregame_add_player(coregame_t* coregame, const char* name)
 }
 
 void 
-coregame_add_player_from(coregame_t* coregame, cg_player_t* player)
+coregame_add_player_from(coregame_t* cg, cg_player_t* player)
 {
-	ght_insert(&coregame->players, player->id, player);
-
-	player->gun = coregame_default_gun(coregame, player);
+	ght_insert(&cg->players, player->id, player);
 }
 
 void 
@@ -310,59 +336,6 @@ coregame_set_player_dir(cg_player_t* player, u8 dir)
 
 	vec2f_norm(&player->dir);
 }
-
-// cg_projectile_t*
-// coregame_player_shoot(coregame_t* coregame, cg_player_t* player, vec2f_t dir)
-// {
-// 	cg_projectile_t* proj = coregame_add_projectile(coregame, player);
-// 	proj->dir = dir;
-// 	if (coregame->client)
-// 		proj->rotation = atan2(proj->dir.y, proj->dir.x) + M_PI / 2;
-// 	return proj;
-// }
-
-// cg_projectile_t* 
-// coregame_add_projectile(coregame_t* coregame, cg_player_t* player)
-// {
-// 	cg_projectile_t* proj = calloc(1, sizeof(cg_projectile_t));
-// 	proj->owner = player->id;
-// 	proj->rect.pos = player->pos;
-// 	proj->rect.size = vec2f(5, 5);
-// 	proj->rect.pos.x += (player->size.x / 2) + (player->dir.x * PLAYER_SPEED * coregame->delta);
-// 	proj->rect.pos.y += (player->size.y / 2) + (player->dir.y * PLAYER_SPEED * coregame->delta);
-// 	proj->prev_pos = proj->rect.pos;
-//
-// 	if (coregame->proj.tail == NULL)
-// 	{
-// 		coregame->proj.tail = coregame->proj.head = proj;
-// 	}
-// 	else
-// 	{
-// 		coregame->proj.tail->next = proj;
-// 		proj->prev = coregame->proj.tail;
-// 		coregame->proj.tail = proj;
-// 	}
-//
-// 	return proj;
-// }
-
-// void 
-// coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj)
-// {
-// 	if (coregame->proj_free_callback)
-// 		coregame->proj_free_callback(proj, coregame->user_data);
-//
-// 	if (proj->prev)
-// 		proj->prev->next = proj->next;
-// 	if (proj->next)
-// 		proj->next->prev = proj->prev;
-// 	if (proj == coregame->proj.head)
-// 		coregame->proj.head = proj->next;
-// 	if (proj == coregame->proj.tail)
-// 		coregame->proj.tail = proj->next;
-//
-// 	free(proj);
-// }
 
 void 
 coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet)
@@ -405,69 +378,46 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 			gun->bullet_timer = 0;
 	}
 
-	while (gun->bullet_timer >= gun->bullet_spawn_interval)
+	while (gun->bullet_timer >= gun->spec->bullet_spawn_interval)
 	{
-		gun->shoot(cg, gun);
-		gun->bullet_timer -= gun->bullet_spawn_interval;
+		cg_default_gun_shoot(cg, gun);
+		gun->bullet_timer -= gun->spec->bullet_spawn_interval;
 	}
 }
 
-static cg_bullet_t*
-cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
+static const cg_gun_spec_t* 
+cg_get_gun_spec(const coregame_t* cg, enum cg_gun_id id)
 {
-	cg_bullet_t* bullet = calloc(1, sizeof(cg_bullet_t));
-	const cg_player_t* player = gun->owner;
+	const cg_gun_spec_t* specs = (const cg_gun_spec_t*)cg->gun_specs.buf;
 
-	bullet->owner = player->id;
-	bullet->r.pos = player->pos;
-	bullet->r.size = vec2f(5, 5);
-	bullet->r.pos.x += (player->size.x / 2) + (player->dir.x * PLAYER_SPEED * cg->delta);
-	bullet->r.pos.y += (player->size.y / 2) + (player->dir.y * PLAYER_SPEED * cg->delta);
-	bullet->dmg = gun->dmg;
-
-	bullet->dir.x = player->cursor.x - bullet->r.pos.x;
-	bullet->dir.y = player->cursor.y - bullet->r.pos.y;
-	vec2f_norm(&bullet->dir);
-
-	if (cg->bullets.tail == NULL)
-	{
-		cg->bullets.tail = cg->bullets.head = bullet;
-	}
-	else
-	{
-		cg->bullets.tail->next = bullet;
-		bullet->prev = cg->bullets.tail;
-		cg->bullets.tail = bullet;
-	}
-
-	return bullet;
-}
-
-static void
-cg_default_gun_shoot(coregame_t* cg, cg_gun_t* gun)
-{
-	cg_player_t* player = gun->owner;
-	cg_bullet_t* bullet = cg_add_bullet(cg, gun);
-
-	bullet->velocity.x = bullet->dir.x * gun->bullet_speed;
-	bullet->velocity.y = bullet->dir.y * gun->bullet_speed;
-
-	player->pos.x += (bullet->dir.x * -1.0) * gun->knockback_force * cg->delta;
-	player->pos.y += (bullet->dir.y * -1.0) * gun->knockback_force * cg->delta;
+	for (u32 i = 0; i < cg->gun_specs.count; i++)
+		if (specs[i].id == id)
+			return specs + i;
+	return NULL;
 }
 
 cg_gun_t* 
-coregame_default_gun(UNUSED coregame_t* cg, cg_player_t* owner)
+coregame_create_gun(coregame_t* cg, enum cg_gun_id id, cg_player_t* owner)
 {
-	cg_gun_t* gun = calloc(1, sizeof(cg_gun_t));
+	const cg_gun_spec_t* spec;
+	cg_gun_t* gun;
 
-	gun->bps = GUN_BPS;
-	gun->bullet_spawn_interval = 1.0 / gun->bps;
-	gun->shoot = cg_default_gun_shoot;
+	if ((spec = cg_get_gun_spec(cg, id)) == NULL)
+		return NULL;
+
+	gun = calloc(1, sizeof(cg_gun_t));
+	gun->spec = spec;
 	gun->owner = owner;
-	gun->bullet_speed = BULLET_SPEED;
-	gun->dmg = BULLET_DMG;
-	gun->knockback_force = 0;
+	owner->gun = gun;
 
 	return gun;
+}
+
+void 
+coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec)
+{
+	cg_gun_spec_t* new_spec = array_add_into(&cg->gun_specs);
+
+	memcpy(new_spec, spec, sizeof(cg_gun_spec_t));
+	new_spec->bullet_spawn_interval = 1.0 / spec->bps;
 }

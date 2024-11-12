@@ -18,7 +18,7 @@ typedef struct
 {
 	cg_player_t* core;
 	rect_t rect;
-	rect_t top;
+	rect_t gun_rect;
 	u8 movement_dir;
 	healthbar_t hpbar; 
 	healthbar_t guncharge; 

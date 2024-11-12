@@ -71,6 +71,8 @@ typedef struct waapp
 	bool disable_debug;
 	i32 get_server_stats;
 	const char* save_username;
+
+	array_t* tmp_gun_specs;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, char* const* argv);

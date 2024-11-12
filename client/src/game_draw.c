@@ -11,7 +11,10 @@ game_render_player(ren_t* ren, player_t* player)
 	player_update_guncharge(player);
 
 	player->rect.pos = player->core->pos;
-	player->top.pos = player->core->pos;
+	player->gun_rect.pos = vec2f(
+		player->rect.pos.x - ((player->gun_rect.size.x - player->rect.size.x) / 2),
+		player->rect.pos.y - ((player->gun_rect.size.y - player->rect.size.y) / 2)
+	);
 
 	player->hpbar.background.pos = vec2f(
 		player->rect.pos.x + (player->rect.size.x - player->hpbar.background.size.x) / 2,
@@ -26,13 +29,16 @@ game_render_player(ren_t* ren, player_t* player)
 	player->guncharge.fill.pos = player->guncharge.background.pos;
 
 	ren_draw_rect(ren, &player->rect);
-	ren_draw_rect(ren, &player->top);
 
 	ren_draw_rect(ren, &player->hpbar.background);
 	ren_draw_rect(ren, &player->hpbar.fill);
 
 	ren_draw_rect(ren, &player->guncharge.background);
 	ren_draw_rect(ren, &player->guncharge.fill);
+
+	if (player->gun_rect.texture)
+		ren_draw_rect(ren, &player->gun_rect);
+
 }
 
 static void
@@ -96,7 +102,13 @@ game_render_players(client_game_t* game)
 			player->rect.rotation = atan2(cg_player->dir.y, cg_player->dir.x) + M_PI / 2;
 
 		const vec2f_t origin = rect_origin(&player->rect);
-		player->top.rotation = angle(&origin, &player->core->cursor);
+		player->gun_rect.rotation = angle(&origin, &player->core->cursor);
+
+		if (cg_player->gun)
+			player->gun_rect.texture = game->gun_textures[cg_player->gun->spec->id];
+		else
+			player->gun_rect.texture = NULL;
+
 		game_render_player(game->ren, player);
 	});
 }
