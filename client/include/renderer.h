@@ -52,6 +52,7 @@ typedef struct
 	vec2f_t pos;
 	vec2f_t pos_a;
 	vec2f_t pos_b;
+	f32		laser_thick;
 } laser_vertex_t;
 
 typedef struct client_game client_game_t;
@@ -59,7 +60,7 @@ typedef struct client_game client_game_t;
 typedef struct 
 {
 	laser_vertex_t v;
-	client_game_t* game;
+	const void* laser_data;
 } laser_draw_data_t;
 
 typedef struct batch_render_obj

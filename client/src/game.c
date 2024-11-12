@@ -284,16 +284,20 @@ game_send_chatmsg(client_game_t* game, const char* msg)
 	ssp_tcp_send_segbuf(&game->net->tcp.sock, &game->net->tcp.buf);
 }
 
+static void 
+game_set_scale_laser_thickness(const client_game_t* game, laser_bullet_t* bullet)
+{
+	const f32 lt_x = (bullet->thickness / game->ren->viewport.x) * 2.0;
+	const f32 lt_y = (bullet->thickness / game->ren->viewport.y) * 2.0;
+
+	bullet->thickness_scaled = fminf(lt_x, lt_y);
+}
+
 static void
 game_set_laser_thickness(client_game_t* game)
 {
-	shader_t* shader = &game->laser_bro->shader;
-	shader_bind(shader);
-
-	f32 lt_x = (game->laser_thicc_px / game->ren->viewport.x) * 2.0;
-	f32 lt_y = (game->laser_thicc_px / game->ren->viewport.y) * 2.0;
-
-	shader_uniform1f(shader, "line_thick", fminf(lt_x, lt_y));
+	game_set_scale_laser_thickness(game, &game->small_laser);
+	game_set_scale_laser_thickness(game, &game->big_laser);
 }
 
 static void 
@@ -326,6 +330,15 @@ game_load_gun_textures(client_game_t* game)
 	}
 }
 
+static void
+game_on_bullet_create(cg_bullet_t* bullet, client_game_t* game)
+{
+	if (bullet->gun_id == CG_GUN_ID_SMALL)
+		bullet->data = &game->small_laser;
+	else if (bullet->gun_id == CG_GUN_ID_BIG)
+		bullet->data = &game->big_laser;
+}
+
 void* 
 game_init(waapp_t* app)
 {
@@ -340,6 +353,7 @@ game_init(waapp_t* app)
 	game_init_add_gun_specs(app, game);
 	game->cg.user_data = game;
 	game->cg.player_free_callback = on_player_free;
+	game->cg.on_bullet_create = (cg_bullet_create_callback_t)game_on_bullet_create;
 
 	game->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
 	game->tank_bottom_tex->name = "Tank Bottom";
@@ -372,6 +386,7 @@ game_init(waapp_t* app)
 		VERTLAYOUT_F32, 2, // vertex position
 		VERTLAYOUT_F32, 2, // position a
 		VERTLAYOUT_F32, 2, // position b
+		VERTLAYOUT_F32, 1, // laser thickness
 		VERTLAYOUT_END
 	};
 	const bro_param_t param = {
@@ -388,9 +403,16 @@ game_init(waapp_t* app)
 	};
 	game->laser_bro = ren_new_bro(game->ren, &param);
 
-	game->laser_thicc_px = 25.0;
-	shader_t* shader = &game->laser_bro->shader;
+	game->small_laser.thickness = 25.0;
+	game->small_laser.len = 60.0;
+
+	game->big_laser.thickness = 40.0;
+	game->big_laser.len = 250.0;
+
 	game_set_laser_thickness(game);
+
+	shader_t* shader = &game->laser_bro->shader;
+	shader_bind(shader);
 	shader_uniform1f(shader, "scale", game->ren->scale.x);
 
 	return game;

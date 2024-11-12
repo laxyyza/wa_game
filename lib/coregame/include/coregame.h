@@ -26,13 +26,14 @@
 #define PLAYER_DIR_LEFT  0x08
 
 typedef struct cg_player cg_player_t;
+typedef struct cg_bullet cg_bullet_t;
+typedef struct coregame coregame_t;
+typedef struct cg_gun cg_gun_t;
 
+typedef void (*cg_bullet_create_callback_t)(cg_bullet_t* bullet, void* user_data);
 typedef void (*cg_player_changed_callback_t)(cg_player_t* player, void* user_data);
 typedef void (*cg_player_damaged_callback_t)(cg_player_t* target_player, 
 											 cg_player_t* attacker_player, void* user_data);
-
-typedef struct coregame coregame_t;
-typedef struct cg_gun cg_gun_t;
 
 enum cg_gun_id
 {
@@ -75,11 +76,13 @@ typedef struct cg_player
 
 typedef struct cg_bullet
 {
-	u32		owner;
-	cg_rect_t r;
-	vec2f_t dir;
-	vec2f_t velocity;
-	f32		dmg;
+	u32				owner;
+	cg_rect_t		r;
+	vec2f_t			dir;
+	vec2f_t			velocity;
+	f32				dmg;
+	enum cg_gun_id	gun_id;
+	void*			data;
 
 	struct cg_bullet* next;
 	struct cg_bullet* prev;
@@ -128,6 +131,7 @@ typedef struct coregame
 	f64 delta;
 	void* user_data;
 
+	cg_bullet_create_callback_t on_bullet_create;
 	void (*bullet_free_callback)(cg_bullet_t* bullet, void* data);
 	void (*player_free_callback)(cg_player_t* proj, void* data);
 	cg_player_changed_callback_t player_changed;

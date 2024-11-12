@@ -48,15 +48,15 @@ game_render_bullets(client_game_t* game)
 
 	while (bullet)
 	{
-		static const f32 laser_len = 60.0;
+		const laser_bullet_t* bullet_data = bullet->data;
 		laser_draw_data_t draw_data = {
 			.v = {
 				.pos_a = bullet->r.pos,
 			},
-			.game = game
+			.laser_data = bullet_data
 		};
-		draw_data.v.pos_b.x = draw_data.v.pos_a.x + laser_len * bullet->dir.x;
-		draw_data.v.pos_b.y = draw_data.v.pos_a.y + laser_len * bullet->dir.y;
+		draw_data.v.pos_b.x = draw_data.v.pos_a.x + bullet_data->len * bullet->dir.x;
+		draw_data.v.pos_b.y = draw_data.v.pos_a.y + bullet_data->len * bullet->dir.y;
 		game->laser_bro->draw_misc(game->ren, game->laser_bro, &draw_data);
 
 		bullet = bullet->next;

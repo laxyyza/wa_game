@@ -17,6 +17,13 @@ typedef struct
 	u32  msg_len;
 } chatmsg_t;
 
+typedef struct laser_bullet
+{
+	f32 len;
+	f32 thickness;
+	f32 thickness_scaled;
+} laser_bullet_t;
+
 typedef struct client_game
 {
 	coregame_t cg;
@@ -45,7 +52,8 @@ typedef struct client_game
 
 	struct nk_context* nk_ctx;
 
-	f32 laser_thicc_px;
+	laser_bullet_t small_laser;
+	laser_bullet_t big_laser;
 } client_game_t;
 
 void* game_init(waapp_t* app);

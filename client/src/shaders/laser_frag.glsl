@@ -3,11 +3,11 @@
 layout(location = 0) out vec4 out_color;
 
 uniform float scale;
-uniform float line_thick;
 
 in vec2 v_pos;
 in vec2 v_pos_a;
 in vec2 v_pos_b;
+in float line_thick;
 
 float dist_to_line(vec2 p, vec2 a, vec2 b)
 {

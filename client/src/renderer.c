@@ -670,7 +670,7 @@ ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
 {
 	const laser_draw_data_t* d_data = draw_data;
 	const laser_vertex_t* data = &d_data->v;
-	client_game_t* game = d_data->game;
+	const laser_bullet_t* bullet_data = d_data->laser_data;
 
 	bool in_frustum = point_in_frustum(ren, &data->pos_a);
 	if (in_frustum == false)
@@ -680,7 +680,7 @@ ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
         bro_draw_batch(ren, bro);
 
     const u32 v = bro->vbo.count;
-	const f32 line_thicc = game->laser_thicc_px;
+	const f32 line_thicc = bullet_data->thickness;
 	const vec2f_t* a = &data->pos_a;
 	const vec2f_t* b = &data->pos_b;
     laser_vertex_t* vertices = (laser_vertex_t*)bro->vbo.buf + v;
@@ -702,6 +702,7 @@ ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
 	);
 	vertices->pos_a = data->pos_a;
 	vertices->pos_b = data->pos_b;
+	vertices->laser_thick = line_thicc;
 	vertices++;
 
 	vertices->pos = vec2f(
@@ -710,6 +711,7 @@ ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
 	);
 	vertices->pos_a = data->pos_a;
 	vertices->pos_b = data->pos_b;
+	vertices->laser_thick = line_thicc;
 	vertices++;
 
 	vertices->pos = vec2f(
@@ -718,6 +720,7 @@ ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
 	);
 	vertices->pos_a = data->pos_a;
 	vertices->pos_b = data->pos_b;
+	vertices->laser_thick = line_thicc;
 	vertices++;
 
 	vertices->pos = vec2f(
@@ -726,6 +729,7 @@ ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data)
 	);
 	vertices->pos_a = data->pos_a;
 	vertices->pos_b = data->pos_b;
+	vertices->laser_thick = line_thicc;
 
 	ren_add_rect_indices(bro, v);
 

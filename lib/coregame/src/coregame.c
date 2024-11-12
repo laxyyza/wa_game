@@ -36,6 +36,7 @@ cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
 	bullet->r.pos.x += (player->size.x / 2) + (player->dir.x * PLAYER_SPEED * cg->delta);
 	bullet->r.pos.y += (player->size.y / 2) + (player->dir.y * PLAYER_SPEED * cg->delta);
 	bullet->dmg = gun->spec->dmg;
+	bullet->gun_id = gun->spec->id;
 
 	bullet->dir.x = player->cursor.x - bullet->r.pos.x;
 	bullet->dir.y = player->cursor.y - bullet->r.pos.y;
@@ -51,6 +52,9 @@ cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
 		bullet->prev = cg->bullets.tail;
 		cg->bullets.tail = bullet;
 	}
+
+	if (cg->on_bullet_create)
+		cg->on_bullet_create(bullet, cg->user_data);
 
 	return bullet;
 }
