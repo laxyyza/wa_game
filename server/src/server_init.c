@@ -224,15 +224,15 @@ server_init_coregame_gun_specs(server_t* server)
 {
 	const cg_gun_spec_t small_gun_spec = {
 		.id = CG_GUN_ID_SMALL,
-		.bps = 20.0,
-		.dmg = 2.0,
+		.bps = 5.0,
+		.dmg = 7.0,
 		.knockback_force = 0.0,
 		.bullet_speed = 7000,
 	};
 
 	const cg_gun_spec_t big_gun_spec = {
 		.id = CG_GUN_ID_BIG,
-		.bps = 1.0,
+		.bps = 0.75,
 		.dmg = 95.0,
 		.knockback_force = 1000.0,
 		.bullet_speed = 10000,
