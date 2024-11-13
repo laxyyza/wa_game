@@ -278,7 +278,7 @@ game_send_chatmsg(client_game_t* game, const char* msg)
 		return;
 
 	net_tcp_chat_msg_t* chatmsg = mmframes_alloc(&game->app->mmf, sizeof(net_tcp_chat_msg_t));
-	strncpy(chatmsg->msg, msg, CHAT_MSG_MAX);
+	strncpy(chatmsg->msg, msg, CHAT_MSG_MAX - 1);
 
 	ssp_segbuff_add(&game->net->tcp.buf, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), chatmsg);
 	ssp_tcp_send_segbuf(&game->net->tcp.sock, &game->net->tcp.buf);
