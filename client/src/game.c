@@ -406,7 +406,7 @@ game_init(waapp_t* app)
 	game->small_laser.thickness = 25.0;
 	game->small_laser.len = 60.0;
 
-	game->big_laser.thickness = 40.0;
+	game->big_laser.thickness = 400.0;
 	game->big_laser.len = 250.0;
 
 	game_set_laser_thickness(game);
