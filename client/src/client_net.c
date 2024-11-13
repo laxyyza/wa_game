@@ -7,6 +7,7 @@
 #include "state.h"
 #include "gui/gui.h"
 #include "game_net_events.h"
+#include "cutils.h"
 
 #ifdef __linux__
 #include <sys/epoll.h>

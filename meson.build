@@ -3,7 +3,7 @@ project('wa_game', 'c',
         'werror=true',
         'warning_level=2',
         'default_library=static',
-        'c_std=c17'
+        'c_std=c2x'
     ],
     version: '0.1'
 )
