@@ -5,7 +5,7 @@ project('wa_game', 'c',
         'default_library=static',
         'c_std=c2x'
     ],
-    version: '0.1'
+    version: '0.1.1'
 )
 
 cc = meson.get_compiler('c')
