@@ -89,14 +89,40 @@ map_editor_enter(waapp_t* app, waapp_map_editor_t* editor)
 }
 
 static void
+map_editor_set_cell(cg_runtime_cell_t* cell, u8 new_type)
+{
+	if (cell && cell->type != new_type)
+	{
+		if (cell->type == CG_CELL_BLOCK)
+		{
+			free(cell->data);
+		}
+		else
+		{
+			cg_empty_cell_data_t* data = cell->data;
+			array_del(&data->contents);
+			free(cell->data);
+		}
+		cell->type = new_type;
+
+		if (cell->type == CG_CELL_BLOCK)
+			cell->data = calloc(1, sizeof(cg_block_cell_data_t));
+		else
+		{
+			cell->data = calloc(1, sizeof(cg_empty_cell_data_t));
+			cg_empty_cell_data_t* data = cell->data;
+			array_init(&data->contents, sizeof(cg_cell_data_t), 2);
+		}
+	}
+}
+
+static void
 map_editor_add_block(waapp_t* app, waapp_map_editor_t* editor)
 {
 	vec2f_t mpos = screen_to_world(&app->ren, &app->mouse);
 	cg_runtime_cell_t* cell = cg_map_at_wpos(editor->map, &mpos);
-	if (cell)
-	{
-		cell->type = editor->selected_cell_type + CG_CELL_BLOCK;
-	}
+	u8 new_type = editor->selected_cell_type + CG_CELL_BLOCK;
+	map_editor_set_cell(cell, new_type);
 }
 
 static void
@@ -104,10 +130,7 @@ map_editor_del_block(waapp_t* app, waapp_map_editor_t* editor)
 {
 	vec2f_t mpos = screen_to_world(&app->ren, &app->mouse);
 	cg_runtime_cell_t* cell = cg_map_at_wpos(editor->map, &mpos);
-	if (cell)
-	{
-		cell->type = CG_CELL_EMPTY;
-	}
+	map_editor_set_cell(cell, CG_CELL_EMPTY);
 }
 
 static void
@@ -120,6 +143,9 @@ map_editor_handle_building(waapp_t* app, waapp_map_editor_t* editor)
 		map_editor_add_block(app, editor);
 	else if (editor->mouse_map[WA_MOUSE_RIGHT])
 		map_editor_del_block(app, editor);
+	else
+		return;
+	cg_map_compute_edge_pool(editor->map);
 }
 
 static bool
@@ -191,14 +217,25 @@ map_editor_ui(waapp_t* app, waapp_map_editor_t* editor)
 		i32 width = editor->map->w;
 		i32 height = editor->map->h;
 		i32 grid_size = editor->map->grid_size;
+		bool re_compute_edge_pool = false;
 
 		nk_property_int(ctx, "Grid Width", 1, &width, UINT16_MAX, 1, 10);
 		nk_property_int(ctx, "Grid Height", 1, &height, UINT16_MAX, 1, 10);
 		nk_property_int(ctx, "Cell Size", 10, &grid_size, UINT16_MAX, 1, 10);
 
 		if ((u16)width != editor->map->w || (u16)height != editor->map->h)
+		{
 			cg_map_resize(&editor->map, width, height);
-		editor->map->grid_size = (u16)grid_size;
+			re_compute_edge_pool = true;
+		}
+		if (editor->map->grid_size != (u16)grid_size)
+		{
+			editor->map->grid_size = (u16)grid_size;
+			re_compute_edge_pool = true;
+		}
+
+		if (re_compute_edge_pool)
+			cg_map_compute_edge_pool(editor->map);
 
 		nk_label(ctx, "Map name:", NK_TEXT_LEFT);
 		nk_edit_string_zero_terminated(ctx, 
@@ -263,7 +300,7 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 		map_editor_handle_building(app, editor);
 		map_editor_ui(app, editor);
 		if (editor->map)
-			game_render_map(app, editor->map, true);
+			game_render_map(app, editor->map, false);
 	}
 	else
 	{
