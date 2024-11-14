@@ -112,5 +112,6 @@ void				cg_runtime_map_free(cg_runtime_map_t* map);
 void				cg_map_compute_edge_pool(cg_runtime_map_t* map);
 
 u64			file_size(FILE* f);
+u16			mini16(u16 a, u16 b);
 
 #endif // _COREGAME_MAP_H_

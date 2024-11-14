@@ -375,11 +375,14 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 {
 	if (gun->owner->shoot)
 		gun->bullet_timer += cg->delta;
-	else if (gun->bullet_timer > 0)
+	else
 	{
-		gun->bullet_timer -= cg->delta;
-		if (gun->bullet_timer < 0)
-			gun->bullet_timer = 0;
+		if (gun->spec->autocharge)
+			gun->bullet_timer += cg->delta;
+		else
+			gun->bullet_timer -= cg->delta;
+		gun->bullet_timer = clampf(gun->bullet_timer, 0, gun->spec->bullet_spawn_interval);
+		return;
 	}
 
 	while (gun->bullet_timer >= gun->spec->bullet_spawn_interval)

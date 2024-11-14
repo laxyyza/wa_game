@@ -149,7 +149,7 @@ cg_map_new(u16 w, u16 h, u16 grid_size)
 	return map;
 }
 
-static u16 
+u16 
 mini16(u16 a, u16 b)
 {
 	if (a > b)

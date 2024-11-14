@@ -228,6 +228,7 @@ server_init_coregame_gun_specs(server_t* server)
 		.dmg = 7.0,
 		.knockback_force = 0.0,
 		.bullet_speed = 7000,
+		.autocharge = true
 	};
 
 	const cg_gun_spec_t big_gun_spec = {
@@ -236,6 +237,7 @@ server_init_coregame_gun_specs(server_t* server)
 		.dmg = 95.0,
 		.knockback_force = 1000.0,
 		.bullet_speed = 10000,
+		.autocharge = false
 	};
 
 	coregame_add_gun_spec(&server->game, &small_gun_spec);

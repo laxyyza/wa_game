@@ -96,6 +96,7 @@ typedef struct cg_gun_spec
 	f32 bullet_speed;
 	f32 dmg;
 	f32 knockback_force;
+	bool autocharge;
 } cg_gun_spec_t;
 
 typedef struct cg_gun
