@@ -200,10 +200,12 @@ game_render_map(waapp_t* app, cg_runtime_map_t* map, bool show_grid)
 		for (u32 y = c_left->pos.y; y <= c_right->pos.y; y++)
 			game_render_cell(app, map, cg_runtime_map_at(map, x, y));
 
-	game_render_map_cell_edges(ren, map);
 
 	if (show_grid)
+	{
 		game_render_grid(ren, map->w, map->h, map->grid_size, map->grid_size);
+		game_render_map_cell_edges(ren, map);
+	}
 	ren->line_bro->draw_rect(ren, ren->line_bro, &app->map_border);
 
 	ren_bind_bro(ren, app->ren.default_bro);

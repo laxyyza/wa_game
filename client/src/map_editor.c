@@ -300,7 +300,7 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 		map_editor_handle_building(app, editor);
 		map_editor_ui(app, editor);
 		if (editor->map)
-			game_render_map(app, editor->map, false);
+			game_render_map(app, editor->map, true);
 	}
 	else
 	{
