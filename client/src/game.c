@@ -7,12 +7,10 @@
 
 
 static void
-game_clamp_cam(vec3f_t* cam, const cg_map_t* cg_map, const ren_t* ren)
+game_clamp_cam(vec3f_t* cam, const cg_runtime_map_t* map, const ren_t* ren)
 {
-	if (cg_map == NULL)
+	if (map == NULL)
 		return;
-
-	const cg_map_header_t* map = &cg_map->header;
 
 	f32 offset = 20.0;
 
@@ -364,12 +362,12 @@ game_init(waapp_t* app)
 
 	app->keybind.cam_move = WA_MOUSE_RIGHT;
 
-	const cg_map_header_t* maph = &game->cg.map->header;
+	const cg_runtime_map_t* map = game->cg.map;
 
 	rect_init(&app->map_border, vec2f(0, 0), 
 		vec2f(
-			maph->w * maph->grid_size,
-			maph->h * maph->grid_size
+			map->w * map->grid_size,
+			map->h * map->grid_size
 		), 
 		0xFF0000FF, 
 		NULL

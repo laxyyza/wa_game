@@ -124,7 +124,7 @@ typedef struct coregame
 		cg_bullet_t* tail;
 	} bullets;
 	cg_rect_t world_border;
-	cg_map_t* map;
+	cg_runtime_map_t* map;
 
 	array_t gun_specs;
 	struct timespec last_time;
@@ -144,7 +144,7 @@ typedef struct coregame
 	bool client;
 } coregame_t;
 
-void coregame_init(coregame_t* coregame, bool client, cg_map_t* map);
+void coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map);
 void coregame_update(coregame_t* coregame);
 void coregame_cleanup(coregame_t* coregame);
 

@@ -245,7 +245,7 @@ server_init_coregame_gun_specs(server_t* server)
 static i32 
 server_init_coregame(server_t* server)
 {
-	cg_map_t* map = cg_map_load(server->cgmap_path, &server->disk_map, &server->disk_map_size);
+	cg_runtime_map_t* map = cg_map_load(server->cgmap_path, &server->disk_map, &server->disk_map_size);
 	if (map == NULL)
 	{
 		fprintf(stderr, "Failed to load map: %s\n", server->cgmap_path);
@@ -257,14 +257,14 @@ server_init_coregame(server_t* server)
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 	server->game.player_damaged = (cg_player_damaged_callback_t)on_player_damaged;
 
-	array_init(&server->spawn_points, sizeof(cg_cell_t**), 10);
-	cg_cell_t* cell;
+	array_init(&server->spawn_points, sizeof(cg_runtime_cell_t**), 10);
+	cg_runtime_cell_t* cell;
 
-	for (u16 x = 0; x < map->header.w; x++)
+	for (u16 x = 0; x < map->w; x++)
 	{
-		for (u16 y = 0; y < map->header.h; y++)
+		for (u16 y = 0; y < map->h; y++)
 		{
-			cell = cg_map_at(map, x, y);
+			cell = cg_runtime_map_at(map, x, y);
 			if (cell->type == CG_CELL_SPAWN)
 				array_add_voidp(&server->spawn_points, cell);
 		}

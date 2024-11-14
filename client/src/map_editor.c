@@ -92,7 +92,7 @@ static void
 map_editor_add_block(waapp_t* app, waapp_map_editor_t* editor)
 {
 	vec2f_t mpos = screen_to_world(&app->ren, &app->mouse);
-	cg_cell_t* cell = cg_map_at_wpos(editor->map, &mpos);
+	cg_runtime_cell_t* cell = cg_map_at_wpos(editor->map, &mpos);
 	if (cell)
 	{
 		cell->type = editor->selected_cell_type + CG_CELL_BLOCK;
@@ -103,7 +103,7 @@ static void
 map_editor_del_block(waapp_t* app, waapp_map_editor_t* editor)
 {
 	vec2f_t mpos = screen_to_world(&app->ren, &app->mouse);
-	cg_cell_t* cell = cg_map_at_wpos(editor->map, &mpos);
+	cg_runtime_cell_t* cell = cg_map_at_wpos(editor->map, &mpos);
 	if (cell)
 	{
 		cell->type = CG_CELL_EMPTY;
@@ -132,7 +132,9 @@ map_editor_save_current(waapp_map_editor_t* editor)
 	if (selected->path[0] == 0x00)
 		first_save = true;
 
-	selected->header = selected->map->header;
+	selected->header.w = selected->map->w;
+	selected->header.h = selected->map->h;
+	selected->header.grid_size = selected->map->grid_size;
 	snprintf(selected->path, MAP_PATH_MAX - 1, MAP_PATH"/%s.cgmap", editor->map_selected->name);
 	ret = cg_map_save(editor->map, selected->path);
 
@@ -186,17 +188,17 @@ map_editor_ui(waapp_t* app, waapp_map_editor_t* editor)
 		}
 
 
-		i32 width = editor->map->header.w;
-		i32 height = editor->map->header.h;
-		i32 grid_size = editor->map->header.grid_size;
+		i32 width = editor->map->w;
+		i32 height = editor->map->h;
+		i32 grid_size = editor->map->grid_size;
 
 		nk_property_int(ctx, "Grid Width", 1, &width, UINT16_MAX, 1, 10);
 		nk_property_int(ctx, "Grid Height", 1, &height, UINT16_MAX, 1, 10);
 		nk_property_int(ctx, "Cell Size", 10, &grid_size, UINT16_MAX, 1, 10);
 
-		if (width != editor->map->header.w || height != editor->map->header.h)
+		if ((u16)width != editor->map->w || (u16)height != editor->map->h)
 			cg_map_resize(&editor->map, width, height);
-		editor->map->header.grid_size = (u16)grid_size;
+		editor->map->grid_size = (u16)grid_size;
 
 		nk_label(ctx, "Map name:", NK_TEXT_LEFT);
 		nk_edit_string_zero_terminated(ctx, 
@@ -234,7 +236,7 @@ map_editor_ui(waapp_t* app, waapp_map_editor_t* editor)
 		editor->map_selected->map = NULL;
 		if (editor->map_selected->path[0] == 0x00)
 			ght_del(&editor->maps, editor->map_selected->id);
-		free(editor->map);
+		cg_runtime_map_free(editor->map);
 		app->current_map = editor->map = NULL;
 		editor->map_selected = NULL;
 	}
@@ -380,8 +382,7 @@ void
 map_editor_cleanup(UNUSED waapp_t* app, waapp_map_editor_t* editor)
 {
 	ght_destroy(&editor->maps);
-	if (editor->map)
-		free(editor->map);
+	cg_runtime_map_free(editor->map);
 
 	free(editor);
 }

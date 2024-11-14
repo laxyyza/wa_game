@@ -77,7 +77,7 @@ cg_default_gun_shoot(coregame_t* cg, cg_gun_t* gun)
 }
 
 void 
-coregame_init(coregame_t* coregame, bool client, cg_map_t* map)
+coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map)
 {
 	ght_init(&coregame->players, 10, free);
 	coregame->time_scale = 1.0;
@@ -136,16 +136,16 @@ coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
 }
 
 static bool 
-rect_collide_cell(cg_map_t* map, const cg_rect_t* rect, const cg_cell_t* cell)
+rect_collide_cell(cg_runtime_map_t* map, const cg_rect_t* rect, const cg_runtime_cell_t* cell)
 {
 	if (cell->type != CG_CELL_BLOCK)
 		return false;
 
 	const cg_rect_t cell_rect = {
-		.pos.x = cell->pos.x * map->header.grid_size,
-		.pos.y = cell->pos.y * map->header.grid_size,
-		.size.x = map->header.grid_size,
-		.size.y = map->header.grid_size
+		.pos.x = cell->pos.x * map->grid_size,
+		.pos.y = cell->pos.y * map->grid_size,
+		.size.x = map->grid_size,
+		.size.y = map->grid_size
 	};
 	return rect_aabb_test(rect, &cell_rect);
 }
@@ -153,11 +153,11 @@ rect_collide_cell(cg_map_t* map, const cg_rect_t* rect, const cg_cell_t* cell)
 static bool
 rect_collide_map(coregame_t* cg, const cg_rect_t* rect)
 {
-	cg_map_t* map = cg->map;
+	cg_runtime_map_t* map = cg->map;
 	vec2f_t bot_right = vec2f(rect->pos.x + rect->size.x, rect->pos.y + rect->size.y);
-	cg_cell_t* c_left = cg_map_at_wpos(map, &rect->pos);
-	cg_cell_t* c_right = cg_map_at_wpos(map, &bot_right);
-	cg_cell_t* cell;
+	cg_runtime_cell_t* c_left = cg_map_at_wpos(map, &rect->pos);
+	cg_runtime_cell_t* c_right = cg_map_at_wpos(map, &bot_right);
+	cg_runtime_cell_t* cell;
 
 	if (c_left == NULL || c_right == NULL)
 		return true;
@@ -168,7 +168,7 @@ rect_collide_map(coregame_t* cg, const cg_rect_t* rect)
 	{
 		for (i32 y = c_left->pos.y; y <= c_right->pos.y; y++)
 		{
-			if ((cell = cg_map_at(map, x, y)) == NULL)
+			if ((cell = cg_runtime_map_at(map, x, y)) == NULL)
 				return true;
 			if (rect_collide_cell(map, rect, cell))
 				return true;

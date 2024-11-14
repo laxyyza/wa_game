@@ -52,7 +52,7 @@ typedef struct server
 		event_t* tail;
 	} events;
 	const char* cgmap_path;
-	cg_map_t*	disk_map;
+	cg_disk_map_t*	disk_map;
 	u32			disk_map_size;
 
 	struct timespec start_time;

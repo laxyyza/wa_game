@@ -114,9 +114,9 @@ game_render_players(client_game_t* game)
 }
 
 static void
-game_render_cell(waapp_t* app, const cg_map_t* map, const cg_cell_t* cell)
+game_render_cell(waapp_t* app, const cg_runtime_map_t* map, const cg_runtime_cell_t* cell)
 {
-	const u32 grid_size = map->header.grid_size;
+	const u32 grid_size = map->grid_size;
 	ren_t* ren = &app->ren;
 	texture_t* texture = NULL;
 	rect_t cell_rect = {0};
@@ -161,24 +161,24 @@ game_render_grid(ren_t* ren, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h)
 }
 
 void
-game_render_map(waapp_t* app, cg_map_t* map, bool show_grid)
+game_render_map(waapp_t* app, cg_runtime_map_t* map, bool show_grid)
 {
 	ren_t* ren = &app->ren;
 	const vec2f_t cam = vec2f(-app->cam.x / ren->scale.x, -app->cam.y / ren->scale.y);
 	const vec2f_t* viewport = &app->ren.viewport;
 	const vec2f_t bot_right = vec2f(cam.x + viewport->x / ren->scale.x, cam.y + viewport->y / ren->scale.y);
-	const cg_cell_t* c_left;
-	const cg_cell_t* c_right;
+	const cg_runtime_cell_t* c_left;
+	const cg_runtime_cell_t* c_right;
 
 	c_left = cg_map_at_wpos_clamp(map, &cam);
 	c_right = cg_map_at_wpos_clamp(map, &bot_right);
 
 	for (u32 x = c_left->pos.x; x <= c_right->pos.x; x++)
 		for (u32 y = c_left->pos.y; y <= c_right->pos.y; y++)
-			game_render_cell(app, map, cg_map_at(map, x, y));
+			game_render_cell(app, map, cg_runtime_map_at(map, x, y));
 
 	if (show_grid)
-		game_render_grid(ren, map->header.w, map->header.h, map->header.grid_size, map->header.grid_size);
+		game_render_grid(ren, map->w, map->h, map->grid_size, map->grid_size);
 	ren->line_bro->draw_rect(ren, ren->line_bro, &app->map_border);
 
 	ren_bind_bro(ren, app->ren.default_bro);

@@ -42,7 +42,7 @@ enum segtypes
 	NET_SEGTYPES_LEN
 };
 
-typedef cg_map_t net_tcp_cg_map_t;
+typedef cg_disk_map_t net_tcp_cg_map_t;
 typedef cg_gun_spec_t net_tcp_gun_spec_t;
 
 typedef struct 

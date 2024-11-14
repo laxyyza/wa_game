@@ -65,8 +65,8 @@ typedef struct waapp
 	f32 min_zoom;
 	f32 max_zoom;
 
-	cg_map_t* map_from_server;
-	const cg_map_t* current_map;
+	cg_runtime_map_t* map_from_server;
+	const cg_runtime_map_t* current_map;
 
 	bool disable_debug;
 	i32 get_server_stats;

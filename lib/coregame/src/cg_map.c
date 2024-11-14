@@ -15,11 +15,11 @@ file_size(FILE* f)
     return ret;
 }
 
-cg_map_t*	
-cg_map_load(const char* path, cg_map_t** disk_map_p, u32* disk_size_p)
+cg_runtime_map_t*	
+cg_map_load(const char* path, cg_disk_map_t** disk_map_p, u32* disk_size_p)
 {
-	cg_map_t* ret = NULL;
-	cg_map_t* disk_map;
+	cg_runtime_map_t* ret = NULL;
+	cg_disk_map_t* disk_map;
 	u64 disk_size;
 
 	FILE* f = fopen(path, "rb");
@@ -56,37 +56,48 @@ err:
 	return ret;
 }
 
-cg_map_t* 
-cg_map_load_disk(const cg_map_t* disk_map, u32 disk_size)
+cg_runtime_map_t* 
+cg_map_load_disk(const cg_disk_map_t* disk_map, u32 disk_size)
 {
-	cg_map_t* ret;
+	cg_runtime_map_t* ret;
 	u64 disk_cells_count = 0;
-	const cg_cell_t* disk_cell;
-	cg_cell_t* cell;
+	const cg_disk_cell_t* disk_cell;
+	cg_runtime_cell_t* runtime_cell;
 
-	disk_cells_count = (disk_size - sizeof(cg_map_header_t)) / sizeof(cg_cell_t);
+	disk_cells_count = (disk_size - sizeof(cg_map_header_t)) / sizeof(cg_disk_cell_t);
 
 	ret = cg_map_new(disk_map->header.w, disk_map->header.h, disk_map->header.grid_size);
 
 	for (u32 i = 0; i < disk_cells_count; i++)
 	{
 		disk_cell = disk_map->cells + i;
-		cell = cg_map_at(ret, disk_cell->pos.x, disk_cell->pos.y);
-		memcpy(cell, disk_cell, sizeof(cg_cell_t));
+		runtime_cell = cg_runtime_map_at(ret, disk_cell->pos.x, disk_cell->pos.y);
+		runtime_cell->type = disk_cell->type;
+		runtime_cell->pos = disk_cell->pos;
+
+		if (runtime_cell->type == CG_CELL_BLOCK)
+			runtime_cell->data = calloc(1, sizeof(cg_block_cell_data_t));
+		else
+		{
+			runtime_cell->data = calloc(1, sizeof(cg_empty_cell_data_t));
+			cg_empty_cell_data_t* data = runtime_cell->data;
+			array_init(&data->contents, sizeof(cg_cell_data_t), 2);
+		}
 	}
+	array_init(&ret->runtime.edge_pool, sizeof(cg_line_t), 16);
 	return ret;
 }
 
 static void
-cg_map_set_cells_pos(cg_map_t* map)
+cg_map_set_cells_pos(cg_runtime_map_t* map)
 {
-	cg_cell_t* cell;
+	cg_runtime_cell_t* cell;
 
-	for (u16 x = 0; x < map->header.w; x++)
+	for (u16 x = 0; x < map->w; x++)
 	{
-		for (u16 y = 0; y < map->header.h; y++)
+		for (u16 y = 0; y < map->h; y++)
 		{
-			cell = &map->cells[(y * map->header.w) + x];
+			cell = &map->cells[(y * map->w) + x];
 			cell->pos.x = x;
 			cell->pos.y = y;
 		}
@@ -94,28 +105,34 @@ cg_map_set_cells_pos(cg_map_t* map)
 }
 
 u32
-cg_map_calc_size(u16 w, u16 h)
+cg_runtime_map_calc_size(u16 w, u16 h)
 {
-	return ((w * h) * sizeof(cg_cell_t)) + sizeof(cg_map_header_t);
+	return ((w * h) * sizeof(cg_runtime_cell_t)) + sizeof(cg_runtime_map_t);
 }
 
 u32
-cg_map_size(const cg_map_t* map)
+cg_disk_map_calc_size(u16 w, u16 h)
 {
-	return cg_map_calc_size(map->header.w, map->header.h);
+	return ((w * h) * sizeof(cg_disk_cell_t)) + sizeof(cg_map_header_t);
 }
 
-cg_map_t*	
+u32
+cg_runtime_map_size(const cg_runtime_map_t* map)
+{
+	return cg_runtime_map_calc_size(map->w, map->h);
+}
+
+cg_runtime_map_t*	
 cg_map_new(u16 w, u16 h, u16 grid_size)
 {
-	cg_map_t* map;
-	u32 size = cg_map_calc_size(w, h);
+	cg_runtime_map_t* map;
+	u32 size = cg_runtime_map_calc_size(w, h);
 
 	map = calloc(1, size);
-	memcpy(map->header.magic, CG_MAP_MAGIC, CG_MAP_MAGIC_LEN);
-	map->header.w = w;
-	map->header.h = h;
-	map->header.grid_size = grid_size;
+	map->w = w;
+	map->h = h;
+	map->grid_size = grid_size;
+	array_init(&map->runtime.edge_pool, sizeof(cg_line_t), 16);
 
 	cg_map_set_cells_pos(map);
 
@@ -132,20 +149,22 @@ mini16(u16 a, u16 b)
 }
 
 void
-cg_map_resize(cg_map_t** mapp, u16 new_w, u16 new_h)
+cg_map_resize(cg_runtime_map_t** mapp, u16 new_w, u16 new_h)
 {
-	cg_map_t* map = *mapp;
-	cg_map_t* new_map;
-	if (new_w == map->header.w && new_h == map->header.h)
+	cg_runtime_map_t* map = *mapp;
+	cg_runtime_map_t* new_map;
+	if(map->editor_mode == false)
+		return;
+	if (new_w == map->w && new_h == map->h)
 		return;
 
-	u16 old_w = map->header.w;
-	u16 old_h = map->header.h;
+	u16 old_w = map->w;
+	u16 old_h = map->h;
 
-	new_map = cg_map_new(new_w, new_h, map->header.grid_size);
+	new_map = cg_map_new(new_w, new_h, map->grid_size);
 
-	cg_cell_t* new_cell;
-	cg_cell_t* old_cell;
+	cg_runtime_cell_t* new_cell;
+	cg_runtime_cell_t* old_cell;
 
 	u16 safe_w = mini16(new_w, old_w);
 	u16 safe_h = mini16(new_h, old_h);
@@ -164,18 +183,18 @@ cg_map_resize(cg_map_t** mapp, u16 new_w, u16 new_h)
 }
 
 static u64 
-cg_map_disk_size(const cg_map_t* map, array_t* idx_array)
+cg_map_runtime_disk_size(const cg_runtime_map_t* map, array_t* idx_array)
 {
 	u64 size = sizeof(cg_map_header_t);
-	u32 cells_count = map->header.w * map->header.h;
-	const cg_cell_t* cell;
+	u32 cells_count = map->w * map->h;
+	const cg_runtime_cell_t* cell;
 
 	for (u32 i = 0; i < cells_count; i++)
 	{
 		cell = map->cells + i;
 		if (cell->type)
 		{
-			size += sizeof(cg_cell_t);
+			size += sizeof(cg_disk_cell_t);
 			array_add_i32(idx_array, i);
 		}
 	}
@@ -183,7 +202,7 @@ cg_map_disk_size(const cg_map_t* map, array_t* idx_array)
 }
 
 bool		
-cg_map_save(const cg_map_t* map, const char* path)
+cg_map_save(const cg_runtime_map_t* map, const char* path)
 {
 	FILE* f = fopen(path, "wb+");
 	if (f == NULL)
@@ -193,22 +212,26 @@ cg_map_save(const cg_map_t* map, const char* path)
 	}
 
 	array_t idx_array;
-	array_init(&idx_array, sizeof(u32), map->header.w * map->header.h);
+	array_init(&idx_array, sizeof(u32), map->w * map->h);
 	u32* idx_buf = (u32*)idx_array.buf;
-	u64 disk_size = cg_map_disk_size(map, &idx_array);
+	u64 disk_size = cg_map_runtime_disk_size(map, &idx_array);
 
 	if (idx_array.count == 0)
 		return false;
 
-	cg_map_t* map_disk = calloc(1, disk_size);
-	memcpy(&map_disk->header, &map->header, sizeof(cg_map_header_t));
+	cg_disk_map_t* map_disk = calloc(1, disk_size);
+	memcpy(map_disk->header.magic, CG_MAP_MAGIC, CG_MAP_MAGIC_LEN);
+	map_disk->header.w = map->w;
+	map_disk->header.h = map->h;
+	map_disk->header.grid_size = map->grid_size;
 
 	for (u32 i = 0; i < idx_array.count; i++)
 	{
-		cg_cell_t* dest_cell = map_disk->cells + i;
-		const cg_cell_t* src_cell = map->cells + idx_buf[i];
+		cg_disk_cell_t* dest_cell = map_disk->cells + i;
+		const cg_runtime_cell_t* src_cell = map->cells + idx_buf[i];
 
-		memcpy(dest_cell, src_cell, sizeof(cg_cell_t));
+		dest_cell->type = src_cell->type;
+		dest_cell->pos = src_cell->pos;
 	}
 	array_del(&idx_array);
 
@@ -221,8 +244,8 @@ cg_map_save(const cg_map_t* map, const char* path)
 	return true;
 }
 
-cg_cell_t*	
-cg_map_at(cg_map_t* map, u16 x, u16 y)
+cg_disk_cell_t*	
+cg_disk_map_at(cg_disk_map_t* map, u16 x, u16 y)
 {
 	if (x >= map->header.w || y >= map->header.h)
 		return NULL;
@@ -230,26 +253,65 @@ cg_map_at(cg_map_t* map, u16 x, u16 y)
 	return &map->cells[(y * map->header.w) + x];
 }
 
-cg_cell_t*
-cg_map_at_wpos(cg_map_t* map, const vec2f_t* pos)
+cg_runtime_cell_t*	
+cg_runtime_map_at(cg_runtime_map_t* map, u16 x, u16 y)
+{
+	if (x >= map->w || y >= map->h)
+		return NULL;
+
+	return &map->cells[(y * map->w) + x];
+}
+
+cg_runtime_cell_t*
+cg_map_at_wpos(cg_runtime_map_t* map, const vec2f_t* pos)
 {
 	if (pos->x < 0 || pos->y < 0)
 		return NULL;
 
-	i32 x = (i32)pos->x / map->header.grid_size;
-	i32 y = (i32)pos->y / map->header.grid_size;
+	i32 x = (i32)pos->x / (i32)map->grid_size;
+	i32 y = (i32)pos->y / (i32)map->grid_size;
 
-	return cg_map_at(map, x, y);
+	return cg_runtime_map_at(map, x, y);
 }
 
-cg_cell_t*
-cg_map_at_wpos_clamp(cg_map_t* map, const vec2f_t* pos)
+cg_runtime_cell_t*
+cg_map_at_wpos_clamp(cg_runtime_map_t* map, const vec2f_t* pos)
 {
-	i32 x = (i32)pos->x / map->header.grid_size;
-	i32 y = (i32)pos->y / map->header.grid_size;
+	i32 x = (i32)pos->x / (i32)map->grid_size;
+	i32 y = (i32)pos->y / (i32)map->grid_size;
 
-	x = clampi(x, 0, map->header.w - 1);
-	y = clampi(y, 0, map->header.h - 1);
+	x = clampi(x, 0, map->w - 1);
+	y = clampi(y, 0, map->h - 1);
 
-	return cg_map_at(map, x, y);
+	return cg_runtime_map_at(map, x, y);
 }
+
+void
+cg_runtime_map_free(cg_runtime_map_t* map)
+{
+	if (map == NULL)
+		return;
+
+	for (u32 x = 0; x < map->w; x++)
+	{
+		for (u32 y = 0; y < map->h; y++)
+		{
+			cg_runtime_cell_t* cell = cg_runtime_map_at(map, x, y);
+			if (cell->data == NULL)
+				continue;
+			if (cell->type != CG_CELL_BLOCK)
+			{
+				cg_empty_cell_data_t* data = cell->data;
+				array_del(&data->contents);
+			}
+			free(cell->data);
+		}
+	}
+	free(map);
+}
+
+// void 
+// cg_map_compute_edge_pool(cg_runtime_map_t* map)
+// {
+//
+// }

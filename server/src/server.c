@@ -7,8 +7,8 @@ vec2f_t
 server_next_spawn(server_t* server)
 {
 	vec2f_t ret;
-	const cg_map_header_t* map = &server->game.map->header;
-	const cg_cell_t* spawn_cell = *(const cg_cell_t**)array_idx(&server->spawn_points, server->spawn_idx);
+	const cg_runtime_map_t* map = server->game.map;
+	const cg_runtime_cell_t* spawn_cell = *(const cg_runtime_cell_t**)array_idx(&server->spawn_points, server->spawn_idx);
 
 	ret = vec2f(
 		spawn_cell->pos.x * map->grid_size, 
