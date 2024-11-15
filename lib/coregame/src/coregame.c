@@ -441,7 +441,7 @@ cg_player_handle_block_collision(coregame_t* cg,
 static void
 cg_player_handle_player_collision(cg_player_t* player, const cg_runtime_cell_t* cell)
 {
-	vec2f_t contact_normal;
+	vec2f_t contact_normal = {0, 0};
 	vec2f_t contact_point;
 	f32 contact_time = 0;
 	const cg_empty_cell_data_t* data = cell->data;
