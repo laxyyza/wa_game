@@ -40,23 +40,23 @@ game_render_player(ren_t* ren, player_t* player)
 		ren_draw_rect(ren, &player->gun_rect);
 }
 
-static void
-game_render_bullet_cells(client_game_t* game, const cg_bullet_t* bullet)
-{
-	const array_t* cells = &bullet->cells;
-	const u32 grid_size = game->cg.map->grid_size;
-
-	for (u32 i = 0; i < cells->count; i++)
-	{
-		const cg_runtime_cell_t* cell = ((const cg_runtime_cell_t**)cells->buf)[i];
-		rect_t r = {
-			.pos = vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size),
-			.size = vec2f(grid_size, grid_size),
-			.color = rgba((cell->type == CG_CELL_BLOCK) ? 0xFF000022 : 0xFFFFFF22)
-		};
-		game->ren->default_bro->draw_rect(game->ren, game->ren->default_bro, &r);
-	}
-}
+// static void
+// game_render_bullet_cells(client_game_t* game, const cg_bullet_t* bullet)
+// {
+// 	const array_t* cells = &bullet->cells;
+// 	const u32 grid_size = game->cg.map->grid_size;
+//
+// 	for (u32 i = 0; i < cells->count; i++)
+// 	{
+// 		const cg_runtime_cell_t* cell = ((const cg_runtime_cell_t**)cells->buf)[i];
+// 		rect_t r = {
+// 			.pos = vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size),
+// 			.size = vec2f(grid_size, grid_size),
+// 			.color = rgba((cell->type == CG_CELL_BLOCK) ? 0xFF000022 : 0xFFFFFF22)
+// 		};
+// 		game->ren->default_bro->draw_rect(game->ren, game->ren->default_bro, &r);
+// 	}
+// }
 
 static void
 game_render_bullets(client_game_t* game)
@@ -75,8 +75,6 @@ game_render_bullets(client_game_t* game)
 		draw_data.v.pos_b.x = draw_data.v.pos_a.x + bullet_data->len * -bullet->dir.x;
 		draw_data.v.pos_b.y = draw_data.v.pos_a.y + bullet_data->len * -bullet->dir.y;
 		game->laser_bro->draw_misc(game->ren, game->laser_bro, &draw_data);
-
-		game_render_bullet_cells(game, bullet);
 
 		if (bullet->collided)
 		{
@@ -172,19 +170,6 @@ game_render_cell(waapp_t* app, const cg_runtime_map_t* map, const cg_runtime_cel
 		vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size), 
 		vec2f(grid_size, grid_size), color, texture);
 	ren_draw_rect(ren, &cell_rect);
-
-	if (cell->type != CG_CELL_BLOCK)
-	{
-		const cg_empty_cell_data_t* data = cell->data;
-		vec4f_t new_color = rgba(0xFFFFFF00);
-		for (u32 i = 0; i < data->contents.count; i++)
-			new_color.w += 0.3;
-
-		cell_rect.texture = NULL;
-		cell_rect.color = new_color;
-
-		ren_draw_rect(ren, &cell_rect);
-	}
 }
 
 static void
