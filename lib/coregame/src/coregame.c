@@ -477,37 +477,6 @@ coregame_update_players(coregame_t* coregame)
 	});
 }
 
-UNUSED static bool
-coregame_bullet_hit_player_test(coregame_t* coregame, cg_bullet_t* bullet)
-{
-	ght_t* players = &coregame->players;
-	cg_player_t* attacker_player;
-
-	GHT_FOREACH(cg_player_t* target_player, players, {
-		if (target_player->id != bullet->owner && target_player->health > 0)
-		{
-			cg_rect_t rect = cg_rect(target_player->pos, target_player->size);
-			if (rect_aabb_test(&bullet->r, &rect))
-			{
-				if (coregame->player_damaged)
-				{
-					attacker_player = ght_get(players, bullet->owner);
-					if (attacker_player == NULL)
-						return true;
-
-					target_player->health -= bullet->dmg;
-					if (target_player->health < 0)
-						target_player->health = 0;
-
-					coregame->player_damaged(target_player, attacker_player, coregame->user_data);
-				}
-				return true;
-			}
-		}
-	});
-	return false;
-}
-
 static bool
 cg_bullet_collided(coregame_t* cg, cg_bullet_t* bullet, vec2f_t* next_pos)
 {
@@ -543,13 +512,13 @@ cg_bullet_collided(coregame_t* cg, cg_bullet_t* bullet, vec2f_t* next_pos)
 			const cg_empty_cell_data_t* data = cell->data;
 			for (u32 i = 0; i < data->contents.count; i++)
 			{
-				const cg_player_t* player = ((const cg_player_t**)data->contents.buf)[i];
-				if (player->id == bullet->owner)
+				cg_player_t* target_player = ((cg_player_t**)data->contents.buf)[i];
+				if (target_player->id == bullet->owner)
 					continue;
 
 				const cg_rect_t target = {
-					.pos = player->pos,
-					.size = player->size
+					.pos = target_player->pos,
+					.size = target_player->size
 				};
 				if (cg_bullet_cell_collision(bullet, 
 											&target, 
@@ -557,6 +526,20 @@ cg_bullet_collided(coregame_t* cg, cg_bullet_t* bullet, vec2f_t* next_pos)
 											&contact_normal, 
 											&contact_time))
 				{
+					cg_player_t* attacker_player;
+					if (cg->player_damaged)
+					{
+						attacker_player = ght_get(&cg->players, bullet->owner);
+						if (attacker_player == NULL)
+							return true;
+
+						target_player->health -= bullet->dmg;
+						if (target_player->health < 0)
+							target_player->health = 0;
+
+						cg->player_damaged(target_player, attacker_player, cg->user_data);
+					}
+
 					bullet->collided = true;
 					bullet->contact_point = contact_point;
 					*next_pos = contact_point;
