@@ -439,6 +439,34 @@ cg_player_handle_block_collision(coregame_t* cg,
 }
 
 static void
+cg_player_handle_player_collision(cg_player_t* player, const cg_runtime_cell_t* cell)
+{
+	vec2f_t contact_normal;
+	vec2f_t contact_point;
+	f32 contact_time = 0;
+	const cg_empty_cell_data_t* data = cell->data;
+
+	for (u32 i = 0; i < data->contents.count; i++)
+	{
+		const cg_player_t* target_player = ((const cg_player_t**)data->contents.buf)[i];
+
+		cg_rect_t target = {
+			.pos = target_player->pos,
+			.size = target_player->size
+		};
+
+		if (cg_player_cell_collision(player, 
+								  &target, 
+								  &contact_point, 
+								  &contact_normal, 
+								  &contact_time))
+		{
+			cg_resolve_player_collision(player, &contact_normal, contact_time);
+		}
+	}
+}
+
+static void
 cg_player_handle_collision(coregame_t* cg, cg_player_t* player)
 {
 	for (u32 i = 0; i < player->cells.count; i++)
@@ -446,9 +474,9 @@ cg_player_handle_collision(coregame_t* cg, cg_player_t* player)
 		const cg_runtime_cell_t* cell = ((const cg_runtime_cell_t**)player->cells.buf)[i];
 
 		if (cell->type == CG_CELL_BLOCK)
-		{
 			cg_player_handle_block_collision(cg, player, cell);
-		}
+		else
+			cg_player_handle_player_collision(player, cell);
 	}
 }
 
@@ -460,17 +488,10 @@ coregame_move_player(coregame_t* coregame, cg_player_t* player)
 		player->velocity.x = player->dir.x * PLAYER_SPEED * coregame->delta;
 		player->velocity.y = player->dir.y * PLAYER_SPEED * coregame->delta;
 
-		// vec2f_t old_vel = player->velocity;
-
 		cg_player_remove_self_from_cells(player);
 
 		cg_player_get_cells(coregame->map, player);
 		cg_player_handle_collision(coregame, player);
-
-		// if (fabsf(player->velocity.x) > fabsf(old_vel.x))
-		// 	player->velocity.x = 0;
-		// if (fabsf(player->velocity.y) > fabsf(old_vel.y))
-		// 	player->velocity.y = 0;
 
 		player->pos.x += player->velocity.x;
 		player->pos.y += player->velocity.y;
