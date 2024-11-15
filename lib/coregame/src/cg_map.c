@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "array.h"
 #include "cutils.h"
+#include "coregame.h"
 
 u64
 file_size(FILE* f)
@@ -87,7 +88,7 @@ cg_map_load_disk(const cg_disk_map_t* disk_map, u32 disk_size)
 			{
 				runtime_cell->data = calloc(1, sizeof(cg_empty_cell_data_t));
 				cg_empty_cell_data_t* data = runtime_cell->data;
-				array_init(&data->contents, sizeof(cg_cell_data_t), 2);
+				array_init(&data->contents, sizeof(cg_player_t**), 2);
 			}
 		}
 	}

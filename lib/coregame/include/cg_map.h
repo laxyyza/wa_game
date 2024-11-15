@@ -17,18 +17,6 @@
 
 #define MAP_PATH "res/maps"
 
-enum cg_cell_data_type 
-{
-	CG_CELL_DATA_PLAYER,
-	CG_CELL_DATA_BULLET,
-};
-
-typedef struct 
-{
-	enum cg_cell_data_type	type;
-	void*					ptr;
-} cg_cell_data_t;
-
 typedef struct 
 {
 	vec2f_t a;

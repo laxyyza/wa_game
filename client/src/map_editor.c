@@ -111,7 +111,7 @@ map_editor_set_cell(cg_runtime_cell_t* cell, u8 new_type)
 		{
 			cell->data = calloc(1, sizeof(cg_empty_cell_data_t));
 			cg_empty_cell_data_t* data = cell->data;
-			array_init(&data->contents, sizeof(cg_cell_data_t), 2);
+			array_init(&data->contents, sizeof(cg_player_t**), 2);
 		}
 	}
 }

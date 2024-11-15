@@ -35,7 +35,7 @@ player_new_from(client_game_t* game, cg_player_t* cg_player)
 			player->guncharge.background.pos.y - player->guncharge.background.size.y + 3
 		), 
 		player->guncharge.background.size,
-		0x0000FFCC, 
+		0x1111FFCC, 
 		NULL
 	);
 	player->guncharge.fill_width = player->guncharge.fill.size.x;

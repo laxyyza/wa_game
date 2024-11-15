@@ -276,6 +276,12 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 		nk_slider_float(ctx, 0.0001, &game->cg.interp_threshold_dist, 20.0, 0.0001);
 
+		nk_bool pause = !game->cg.pause;
+		if (nk_checkbox_label(ctx, (pause) ? "Pause" : "Play", &pause))
+		{
+			game->cg.pause = !pause;
+		}
+
 		snprintf(udp_in_stat, 256, "Time Scale: %f", game->cg.time_scale);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 		nk_slider_float(ctx, 0, &game->cg.time_scale, 10.0, 0.1);

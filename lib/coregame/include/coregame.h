@@ -64,6 +64,7 @@ typedef struct cg_player
 	vec2f_t prev_dir;
 	vec2f_t cursor;
 	char	username[PLAYER_NAME_MAX];
+	array_t cells;
 
 	struct {
 		vec2f_t server_pos;
@@ -82,7 +83,10 @@ typedef struct cg_bullet
 	vec2f_t			velocity;
 	f32				dmg;
 	enum cg_gun_id	gun_id;
+	array_t			cells;
 	void*			data;
+	bool			collided;
+	vec2f_t			contact_point;
 
 	struct cg_bullet* next;
 	struct cg_bullet* prev;
@@ -143,6 +147,7 @@ typedef struct coregame
 	f32 time_scale;
 
 	bool client;
+	bool pause;
 } coregame_t;
 
 void coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map);
