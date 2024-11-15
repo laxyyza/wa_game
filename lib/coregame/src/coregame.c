@@ -478,74 +478,101 @@ coregame_update_players(coregame_t* coregame)
 }
 
 static bool
-cg_bullet_collided(coregame_t* cg, cg_bullet_t* bullet, vec2f_t* next_pos)
+cg_bullet_block_cell_collision_test(coregame_t* cg, 
+									cg_bullet_t* bullet, 
+									const cg_runtime_cell_t* cell, 
+									vec2f_t* next_pos)
 {
 	u32 grid_size = cg->map->grid_size;
 	vec2f_t contact_normal;
 	vec2f_t contact_point;
 	f32 contact_time = 0;
 
+	cg_rect_t target = {
+		.pos = vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size),
+		.size = vec2f(grid_size, grid_size)
+	};
+	if (cg_bullet_cell_collision(
+								bullet, 
+								&target, 
+								&contact_point,	
+								&contact_normal, 
+								&contact_time))
+	{
+		bullet->collided = true;
+		bullet->contact_point = contact_point;
+		*next_pos = contact_point;
+		return true;
+	}
+	return false;
+}
+
+static bool
+cg_bullet_empty_cell_collision_test(coregame_t* cg, 
+									cg_bullet_t* bullet, 
+									const cg_runtime_cell_t* cell, 
+									vec2f_t* next_pos)
+{
+	vec2f_t contact_normal;
+	vec2f_t contact_point;
+	f32 contact_time = 0;
+	const cg_empty_cell_data_t* data = cell->data;
+
+	for (u32 i = 0; i < data->contents.count; i++)
+	{
+		cg_player_t* target_player = ((cg_player_t**)data->contents.buf)[i];
+		if (target_player->id == bullet->owner)
+			continue;
+
+		const cg_rect_t target = {
+			.pos = target_player->pos,
+			.size = target_player->size
+		};
+		if (cg_bullet_cell_collision(bullet, 
+									&target, 
+									&contact_point, 
+									&contact_normal, 
+									&contact_time))
+		{
+			cg_player_t* attacker_player;
+			if (cg->player_damaged)
+			{
+				attacker_player = ght_get(&cg->players, bullet->owner);
+				if (attacker_player == NULL)
+					return true;
+
+				target_player->health -= bullet->dmg;
+				if (target_player->health < 0)
+					target_player->health = 0;
+
+				cg->player_damaged(target_player, attacker_player, cg->user_data);
+			}
+
+			bullet->collided = true;
+			bullet->contact_point = contact_point;
+			*next_pos = contact_point;
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool
+cg_bullet_collision_test(coregame_t* cg, cg_bullet_t* bullet, vec2f_t* next_pos)
+{
 	for (u32 i = 0; i < bullet->cells.count; i++)
 	{
 		const cg_runtime_cell_t* cell = ((const cg_runtime_cell_t**)bullet->cells.buf)[i];
+
 		if (cell->type == CG_CELL_BLOCK)
 		{
-			cg_rect_t target = {
-				.pos = vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size),
-				.size = vec2f(grid_size, grid_size)
-			};
-			if (cg_bullet_cell_collision(
-										bullet, 
-										&target, 
-										&contact_point,	
-										&contact_normal, 
-										&contact_time))
-			{
-				bullet->collided = true;
-				bullet->contact_point = contact_point;
-				*next_pos = contact_point;
+			if (cg_bullet_block_cell_collision_test(cg, bullet, cell, next_pos))
 				return true;
-			}
 		}
 		else
 		{
-			const cg_empty_cell_data_t* data = cell->data;
-			for (u32 i = 0; i < data->contents.count; i++)
-			{
-				cg_player_t* target_player = ((cg_player_t**)data->contents.buf)[i];
-				if (target_player->id == bullet->owner)
-					continue;
-
-				const cg_rect_t target = {
-					.pos = target_player->pos,
-					.size = target_player->size
-				};
-				if (cg_bullet_cell_collision(bullet, 
-											&target, 
-											&contact_point, 
-											&contact_normal, 
-											&contact_time))
-				{
-					cg_player_t* attacker_player;
-					if (cg->player_damaged)
-					{
-						attacker_player = ght_get(&cg->players, bullet->owner);
-						if (attacker_player == NULL)
-							return true;
-
-						target_player->health -= bullet->dmg;
-						if (target_player->health < 0)
-							target_player->health = 0;
-
-						cg->player_damaged(target_player, attacker_player, cg->user_data);
-					}
-
-					bullet->collided = true;
-					bullet->contact_point = contact_point;
-					*next_pos = contact_point;
-					return true;
-				}
-			}
+			if (cg_bullet_empty_cell_collision_test(cg, bullet, cell, next_pos))
+				return true;
 		}
 	}
 	return false;
@@ -571,7 +598,7 @@ coregame_update_bullets(coregame_t* cg)
 			);
 			array_clear(&bullet->cells, false);
 			cg_get_cells_2points(cg->map, &bullet->cells, &bullet->r.pos, &next_pos);
-			if (cg_bullet_collided(cg, bullet, &next_pos))
+			if (cg_bullet_collision_test(cg, bullet, &next_pos))
 			{
 				bullet->collided = true;
 			}
