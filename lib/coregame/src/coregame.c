@@ -24,57 +24,6 @@ cg_get_gun_spec(const coregame_t* cg, enum cg_gun_id id)
 }
 
 static void
-cg_player_get_cells(cg_runtime_map_t* map, cg_player_t* player)
-{
-	array_clear(&player->cells, false);
-
-	vec2f_t bot_right = vec2f(player->pos.x + player->size.x, 
-							 player->pos.y + player->size.y);
-	cg_runtime_cell_t* c_left = cg_map_at_wpos(map, &player->pos);
-	cg_runtime_cell_t* c_right = cg_map_at_wpos(map, &bot_right);
-	cg_runtime_cell_t* cell;
-
-	if (c_left == NULL || c_right == NULL)
-	{
-		// Probably means the player is out of the map. 
-		// TODO: Get inside map if outside.
-		return;
-	}
-
-	for (i32 x = c_left->pos.x; x <= c_right->pos.x; x++)
-	{
-		for (i32 y = c_left->pos.y; y <= c_right->pos.y; y++)
-		{
-			if ((cell = cg_runtime_map_at(map, x, y)) == NULL)
-				continue;
-			if (cell->type == CG_CELL_BLOCK)
-			{
-				// Player is inside a block. 
-				// TODO: Get out of block.
-			}
-			else
-			{
-				array_add_voidp(&player->cells, cell);
-			}
-		}
-	}
-}
-
-static void
-cg_player_add_into_cells(cg_player_t* player)
-{
-	for (u32 i = 0; i < player->cells.count; i++)
-	{
-		cg_runtime_cell_t* cell = ((cg_runtime_cell_t**)player->cells.buf)[i];
-		if (cell->type != CG_CELL_BLOCK)
-		{
-			cg_empty_cell_data_t* data = cell->data;
-			array_add_voidp(&data->contents, player);
-		}
-	}
-}
-
-static void
 cg_remove_player_from_cell(cg_player_t* player, cg_runtime_cell_t* cell)
 {
 	cg_empty_cell_data_t* data = cell->data;
@@ -97,6 +46,50 @@ cg_player_remove_self_from_cells(cg_player_t* player)
 		cg_runtime_cell_t* cell = ((cg_runtime_cell_t**)player->cells.buf)[i];
 		if (cell->type != CG_CELL_BLOCK)
 			cg_remove_player_from_cell(player, cell);
+	}
+}
+
+static void
+cg_player_get_cells(cg_runtime_map_t* map, cg_player_t* player)
+{
+	array_clear(&player->cells, false);
+
+	vec2f_t pos = vec2f(player->pos.x + player->velocity.x, player->pos.y + player->velocity.y);
+	vec2f_t bot_right = vec2f(pos.x + player->size.x, 
+							 pos.y + player->size.y);
+	cg_runtime_cell_t* c_left = cg_map_at_wpos(map, &pos);
+	cg_runtime_cell_t* c_right = cg_map_at_wpos(map, &bot_right);
+	cg_runtime_cell_t* cell;
+
+	if (c_left == NULL || c_right == NULL)
+	{
+		// Probably means the player is out of the map. 
+		// TODO: Get inside map if outside.
+		return;
+	}
+
+	for (i32 x = c_left->pos.x; x <= c_right->pos.x; x++)
+	{
+		for (i32 y = c_left->pos.y; y <= c_right->pos.y; y++)
+		{
+			if ((cell = cg_runtime_map_at(map, x, y)) == NULL)
+				continue;
+			array_add_voidp(&player->cells, cell);
+		}
+	}
+}
+
+static void
+cg_player_add_into_cells(cg_player_t* player)
+{
+	for (u32 i = 0; i < player->cells.count; i++)
+	{
+		cg_runtime_cell_t* cell = ((cg_runtime_cell_t**)player->cells.buf)[i];
+		if (cell->type != CG_CELL_BLOCK)
+		{
+			cg_empty_cell_data_t* data = cell->data;
+			array_add_voidp(&data->contents, player);
+		}
 	}
 }
 
@@ -130,8 +123,8 @@ cg_ray_collision_test(const vec2f_t* ray_point,
 	if (t_near.x > t_far.y || t_near.y > t_far.x)
 		return false;
 
-	*t_hit_near = fmax(t_near.x, t_near.y);
-	f32 t_hit_far = fmin(t_far.x, t_far.y);
+	*t_hit_near = fmaxf(t_near.x, t_near.y);
+	f32 t_hit_far = fminf(t_far.x, t_far.y);
 
 	if (t_hit_far < 0)
 		return false;
@@ -165,7 +158,6 @@ cg_ray_collision_test(const vec2f_t* ray_point,
 			contact_normal->y = -1;
 		}
 	}
-	*t_hit_near = fabs(*t_hit_near);
 
 	return true;
 }
@@ -187,12 +179,45 @@ cg_bullet_cell_collision(const cg_bullet_t* bullet,
 		.size.y = target->size.y + h
 	};
 	const vec2f_t mid = {
-		.x = bullet->r.pos.x + w / 2.0,
-		.y = bullet->r.pos.y + h / 2.0,
+		.x = bullet->r.pos.x + (w / 2.0),
+		.y = bullet->r.pos.y + (h / 2.0),
 	};
 
 	if (cg_ray_collision_test(&mid, 
 							&bullet->velocity, 
+							&expanded_target, 
+							contact_point, 
+							contact_normal, 
+							contact_time))
+	{
+		return (*contact_time >= 0.0f && *contact_time < 1.0f);
+	}
+	return false;
+}
+
+static bool
+cg_player_cell_collision(const cg_player_t* player, 
+						 const cg_rect_t* target, 
+						 vec2f_t* contact_point,
+						 vec2f_t* contact_normal,
+						 f32* contact_time)
+{
+	const f32 w = player->size.x;
+	const f32 h = player->size.y;
+
+	const cg_rect_t expanded_target = {
+		.pos.x = target->pos.x - (w / 2.0),
+		.pos.y = target->pos.y - (h / 2.0),
+		.size.x = target->size.x + w,
+		.size.y = target->size.y + h
+	};
+	const vec2f_t mid = {
+		.x = player->pos.x + (w / 2.0),
+		.y = player->pos.y + (h / 2.0),
+	};
+
+	if (cg_ray_collision_test(&mid, 
+							&player->velocity, 
 							&expanded_target, 
 							contact_point, 
 							contact_normal, 
@@ -343,15 +368,6 @@ coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map)
 	array_init(&coregame->gun_specs, sizeof(cg_gun_spec_t), 4);
 }
 
-static inline bool 
-rect_aabb_test(const cg_rect_t* a, const cg_rect_t* b)
-{
-	return	(a->pos.x < b->pos.x + b->size.x) &&
-			(a->pos.x + a->size.x > b->pos.x) &&
-			(a->pos.y < b->pos.y + b->size.y) && 
-			(a->pos.y + a->size.y > b->pos.y);
-}
-
 f32 
 coregame_dist(const vec2f_t* a, const vec2f_t* b)
 {
@@ -380,46 +396,60 @@ coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
 	cg_player_add_into_cells(player);
 }
 
-static bool 
-rect_collide_cell(cg_runtime_map_t* map, const cg_rect_t* rect, const cg_runtime_cell_t* cell)
+static void
+cg_resolve_player_collision(cg_player_t* player, 
+							const vec2f_t* contact_normal, 
+							f32 contact_time)
 {
-	if (cell->type != CG_CELL_BLOCK)
-		return false;
+	const f32 x_velabs = fabsf(player->velocity.x);
+	const f32 y_velabs = fabsf(player->velocity.y);
 
-	const cg_rect_t cell_rect = {
-		.pos.x = cell->pos.x * map->grid_size,
-		.pos.y = cell->pos.y * map->grid_size,
-		.size.x = map->grid_size,
-		.size.y = map->grid_size
-	};
-	return rect_aabb_test(rect, &cell_rect);
+	const f32 resolved_x = clampf((contact_normal->x * x_velabs) * (1 - contact_time), -x_velabs, x_velabs);
+	const f32 resolved_y = clampf((contact_normal->y * y_velabs) * (1 - contact_time), -y_velabs, y_velabs);
+
+	player->velocity.x += resolved_x;
+	player->velocity.y += resolved_y;
 }
 
-static bool
-rect_collide_map(coregame_t* cg, const cg_rect_t* rect)
+static void
+cg_player_handle_block_collision(coregame_t* cg, 
+								 cg_player_t* player, 
+								 const cg_runtime_cell_t* cell)
 {
-	cg_runtime_map_t* map = cg->map;
-	vec2f_t bot_right = vec2f(rect->pos.x + rect->size.x, rect->pos.y + rect->size.y);
-	cg_runtime_cell_t* c_left = cg_map_at_wpos(map, &rect->pos);
-	cg_runtime_cell_t* c_right = cg_map_at_wpos(map, &bot_right);
-	cg_runtime_cell_t* cell;
+	const u32 grid_size = cg->map->grid_size;
+	vec2f_t contact_normal;
+	vec2f_t contact_point;
+	f32 contact_time = 0;
+	cg_rect_t target = {
+		.pos = vec2f(
+			cell->pos.x * grid_size, 
+			cell->pos.y * grid_size
+		),
+		.size = vec2f(grid_size, grid_size)
+	};
 
-	if (c_left == NULL || c_right == NULL)
-		return true;
-	if (c_left == c_right)
-		return rect_collide_cell(map, rect, c_left);
-
-	for (i32 x = c_left->pos.x; x <= c_right->pos.x; x++)
+	if (cg_player_cell_collision(player, 
+							  &target, 
+							  &contact_point, 
+							  &contact_normal, 
+							  &contact_time))
 	{
-		for (i32 y = c_left->pos.y; y <= c_right->pos.y; y++)
+		cg_resolve_player_collision(player, &contact_normal, contact_time);
+	}
+}
+
+static void
+cg_player_handle_collision(coregame_t* cg, cg_player_t* player)
+{
+	for (u32 i = 0; i < player->cells.count; i++)
+	{
+		const cg_runtime_cell_t* cell = ((const cg_runtime_cell_t**)player->cells.buf)[i];
+
+		if (cell->type == CG_CELL_BLOCK)
 		{
-			if ((cell = cg_runtime_map_at(map, x, y)) == NULL)
-				return true;
-			if (rect_collide_cell(map, rect, cell))
-				return true;
+			cg_player_handle_block_collision(cg, player, cell);
 		}
 	}
-	return false;
 }
 
 static void 
@@ -427,19 +457,24 @@ coregame_move_player(coregame_t* coregame, cg_player_t* player)
 {
 	if (player->dir.x || player->dir.y)
 	{
-		const cg_rect_t new_rect = cg_rect(
-			vec2f(
-				player->pos.x + player->dir.x * PLAYER_SPEED * coregame->delta,
-				player->pos.y + player->dir.y * PLAYER_SPEED * coregame->delta
-			),
-			player->size
-		);
+		player->velocity.x = player->dir.x * PLAYER_SPEED * coregame->delta;
+		player->velocity.y = player->dir.y * PLAYER_SPEED * coregame->delta;
+
+		// vec2f_t old_vel = player->velocity;
 
 		cg_player_remove_self_from_cells(player);
-		if (!rect_collide_map(coregame, &new_rect))
-		{
-			memcpy(&player->pos, &new_rect.pos, sizeof(vec2f_t));
-		}
+
+		cg_player_get_cells(coregame->map, player);
+		cg_player_handle_collision(coregame, player);
+
+		// if (fabsf(player->velocity.x) > fabsf(old_vel.x))
+		// 	player->velocity.x = 0;
+		// if (fabsf(player->velocity.y) > fabsf(old_vel.y))
+		// 	player->velocity.y = 0;
+
+		player->pos.x += player->velocity.x;
+		player->pos.y += player->velocity.y;
+
 		cg_player_get_cells(coregame->map, player);
 		cg_player_add_into_cells(player);
 	}
@@ -458,7 +493,9 @@ static void
 coregame_update_players(coregame_t* coregame)
 {
 	const ght_t* players = &coregame->players;
-	GHT_FOREACH(cg_player_t* player, players, {
+
+	GHT_FOREACH(cg_player_t* player, players, 
+	{
 		if (player->gun)
 			coregame_gun_update(coregame, player->gun);
 

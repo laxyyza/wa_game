@@ -55,6 +55,7 @@ typedef struct cg_player
 	u32		id;
 	vec2f_t pos;
 	vec2f_t dir;
+	vec2f_t velocity;
 	f32		health;
 	f32		max_health;
 	cg_gun_t* gun;
