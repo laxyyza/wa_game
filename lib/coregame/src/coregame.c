@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include "cutils.h"
 
+#ifdef _WIN32
+#define isnanf(x) _isnanf(x)
+#endif // _WIN32
+
 static inline void
 cg_swapf32(f32* a, f32* b)
 {

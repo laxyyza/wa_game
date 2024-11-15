@@ -71,7 +71,7 @@ client_net_wsa_err_string(i32 error_code)
 	if (ret == 0)
 		return win32_err_string(error_code);
 
-	strncpy(wsa_error_string, msg, WSA_ERROR_STR_MAX);
+	strncpy(wsa_error_string, msg, WSA_ERROR_STR_MAX - 1);
 	LocalFree(msg);
 
 	u32 len = strlen(wsa_error_string);
