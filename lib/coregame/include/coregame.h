@@ -145,6 +145,7 @@ typedef struct coregame
 	f32 interp_factor;
 	f32 interp_threshold_dist;
 	f32 time_scale;
+	u32 player_id_seq;
 
 	bool client;
 	bool pause;
@@ -158,14 +159,9 @@ cg_player_t* coregame_add_player(coregame_t* coregame, const char* name);
 void coregame_add_player_from(coregame_t* coregame, cg_player_t* player);
 void coregame_free_player(coregame_t* coregame, cg_player_t* player);
 void coregame_set_player_dir(cg_player_t* player, u8 dir);
-// cg_projectile_t* coregame_player_shoot(coregame_t* coregame, cg_player_t* player, vec2f_t dir);
-
-// cg_projectile_t* coregame_add_projectile(coregame_t* coregame, cg_player_t* player);
-// void coregame_free_projectile(coregame_t* coregame, cg_projectile_t* proj);
 void coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet);
 
 f32  coregame_dist(const vec2f_t* a, const vec2f_t* b);
-void coregame_randb(void* buf, u64 count);
 
 cg_gun_t* coregame_create_gun(coregame_t* cg, enum cg_gun_id id, cg_player_t* owner);
 void coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec);

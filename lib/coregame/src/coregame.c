@@ -4,14 +4,6 @@
 #include <stdio.h>
 #include "cutils.h"
 
-#ifdef __linux__
-#include <sys/random.h>
-#endif // __linux__
-#ifdef _WIN32
-#include <windows.h>
-#include <ntsecapi.h>
-#endif // _WIN32
-
 static inline void
 cg_swapf32(f32* a, f32* b)
 {
@@ -612,12 +604,6 @@ coregame_update_bullets(coregame_t* cg)
 			}
 		}
 
-
-		// 	rect_collide_map(cg, &bullet->r))
-		// {
-		// 	coregame_free_bullet(cg, bullet);
-		// }
-
 		bullet = bullet_next;
 	}
 }
@@ -645,7 +631,7 @@ cg_player_t*
 coregame_add_player(coregame_t* coregame, const char* name)
 {
 	cg_player_t* player = calloc(1, sizeof(cg_player_t));
-	coregame_randb(&player->id, sizeof(u32));
+	player->id = ++coregame->player_id_seq;
 	strncpy(player->username, name, PLAYER_NAME_MAX - 1);
 	player->pos = vec2f(0, 0);
 	player->size = vec2f(150, 150);
@@ -713,17 +699,6 @@ coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet)
 	array_del(&bullet->cells);
 
 	free(bullet);
-}
-
-void 
-coregame_randb(void* buf, u64 count)
-{
-#ifdef __linux__
-	getrandom(buf, count, 0);
-#endif
-#ifdef _WIN32
-	RtlGenRandom(buf, count);
-#endif
 }
 
 void
