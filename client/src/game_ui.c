@@ -476,6 +476,33 @@ game_ui_chat_window(client_game_t* game, struct nk_context* ctx)
 		ctx->style.window.fixed_background = og_bg;
 }
 
+static void
+game_ui_healthbar_window(client_game_t* game, struct nk_context* ctx)
+{
+	const rect_t* r = &game->health_bar.background; 
+
+	struct nk_vec2 padding = ctx->style.window.padding;
+	ctx->style.window.padding = nk_vec2(0, 0);
+
+	if (nk_begin(ctx, "health", nk_rect(r->pos.x, r->pos.y, r->size.x, r->size.y), 
+			  NK_WINDOW_NO_INPUT | NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR))
+	{
+		nk_layout_row_dynamic(ctx, r->size.y, 1);
+		char healthstr[64];
+		f32 health = game->player->core->health;
+		if (health == game->player->core->max_health)
+			snprintf(healthstr, 64, "%.0f HP", health);
+		else if (health <= 0)
+			snprintf(healthstr, 64, "%f HP", health);
+		else
+			snprintf(healthstr, 64, "%.2f HP", health);
+		nk_label_colored(ctx, healthstr, NK_TEXT_RIGHT, nk_rgba_f(1, 1, 1, 1.0));
+	}
+	nk_end(ctx);
+
+	ctx->style.window.padding = padding;
+}
+
 void 
 game_ui_update(client_game_t* game)
 {
@@ -493,6 +520,7 @@ game_ui_update(client_game_t* game)
 
 	game_ui_kills_window(game, ctx);
 	game_ui_score_window(game, ctx);
+	game_ui_healthbar_window(game, ctx);
 
 	ctx->style.window.fixed_background = og_bg;
 	gui_set_font(game->app, game->app->font);

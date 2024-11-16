@@ -18,7 +18,7 @@ game_update_ui_bars_pos(client_game_t* game)
 	progress_bar_set_pos(&game->guncharge_bar, 
 		vec2f(
 			game->health_bar.background.pos.x,
-			game->health_bar.background.pos.y - (game->health_bar.background.size.y + 5)
+			game->health_bar.background.pos.y - game->health_bar.background.size.y
 		)
 	);
 }

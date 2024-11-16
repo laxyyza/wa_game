@@ -37,7 +37,7 @@ game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 							&cg_player->max_health, &cg_player->health, 0);
 		game->health_bar.fill.color = player->hpbar.fill.color;
 
-		progress_bar_init(&game->guncharge_bar, vec2f(0, 0), vec2f(250, 30), 
+		progress_bar_init(&game->guncharge_bar, vec2f(0, 0), vec2f(250, 20), 
 							NULL, NULL, 0);
 		game->guncharge_bar.fill.color = player->guncharge.fill.color;
 
