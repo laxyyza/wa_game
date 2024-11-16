@@ -385,7 +385,10 @@ coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
 	const vec2f_t* server_pos = &player->server_pos;
 	f32 dist = coregame_dist(client_pos, server_pos);
 
+	player->velocity.x = player->velocity.y = 0;
+
 	cg_player_remove_self_from_cells(player);
+	cg_player_get_cells(coregame->map, player);
 	if (dist > coregame->interp_threshold_dist)
 	{
 		player->pos.x = client_pos->x + (server_pos->x - client_pos->x) * coregame->interp_factor;
@@ -396,7 +399,6 @@ coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
 		player->pos = player->server_pos;
 		player->interpolate = false;
 	}
-	cg_player_get_cells(coregame->map, player);
 	cg_player_add_into_cells(player);
 }
 
@@ -489,18 +491,16 @@ coregame_move_player(coregame_t* coregame, cg_player_t* player)
 {
 	if (player->velocity.x || player->velocity.y)
 	{
-		cg_player_remove_self_from_cells(player);
-
 		player->velocity.x *= coregame->delta;
 		player->velocity.y *= coregame->delta;
 
+		cg_player_remove_self_from_cells(player);
 		cg_player_get_cells(coregame->map, player);
 		cg_player_handle_collision(coregame, player);
 
 		player->pos.x += player->velocity.x;
 		player->pos.y += player->velocity.y;
 
-		cg_player_get_cells(coregame->map, player);
 		cg_player_add_into_cells(player);
 	}
 
