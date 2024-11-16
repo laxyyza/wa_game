@@ -501,6 +501,7 @@ coregame_move_player(coregame_t* coregame, cg_player_t* player)
 		player->pos.x += player->velocity.x;
 		player->pos.y += player->velocity.y;
 
+		cg_player_get_cells(coregame->map, player);
 		cg_player_add_into_cells(player);
 	}
 
