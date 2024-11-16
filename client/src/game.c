@@ -126,7 +126,10 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 			break;
 		case WA_KEY_T:
 			if (ev->pressed)
-				game->trigger_shooting = !game->trigger_shooting;
+			{
+				game->player->core->shoot = !game->player->core->shoot;
+				ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(bool), &game->player->core->shoot);
+			}
 			break;
 		case WA_KEY_ENTER:
 			if (ev->pressed)

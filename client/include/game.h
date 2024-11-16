@@ -35,7 +35,6 @@ typedef struct client_game
 	texture_t* gun_textures[CG_GUN_ID_TOTAL];
 
 	bool	lock_cam;
-	bool	trigger_shooting;
 
 	array_t player_deaths;
 
