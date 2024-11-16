@@ -243,7 +243,7 @@ server_init_coregame_gun_specs(server_t* server)
 	const cg_gun_spec_t mini_gun_spec = {
 		.id = CG_GUN_ID_MINI_GUN,
 		.bps = 100.0,
-		.dmg = 0.25,
+		.dmg = 0.75,
 		.knockback_force = 200.0,
 		.bullet_speed = 9000,
 		.autocharge = false,
