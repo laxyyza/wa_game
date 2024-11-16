@@ -39,6 +39,7 @@ enum cg_gun_id
 {
 	CG_GUN_ID_SMALL,
 	CG_GUN_ID_BIG,
+	CG_GUN_ID_MINI_GUN,
 
 	CG_GUN_ID_TOTAL
 };
@@ -97,6 +98,7 @@ typedef struct cg_gun_spec
 {
 	enum cg_gun_id id;
 	f32 bps;
+	f32 initial_charge_time;
 	f32 bullet_spawn_interval;
 	f32 bullet_speed;
 	f32 dmg;
@@ -108,6 +110,7 @@ typedef struct cg_gun
 {
 	const cg_gun_spec_t* spec;
 	f32 bullet_timer;
+	f32 charge_time;
 	cg_player_t* owner;
 
 	/**	`shoot`

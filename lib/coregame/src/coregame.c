@@ -768,14 +768,28 @@ void
 coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 {
 	if (gun->owner->shoot)
-		gun->bullet_timer += cg->delta;
+	{
+		if (gun->bullet_timer == 0 && gun->spec->initial_charge_time &&
+			gun->charge_time < gun->spec->initial_charge_time)
+			gun->charge_time += cg->delta;
+		else
+			gun->bullet_timer += cg->delta;
+	}
 	else
 	{
-		if (gun->spec->autocharge)
-			gun->bullet_timer += cg->delta;
+		if (gun->spec->initial_charge_time)
+		{
+			gun->charge_time = clampf(gun->charge_time - (cg->delta * 2), 0, gun->spec->initial_charge_time);
+			gun->bullet_timer = 0;
+		}
 		else
-			gun->bullet_timer -= cg->delta;
-		gun->bullet_timer = clampf(gun->bullet_timer, 0, gun->spec->bullet_spawn_interval);
+		{
+			if (gun->spec->autocharge)
+				gun->bullet_timer += cg->delta;
+			else
+				gun->bullet_timer -= cg->delta;
+			gun->bullet_timer = clampf(gun->bullet_timer, 0, gun->spec->bullet_spawn_interval);
+		}
 		return;
 	}
 
@@ -810,6 +824,7 @@ coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec)
 
 	memcpy(new_spec, spec, sizeof(cg_gun_spec_t));
 	new_spec->bullet_spawn_interval = 1.0 / spec->bps;
+	new_spec->initial_charge_time = 1.0 / new_spec->initial_charge_time;
 }
 
 bool

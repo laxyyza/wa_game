@@ -73,7 +73,11 @@ player_update_guncharge(player_t* player)
 	if (gun == NULL)
 		return;
 
-	f32 hp_per = ((f32)gun->bullet_timer / (f32)gun->spec->bullet_spawn_interval) * 100.0;
+	f32 hp_per;
+	if (gun->spec->initial_charge_time)
+		hp_per = ((f32)gun->charge_time / (f32)gun->spec->initial_charge_time) * 100.0;
+	else
+		hp_per = ((f32)gun->bullet_timer / (f32)gun->spec->bullet_spawn_interval) * 100.0;
 
 	f32 hpbar_fill = (hp_per * player->guncharge.fill_width) / 100.0;
 	player->guncharge.fill.size.x = hpbar_fill;

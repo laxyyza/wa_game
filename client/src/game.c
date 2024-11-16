@@ -51,6 +51,8 @@ game_handle_num_keys(client_game_t* game, const wa_event_key_t* ev)
 		gun_id = CG_GUN_ID_SMALL;
 	else if (ev->key == WA_KEY_2)
 		gun_id = CG_GUN_ID_BIG;
+	else if (ev->key == WA_KEY_3)
+		gun_id = CG_GUN_ID_MINI_GUN;
 	else
 		return;
 	
@@ -119,6 +121,7 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 			break;
 		case WA_KEY_1:
 		case WA_KEY_2:
+		case WA_KEY_3:
 			game_handle_num_keys(game, ev);
 			break;
 		default:
@@ -318,7 +321,8 @@ game_load_gun_textures(client_game_t* game)
 {
 	const char* texture_paths[CG_GUN_ID_TOTAL] = {
 		"res/default_gun.png",
-		"res/big_gun.png"
+		"res/big_gun.png",
+		"res/mini_gun.png",
 	};
 
 	for (u32 i = 0; i < CG_GUN_ID_TOTAL; i++)
@@ -331,7 +335,7 @@ game_load_gun_textures(client_game_t* game)
 static void
 game_on_bullet_create(cg_bullet_t* bullet, client_game_t* game)
 {
-	if (bullet->gun_id == CG_GUN_ID_SMALL)
+	if (bullet->gun_id == CG_GUN_ID_SMALL || bullet->gun_id == CG_GUN_ID_MINI_GUN)
 		bullet->data = &game->small_laser;
 	else if (bullet->gun_id == CG_GUN_ID_BIG)
 		bullet->data = &game->big_laser;
