@@ -228,16 +228,18 @@ server_init_coregame_gun_specs(server_t* server)
 		.dmg = 7.0,
 		.knockback_force = 0.0,
 		.bullet_speed = 7000,
-		.autocharge = true
+		.autocharge = true,
+		.initial_charge_time = 0,
 	};
 
 	const cg_gun_spec_t big_gun_spec = {
 		.id = CG_GUN_ID_BIG,
 		.bps = 0.75,
 		.dmg = 95.0,
-		.knockback_force = 1000.0,
+		.knockback_force = 10000.0,
 		.bullet_speed = 10000,
-		.autocharge = false
+		.autocharge = false,
+		.initial_charge_time = 0,
 	};
 
 	const cg_gun_spec_t mini_gun_spec = {

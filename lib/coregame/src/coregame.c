@@ -342,9 +342,8 @@ cg_default_gun_shoot(coregame_t* cg, cg_gun_t* gun)
 
 	if (gun->spec->knockback_force)
 	{
-		// TODO: Actually implement knockback force.
-		player->pos.x += (bullet->dir.x * -1.0) * gun->spec->knockback_force * cg->delta;
-		player->pos.y += (bullet->dir.y * -1.0) * gun->spec->knockback_force * cg->delta;
+		player->velocity.x += -bullet->dir.x * gun->spec->knockback_force;
+		player->velocity.y += -bullet->dir.y * gun->spec->knockback_force;
 	}
 }
 
@@ -488,12 +487,12 @@ cg_player_handle_collision(coregame_t* cg, cg_player_t* player)
 static void 
 coregame_move_player(coregame_t* coregame, cg_player_t* player)
 {
-	if (player->dir.x || player->dir.y)
+	if (player->velocity.x || player->velocity.y)
 	{
-		player->velocity.x = player->dir.x * PLAYER_SPEED * coregame->delta;
-		player->velocity.y = player->dir.y * PLAYER_SPEED * coregame->delta;
-
 		cg_player_remove_self_from_cells(player);
+
+		player->velocity.x *= coregame->delta;
+		player->velocity.y *= coregame->delta;
 
 		cg_player_get_cells(coregame->map, player);
 		cg_player_handle_collision(coregame, player);
@@ -522,6 +521,9 @@ coregame_update_players(coregame_t* coregame)
 
 	GHT_FOREACH(cg_player_t* player, players, 
 	{
+		player->velocity.x = player->dir.x * PLAYER_SPEED;
+		player->velocity.y = player->dir.y * PLAYER_SPEED;
+
 		if (player->gun)
 			coregame_gun_update(coregame, player->gun);
 
@@ -771,7 +773,9 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 	{
 		if (gun->bullet_timer == 0 && gun->spec->initial_charge_time &&
 			gun->charge_time < gun->spec->initial_charge_time)
+		{
 			gun->charge_time += cg->delta;
+		}
 		else
 			gun->bullet_timer += cg->delta;
 	}
@@ -824,7 +828,10 @@ coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec)
 
 	memcpy(new_spec, spec, sizeof(cg_gun_spec_t));
 	new_spec->bullet_spawn_interval = 1.0 / spec->bps;
-	new_spec->initial_charge_time = 1.0 / new_spec->initial_charge_time;
+	if (new_spec->initial_charge_time)
+		new_spec->initial_charge_time = 1.0 / new_spec->initial_charge_time;
+	else
+		new_spec->initial_charge_time = 0;
 }
 
 bool
