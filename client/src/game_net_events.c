@@ -7,6 +7,7 @@ void
 game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_tcp_new_player_t* new_player = (const net_tcp_new_player_t*)segment->data;
+	client_game_t* game = app->game;
 
 	cg_player_t* cg_player = calloc(1, sizeof(cg_player_t));
 	cg_player->id = new_player->id;
@@ -31,6 +32,16 @@ game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	{
 		app->game->player = player;
 		player->hpbar.fill.color = rgba(0x00FF00FF);
+
+		progress_bar_init(&game->health_bar, vec2f(0, 0), vec2f(250, 30), 
+							&cg_player->max_health, &cg_player->health, 0);
+		game->health_bar.fill.color = player->hpbar.fill.color;
+
+		progress_bar_init(&game->guncharge_bar, vec2f(0, 0), vec2f(250, 30), 
+							NULL, NULL, 0);
+		game->guncharge_bar.fill.color = player->guncharge.fill.color;
+
+		game_update_ui_bars_pos(game);
 	}
 
 	coregame_add_player_from(&app->game->cg, cg_player);
@@ -101,9 +112,16 @@ void
 game_player_health(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_health_t* health = (net_udp_player_health_t*)segment->data;
-	cg_player_t* player = ght_get(&app->game->cg.players, health->player_id);
-	if (player)
-		player_set_health(player->user_data, health->health);
+	cg_player_t* cg_player = ght_get(&app->game->cg.players, health->player_id);
+	if (cg_player)		
+	{
+		cg_player->health = health->health;
+		player_t* player = cg_player->user_data;
+		progress_bar_update(&player->hpbar);
+
+		if (cg_player->id == app->game->player->core->id)
+			progress_bar_update(&app->game->health_bar);
+	}
 }
 
 void 

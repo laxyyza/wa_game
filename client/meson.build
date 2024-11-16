@@ -29,6 +29,7 @@ src = files(
     'src/game_ui.c',
     'src/game_draw.c',
     'src/game_net_events.c',
+    'src/progress_bar.c',
 )
 deps = [m_dep]
 

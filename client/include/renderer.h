@@ -45,6 +45,12 @@ typedef struct
 {
 	vec2f_t pos;
 	vec4f_t color;
+} screen_vertex_t;
+
+typedef struct 
+{
+	vec2f_t pos;
+	vec4f_t color;
 } projectile_vertex_t;
 
 typedef struct 
@@ -119,8 +125,10 @@ typedef struct renderer
     bro_t* default_bro; // Default Batch Render Object
 	bro_t* line_bro;
     bro_t* current_bro;
+	bro_t* screen_bro;
 
 	array_t mvp_shaders;
+	array_t proj_shaders;
 
     u32 draw_calls;
 
@@ -155,5 +163,6 @@ void main_menu_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect);
 void ren_default_draw_rect_lines(ren_t* ren, bro_t* bro, const rect_t* rect);
 void bro_draw_batch(ren_t* ren, bro_t* bro);
 void ren_laser_draw_misc(ren_t* ren, bro_t* bro, const void* draw_data);
+void ren_add_rect_indices(bro_t* bro, u32 v);
 
 #endif // _RENDERER_H_

@@ -4,11 +4,16 @@
 #include "game_ui.h"
 
 static void 
+game_render_progress_bar(ren_t* ren, bro_t* bro, const progress_bar_t* bar)
+{
+	bro->draw_rect(ren, bro, &bar->background);
+	bro->draw_rect(ren, bro, &bar->fill);
+}
+
+static void 
 game_render_player(ren_t* ren, player_t* player)
 {
-	healthbar_t* hpbar = &player->hpbar;
-
-	player_update_guncharge(player);
+	progress_bar_t* hpbar = &player->hpbar;
 
 	player->rect.pos = player->core->pos;
 	player->gun_rect.pos = vec2f(
@@ -16,25 +21,15 @@ game_render_player(ren_t* ren, player_t* player)
 		player->rect.pos.y - ((player->gun_rect.size.y - player->rect.size.y) / 2)
 	);
 
-	player->hpbar.background.pos = vec2f(
-		player->rect.pos.x + (player->rect.size.x - player->hpbar.background.size.x) / 2,
-		player->rect.pos.y - 30
-	);
-	player->hpbar.fill.pos = hpbar->background.pos; 
-
-	player->guncharge.background.pos = vec2f(
-		player->hpbar.background.pos.x, 
-		player->hpbar.background.pos.y - (player->hpbar.background.size.y + 3)
-	);
-	player->guncharge.fill.pos = player->guncharge.background.pos;
+	player_update_guncharge(player, NULL);
+	progress_bar_update_pos(hpbar);
 
 	ren_draw_rect(ren, &player->rect);
 
-	ren_draw_rect(ren, &player->hpbar.background);
-	ren_draw_rect(ren, &player->hpbar.fill);
+	ren_draw_rect(ren, &player->rect);
 
-	ren_draw_rect(ren, &player->guncharge.background);
-	ren_draw_rect(ren, &player->guncharge.fill);
+	game_render_progress_bar(ren, ren->default_bro, hpbar);
+	game_render_progress_bar(ren, ren->default_bro, &player->guncharge);
 
 	if (player->gun_rect.texture)
 		ren_draw_rect(ren, &player->gun_rect);
@@ -249,6 +244,13 @@ game_render_map(waapp_t* app, cg_runtime_map_t* map, bool show_grid)
 	ren_bind_bro(ren, app->ren.default_bro);
 }
 
+static void 
+game_render_screen_ui(client_game_t* game, ren_t* ren)
+{
+	game_render_progress_bar(ren, ren->screen_bro, &game->health_bar);
+	game_render_progress_bar(ren, ren->screen_bro, &game->guncharge_bar);
+	bro_draw_batch(ren, ren->screen_bro);
+}
 
 void 
 game_draw(client_game_t* game)
@@ -269,4 +271,6 @@ game_draw(client_game_t* game)
     ren_draw_batch(ren);
 
 	bro_draw_batch(ren, ren->line_bro);
+
+	game_render_screen_ui(game, ren);
 }

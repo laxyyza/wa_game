@@ -5,6 +5,23 @@
 #include <nuklear.h>
 #include "game_ui.h"
 
+void
+game_update_ui_bars_pos(client_game_t* game)
+{
+	progress_bar_set_pos(&game->health_bar, 
+		vec2f(
+			game->ren->viewport.x - (game->health_bar.background.size.x + 10),
+			game->ren->viewport.y - (game->health_bar.background.size.y + 10)
+		)
+	);
+
+	progress_bar_set_pos(&game->guncharge_bar, 
+		vec2f(
+			game->health_bar.background.pos.x,
+			game->health_bar.background.pos.y - (game->health_bar.background.size.y + 5)
+		)
+	);
+}
 
 static void
 game_clamp_cam(vec3f_t* cam, const cg_runtime_map_t* map, const ren_t* ren)
@@ -213,6 +230,8 @@ game_update_logic(client_game_t* game)
 	coregame_set_player_dir(player->core, player->movement_dir);
 
 	coregame_update(&game->cg);
+	progress_bar_update(&game->health_bar);
+	player_update_guncharge(game->player, &game->guncharge_bar);
 
 	if (game->prev_pos.x != player->core->pos.x || game->prev_pos.y != player->core->pos.y)
 	{
@@ -225,24 +244,6 @@ game_update_logic(client_game_t* game)
 		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
 		game->prev_dir = player->core->dir;
 	}
-
-	// if (state->mouse_map[WA_MOUSE_LEFT])
-	// {
-	// 	cg->accumulator += cg->delta;
-	//
-	// 	while (cg->accumulator >= cg->fixed_update_interval)
-	// 	{
-	// 		cg->bullet_timer += cg->fixed_update_interval;
-	//
-	// 		while (cg->bullet_timer >= cg->bullet_spawn_interval)
-	// 		{
-	// 			game_client_shoot(game);
-	// 			cg->bullet_timer -= cg->bullet_spawn_interval;
-	// 		}
-	//
-	// 		cg->accumulator -= cg->fixed_update_interval;
-	// 	}
-	// }
 
 	client_net_try_udp_flush(game->app);
 
@@ -299,6 +300,8 @@ game_set_laser_thickness(client_game_t* game)
 {
 	game_set_scale_laser_thickness(game, &game->small_laser);
 	game_set_scale_laser_thickness(game, &game->big_laser);
+
+	game_update_ui_bars_pos(game);
 }
 
 static void 

@@ -47,6 +47,38 @@ ren_default_draw_line(ren_t* ren, bro_t* bro, const vec2f_t* a, const vec2f_t* b
     bro->vbo.count += 2;
 }
 
+void 
+ren_screen_draw_rect(ren_t* ren, bro_t* bro, const rect_t* rect)
+{
+    if (bro->vbo.count + RECT_VERT > bro->vbo.max_count)
+        bro_draw_batch(ren, bro);
+
+    const vec2f_t* pos = &rect->pos;
+    const vec2f_t* size = &rect->size;
+    const vec4f_t* color = &rect->color;
+    const u32 v = bro->vbo.count;
+    screen_vertex_t* vertices = (screen_vertex_t*)bro->vbo.buf + v;
+
+    vertices->pos = vec2f(rect->pos.x, rect->pos.y);
+    vertices->color = *color;
+    vertices++;
+    
+    vertices->pos = vec2f(pos->x + size->x, pos->y);
+    vertices->color = *color;
+    vertices++;
+
+    vertices->pos = vec2f(pos->x + size->x, pos->y + size->y);
+    vertices->color = *color;
+    vertices++;
+
+    vertices->pos = vec2f(pos->x, pos->y + size->y);
+    vertices->color = *color;
+
+    ren_add_rect_indices(bro, v);
+
+    bro->vbo.count += RECT_VERT;
+}
+
 static void
 set_uniform_textures(bro_t* bro)
 {
@@ -119,10 +151,33 @@ ren_init_line_bro(ren_t* ren)
 }
 
 static void
+ren_init_screen_bro(ren_t* ren)
+{
+	const i32 layout[] = {
+		VERTLAYOUT_F32, 2, // position
+		VERTLAYOUT_F32, 4, // color
+		VERTLAYOUT_END
+	};
+	const bro_param_t param = {
+		.draw_mode = DRAW_TRIANGLES,
+		.max_vb_count = 1024,
+		.vert_path = "client/src/shaders/screen_vert.glsl",
+		.frag_path = "client/src/shaders/screen_frag.glsl",
+		.shader = NULL,
+		.vertlayout = layout,
+		.vertex_size = sizeof(screen_vertex_t),
+		.draw_rect = ren_screen_draw_rect,
+		.draw_line = NULL,
+	};
+	ren->screen_bro = ren_new_bro(ren, &param);
+}
+
+static void
 ren_def_bro(ren_t* ren)
 {
 	ren_init_default_bro(ren);
 	ren_init_line_bro(ren);
+	ren_init_screen_bro(ren);
 }
 
 void
@@ -208,6 +263,10 @@ ren_new_bro(ren_t* ren, const bro_param_t* param)
 		{
 			array_add_voidp(&ren->mvp_shaders, shader);
 		}
+		if (shader_uniform_location(shader, "proj") != -1)
+		{
+			array_add_voidp(&ren->proj_shaders, shader);
+		}
 		shader_unbind();
 	}
 
@@ -240,6 +299,7 @@ ren_init(ren_t* ren)
 {
     enable_blending();
 	array_init(&ren->mvp_shaders, sizeof(shader_t**), 4);
+	array_init(&ren->proj_shaders, sizeof(shader_t**), 2);
     ren_def_bro(ren);
     ren_bind_bro(ren, ren->default_bro);
 	mat4_identity(&ren->scale_mat);
@@ -299,6 +359,13 @@ ren_viewport(ren_t* ren, i32 w, i32 h)
     ren_set_mvp(ren);
 	ren->viewport.x = w;
 	ren->viewport.y = h;
+
+	for (u32 i = 0; i < ren->proj_shaders.count; i++)
+	{
+		shader_t* shader = ((shader_t**)ren->proj_shaders.buf)[i];
+		shader_bind(shader);
+		shader_uniform_mat4f(shader, "proj", &ren->proj);
+	}
 }
 
 void 
@@ -307,7 +374,7 @@ ren_bind_bro(ren_t* ren, bro_t* bro)
     ren->current_bro = bro;
 }
 
-static void
+void
 ren_add_rect_indices(bro_t* bro, u32 v)
 {
     array_t* ib_array = &bro->ibo.array;
@@ -641,8 +708,10 @@ ren_del(ren_t* ren)
 {
     // vertbuf_unmap(&ren->vertbuf);
 	array_del(&ren->mvp_shaders);
+	array_del(&ren->proj_shaders);
     ren_delete_bro(ren->default_bro);
     ren_delete_bro(ren->line_bro);
+	ren_delete_bro(ren->screen_bro);
 }
 
 void

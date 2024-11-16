@@ -11,34 +11,26 @@ player_new_from(client_game_t* game, cg_player_t* cg_player)
 	rect_init(&player->rect, player->core->pos, 
 			player->core->size, 0x000000FF, 
 			game->tank_bottom_tex);
-
 	rect_init(&player->gun_rect, player->rect.pos, gun_size, 0, NULL);
 
-	rect_init(&player->hpbar.background, player->rect.pos, vec2f(150, 15), 0x000000AA, NULL);
+	progress_bar_init(&player->hpbar, player->rect.pos, vec2f(150, 15), 
+				   &cg_player->max_health, &cg_player->health, 
+				   0xFF0000CC);
 
-	rect_init(
-		&player->hpbar.fill, 
-		player->hpbar.background.pos, 
-		player->hpbar.background.size,
-		0xFF0000CC, 
-		NULL
+	player->hpbar.parent_pos = &cg_player->pos;
+	player->hpbar.offset = vec2f(
+		(player->rect.size.x - player->hpbar.background.size.x) / 2,
+		-30
 	);
-	player->hpbar.fill_width = player->hpbar.fill.size.x;
 
-	player_set_health(player, player->core->health);
+	progress_bar_init(&player->guncharge, player->rect.pos, vec2f(150, 15), 
+				   NULL, NULL, 0x1111FFCC);
 
-	rect_init(&player->guncharge.background, player->rect.pos, vec2f(150, 15), 0x000000AA, NULL);
-	rect_init(
-		&player->guncharge.fill, 
-		vec2f(
-			player->guncharge.background.pos.x,
-			player->guncharge.background.pos.y - player->guncharge.background.size.y + 3
-		), 
-		player->guncharge.background.size,
-		0x1111FFCC, 
-		NULL
+	player->guncharge.parent_pos = &cg_player->pos;	
+	player->guncharge.offset = vec2f(
+		player->hpbar.offset.x,
+		player->hpbar.offset.y - (player->hpbar.background.size.y + 3)
 	);
-	player->guncharge.fill_width = player->guncharge.fill.size.x;
 
 	cg_player->user_data = player;
 
@@ -54,31 +46,22 @@ player_new(client_game_t* game, const char* name)
 }
 
 void 
-player_set_health(player_t* player, f32 new_hp)
-{
-	if (new_hp > player->core->max_health)
-		new_hp = player->core->max_health;
-	player->core->health = new_hp;
-
-	f32 hp_per = ((f32)new_hp / (f32)player->core->max_health) * 100.0;
-
-	f32 hpbar_fill = (hp_per * player->hpbar.fill_width) / 100.0;
-	player->hpbar.fill.size.x = hpbar_fill;
-}
-
-void 
-player_update_guncharge(player_t* player)
+player_update_guncharge(player_t* player, progress_bar_t* bar)
 {
 	const cg_gun_t* gun = player->core->gun;
 	if (gun == NULL)
 		return;
-
-	f32 hp_per;
-	if (gun->spec->initial_charge_time)
-		hp_per = ((f32)gun->charge_time / (f32)gun->spec->initial_charge_time) * 100.0;
+	progress_bar_t* guncharge;
+	if (bar)
+		guncharge = bar;
 	else
-		hp_per = ((f32)gun->bullet_timer / (f32)gun->spec->bullet_spawn_interval) * 100.0;
+	{
+		guncharge = &player->guncharge;
+		progress_bar_update_pos(guncharge);
+	}
 
-	f32 hpbar_fill = (hp_per * player->guncharge.fill_width) / 100.0;
-	player->guncharge.fill.size.x = hpbar_fill;
+	if (gun->spec->initial_charge_time)
+		progress_bar_update_valmax(guncharge, gun->charge_time, gun->spec->initial_charge_time);
+	else
+		progress_bar_update_valmax(guncharge, gun->bullet_timer, gun->spec->bullet_spawn_interval);
 }

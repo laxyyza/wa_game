@@ -55,6 +55,9 @@ typedef struct client_game
 
 	laser_bullet_t small_laser;
 	laser_bullet_t big_laser;
+
+	progress_bar_t health_bar;
+	progress_bar_t guncharge_bar;
 } client_game_t;
 
 void* game_init(waapp_t* app);
@@ -66,6 +69,7 @@ void game_move_cam(waapp_t* app);
 void game_lock_cam(client_game_t* game);
 void game_add_chatmsg(client_game_t* game, const char* name, const char* msg);
 void game_send_chatmsg(client_game_t* game, const char* msg);
+void game_update_ui_bars_pos(client_game_t* game);
 
 #endif // _CLIENT_GAME_H_
 

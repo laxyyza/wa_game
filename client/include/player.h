@@ -3,16 +3,10 @@
 
 #include "coregame.h"
 #include "rect.h"
+#include "progress_bar.h"
 
 typedef struct waapp waapp_t;
 typedef struct client_game client_game_t;
-
-typedef struct 
-{	
-	rect_t background;
-	rect_t fill;
-	f32 fill_width;
-} healthbar_t;
 
 typedef struct 
 {
@@ -20,8 +14,8 @@ typedef struct
 	rect_t rect;
 	rect_t gun_rect;
 	u8 movement_dir;
-	healthbar_t hpbar; 
-	healthbar_t guncharge; 
+	progress_bar_t hpbar; 
+	progress_bar_t guncharge; 
 } player_t;
 
 typedef struct 
@@ -33,7 +27,6 @@ typedef struct
 
 player_t* player_new(client_game_t* game, const char* name);
 player_t* player_new_from(client_game_t* game, cg_player_t* cg_player);
-void	  player_set_health(player_t* player, f32 new_hp);
-void	  player_update_guncharge(player_t* player);
+void player_update_guncharge(player_t* player, progress_bar_t* bar);
 
 #endif // _CLIENT_PLAYER_H_
