@@ -461,18 +461,23 @@ client_net_parse_address(waapp_t* app, const char* addr)
 {
 	client_net_t* net = &app->net;
 	ssp_tcp_sock_t* sock = &net->tcp.sock;
-	char* ip_addr = sock->ipstr;
+	char* addrdup = strdup(addr);
 	u16 port = DEFAULT_PORT;
 	bool ret = true;
 
-	// TODO: Support adding port into address string.
-	strncpy(ip_addr, addr, INET6_ADDRSTRLEN - 1);
+	char* ip_addr = strtok(addrdup, ":");
+	char* port_str = strtok(NULL, ":");
+	if (port_str)
+		port = strtoul(port_str, NULL, 10);
 
 	sock->addr.port = port;
 	sock->addr.addr_len = sizeof(struct sockaddr_in);
 	sock->addr.sockaddr.in.sin_family = AF_INET;
 	sock->addr.sockaddr.in.sin_addr.s_addr = inet_addr(ip_addr);
 	sock->addr.sockaddr.in.sin_port = htons(port);
+	strncpy(sock->ipstr, ip_addr, INET6_ADDRSTRLEN);
+
+	free(addrdup);
 
 	return ret;
 }
