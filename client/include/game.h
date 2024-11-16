@@ -46,6 +46,7 @@ typedef struct client_game
 	client_net_t* net;
 	bool open_chat;
 	bool new_msg;
+	bool game_debug;
 	f64 last_chatmsg;
 	array_t chat_msgs;
 	bro_t* laser_bro;

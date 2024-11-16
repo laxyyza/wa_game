@@ -40,23 +40,49 @@ game_render_player(ren_t* ren, player_t* player)
 		ren_draw_rect(ren, &player->gun_rect);
 }
 
-// static void
-// game_render_bullet_cells(client_game_t* game, const cg_bullet_t* bullet)
-// {
-// 	const array_t* cells = &bullet->cells;
-// 	const u32 grid_size = game->cg.map->grid_size;
-//
-// 	for (u32 i = 0; i < cells->count; i++)
-// 	{
-// 		const cg_runtime_cell_t* cell = ((const cg_runtime_cell_t**)cells->buf)[i];
-// 		rect_t r = {
-// 			.pos = vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size),
-// 			.size = vec2f(grid_size, grid_size),
-// 			.color = rgba((cell->type == CG_CELL_BLOCK) ? 0xFF000022 : 0xFFFFFF22)
-// 		};
-// 		game->ren->default_bro->draw_rect(game->ren, game->ren->default_bro, &r);
-// 	}
-// }
+static void
+game_render_bullet_cells(client_game_t* game, const cg_bullet_t* bullet)
+{
+	const array_t* cells = &bullet->cells;
+	const u32 grid_size = game->cg.map->grid_size;
+
+	for (u32 i = 0; i < cells->count; i++)
+	{
+		const cg_runtime_cell_t* cell = ((const cg_runtime_cell_t**)cells->buf)[i];
+		rect_t r = {
+			.pos = vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size),
+			.size = vec2f(grid_size, grid_size),
+			.color = rgba((cell->type == CG_CELL_BLOCK) ? 0xFF000066 : 0xFFFFFF22)
+		};
+		game->ren->default_bro->draw_rect(game->ren, game->ren->default_bro, &r);
+	}
+}
+
+static void
+game_render_bullet_debug(client_game_t* game, const cg_bullet_t* bullet)
+{
+	game_render_bullet_cells(game, bullet);
+
+	if (bullet->collided)
+	{
+		rect_t r = {
+			.size = vec2f(25, 25),
+		};
+		r.pos.x = bullet->contact_point.x - (r.size.x / 2);
+		r.pos.y = bullet->contact_point.y - (r.size.y / 2);
+		r.color = rgba(0xFF000080);
+		game->ren->default_bro->draw_rect(game->ren, game->ren->default_bro, &r);
+
+		vec2f_t a = vec2f(r.pos.x + (r.size.x / 2), r.pos.y);
+		vec2f_t b = vec2f(a.x, a.y + r.size.y);
+		game->ren->line_bro->draw_line(game->ren, game->ren->line_bro, &a, &b, 0x000000FF);
+		a.x = r.pos.x;
+		a.y = r.pos.y + (r.size.y / 2);
+		b.x = a.x + r.size.x;
+		b.y = a.y;
+		game->ren->line_bro->draw_line(game->ren, game->ren->line_bro, &a, &b, 0x000000FF);
+	}
+}
 
 static void
 game_render_bullets(client_game_t* game)
@@ -76,58 +102,13 @@ game_render_bullets(client_game_t* game)
 		draw_data.v.pos_b.y = draw_data.v.pos_a.y + bullet_data->len * -bullet->dir.y;
 		game->laser_bro->draw_misc(game->ren, game->laser_bro, &draw_data);
 
-		if (bullet->collided)
-		{
-			rect_t r = {
-				.size = vec2f(25, 25),
-			};
-			r.pos.x = bullet->contact_point.x - (r.size.x / 2);
-			r.pos.y = bullet->contact_point.y - (r.size.y / 2);
-			r.color = rgba(0xFF000080);
-			game->ren->default_bro->draw_rect(game->ren, game->ren->default_bro, &r);
-
-			vec2f_t a = vec2f(r.pos.x + (r.size.x / 2), r.pos.y);
-			vec2f_t b = vec2f(a.x, a.y + r.size.y);
-			game->ren->line_bro->draw_line(game->ren, game->ren->line_bro, &a, &b, 0x000000FF);
-			a.x = r.pos.x;
-			a.y = r.pos.y + (r.size.y / 2);
-			b.x = a.x + r.size.x;
-			b.y = a.y;
-			game->ren->line_bro->draw_line(game->ren, game->ren->line_bro, &a, &b, 0x000000FF);
-		}
+		if (game->game_debug)
+			game_render_bullet_debug(game, bullet);
 
 		bullet = bullet->next;
 	}
 	bro_draw_batch(game->ren, game->laser_bro);
 }
-
-// static void
-// game_render_projectiles(client_game_t* game)
-// {
-// 	cg_projectile_t* proj = game->cg.proj.head;
-//
-// 	while (proj)
-// 	{
-// 		static const f32 laser_len = 60.0;
-// 		laser_draw_data_t draw_data = {
-// 			.v = {
-// 				.pos_a = proj->prev_pos,
-// 			},
-// 			.game = game
-// 		};
-// 		draw_data.v.pos_b.x = draw_data.v.pos_a.x + laser_len * proj->dir.x;
-// 		draw_data.v.pos_b.y = draw_data.v.pos_a.y + laser_len * proj->dir.y;
-// 		game->laser_bro->draw_misc(game->ren, game->laser_bro, &draw_data);
-//
-// 		// rect_t rect;
-// 		// rect_init(&rect, proj->rect.pos, proj->rect.size, 0xFF0000FF, NULL);
-// 		// rect.rotation = proj->rotation;
-// 		// ren_draw_rect(game->ren, &rect);
-//
-// 		proj = proj->next;
-// 	}
-// 	bro_draw_batch(game->ren, game->laser_bro);
-// }
 
 static void
 game_render_players(client_game_t* game)
@@ -150,6 +131,23 @@ game_render_players(client_game_t* game)
 	});
 }
 
+static void 
+game_render_cell_debug(ren_t* ren, rect_t* cell_rect, const cg_runtime_cell_t* cell)
+{
+	if (cell->type != CG_CELL_BLOCK)
+	{
+		const cg_empty_cell_data_t* data = cell->data;
+		vec4f_t new_color = rgba(0xFFFFFF00);
+		for (u32 i = 0; i < data->contents.count; i++)
+			new_color.w += 0.3;
+
+		cell_rect->texture = NULL;
+		cell_rect->color = new_color;
+
+		ren_draw_rect(ren, cell_rect);
+	}
+}
+
 static void
 game_render_cell(waapp_t* app, const cg_runtime_map_t* map, const cg_runtime_cell_t* cell)
 {
@@ -170,6 +168,9 @@ game_render_cell(waapp_t* app, const cg_runtime_map_t* map, const cg_runtime_cel
 		vec2f(cell->pos.x * grid_size, cell->pos.y * grid_size), 
 		vec2f(grid_size, grid_size), color, texture);
 	ren_draw_rect(ren, &cell_rect);
+
+	if (app->game && app->game->game_debug)
+		game_render_cell_debug(ren, &cell_rect, cell);
 }
 
 static void

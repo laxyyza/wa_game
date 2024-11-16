@@ -286,6 +286,12 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 		nk_slider_float(ctx, 0, &game->cg.time_scale, 10.0, 0.1);
 
+		nk_bool game_debug = !game->game_debug;
+		if (nk_checkbox_label(ctx, "Game Debug", &game_debug))
+		{
+			game->game_debug = !game_debug;
+		}
+
 		snprintf(udp_in_stat, 256, "Draw calls: %u", game->ren->draw_calls);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
