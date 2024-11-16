@@ -144,7 +144,7 @@ void ren_viewport(ren_t* ren, i32 w, i32 h);
 void bro_bind_submit(bro_t* bro);
 bro_t* ren_new_bro(ren_t* ren, const bro_param_t* param);
 void ren_bind_bro(ren_t* ren, bro_t* bro);
-void ren_delete_bro(bro_t* bro);
+void ren_delete_bro(ren_t* ren, bro_t* bro);
 
 void ren_clear(ren_t* ren, const vec4f_t* color);
 void bro_reset(bro_t* bro);

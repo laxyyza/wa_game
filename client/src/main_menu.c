@@ -191,8 +191,8 @@ main_menu_exit(UNUSED waapp_t* app, waapp_main_menu_t* mm)
 }
 
 void 
-main_menu_cleanup(UNUSED waapp_t* app, waapp_main_menu_t* mm)
+main_menu_cleanup(waapp_t* app, waapp_main_menu_t* mm)
 {
-	ren_delete_bro(mm->bg_bro);
+	ren_delete_bro(&app->ren, mm->bg_bro);
 	free(mm);
 }

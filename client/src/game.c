@@ -484,7 +484,7 @@ game_event(waapp_t* app, client_game_t* game, const wa_event_t* ev)
 void 
 game_cleanup(waapp_t* app, client_game_t* game)
 {
-	ren_delete_bro(game->laser_bro);
+	ren_delete_bro(game->ren, game->laser_bro);
 
 	texture_del(game->tank_bottom_tex);
 	for (u32 i = 0; i < CG_GUN_ID_TOTAL; i++)

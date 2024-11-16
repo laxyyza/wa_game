@@ -279,14 +279,32 @@ ren_new_bro(ren_t* ren, const bro_param_t* param)
     return bro;
 }
 
+static void 
+ren_remove_bro_shader(array_t* shaders, const shader_t* shader_to_remove)
+{
+	for (u32 i = 0; i < shaders->count; i++)
+	{
+		const shader_t* shader = ((const shader_t**)shaders->buf)[i];
+		if (shader->id == shader_to_remove->id)
+		{
+			array_erase(shaders, i);
+			break;
+		}
+	}
+}
+
 void 
-ren_delete_bro(bro_t* bro)
+ren_delete_bro(ren_t* ren, bro_t* bro)
 {
 	if (bro == NULL)
 		return;
 
 	if (bro->shared_shader == false)
+	{
+		ren_remove_bro_shader(&ren->mvp_shaders, &bro->shader);
+		ren_remove_bro_shader(&ren->proj_shaders, &bro->shader);
 		shader_del(&bro->shader);
+	}
     idxbuf_del(&bro->ibo);
     vertlayout_del(&bro->layout);
     vertbuf_del(&bro->vbo);
@@ -299,7 +317,7 @@ ren_init(ren_t* ren)
 {
     enable_blending();
 	array_init(&ren->mvp_shaders, sizeof(shader_t**), 4);
-	array_init(&ren->proj_shaders, sizeof(shader_t**), 2);
+	array_init(&ren->proj_shaders, sizeof(shader_t**), 4);
     ren_def_bro(ren);
     ren_bind_bro(ren, ren->default_bro);
 	mat4_identity(&ren->scale_mat);
@@ -707,11 +725,12 @@ void
 ren_del(ren_t* ren)
 {
     // vertbuf_unmap(&ren->vertbuf);
+    ren_delete_bro(ren, ren->line_bro);
+	ren_delete_bro(ren, ren->screen_bro);
+    ren_delete_bro(ren, ren->default_bro);
+
 	array_del(&ren->mvp_shaders);
 	array_del(&ren->proj_shaders);
-    ren_delete_bro(ren->default_bro);
-    ren_delete_bro(ren->line_bro);
-	ren_delete_bro(ren->screen_bro);
 }
 
 void
