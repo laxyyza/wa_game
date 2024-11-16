@@ -194,7 +194,8 @@ cg_bullet_cell_collision(const cg_bullet_t* bullet,
 							contact_normal, 
 							contact_time))
 	{
-		return (*contact_time >= 0.0f && *contact_time < 1.0f);
+		*contact_time = fabsf(*contact_time);
+		return (*contact_time < 1.0f);
 	}
 	return false;
 }
