@@ -848,9 +848,6 @@ coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec)
 		new_spec->initial_charge_time = 1.0 / new_spec->initial_charge_time;
 	else
 		new_spec->initial_charge_time = 0;
-
-	if (new_spec->reload_time)
-		new_spec->reload_time = 1.0 / new_spec->reload_time;
 }
 
 bool
