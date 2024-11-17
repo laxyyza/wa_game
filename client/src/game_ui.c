@@ -517,7 +517,10 @@ game_ui_ammo_window(client_game_t* game, struct nk_context* ctx)
 		char label[64];
 		nk_layout_row_dynamic(ctx, bounds.h, 1);
 		if (gun->ammo <= 0)
-			snprintf(label, 64, "Reloading...");
+		{
+			f32 time_left = (gun->spec->reload_time - gun->reload_time);
+			snprintf(label, 64, "%.2fs", time_left);
+		}
 		else
 			snprintf(label, 64, "Ammo %d/%d", gun->ammo, gun->spec->max_ammo);
 		nk_label(ctx, label, NK_TEXT_RIGHT);
