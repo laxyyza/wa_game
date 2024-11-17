@@ -230,6 +230,8 @@ server_init_coregame_gun_specs(server_t* server)
 		.bullet_speed = 7000,
 		.autocharge = true,
 		.initial_charge_time = 0,
+		.reload_time = 1.0,
+		.max_ammo = 40
 	};
 
 	const cg_gun_spec_t big_gun_spec = {
@@ -240,6 +242,8 @@ server_init_coregame_gun_specs(server_t* server)
 		.bullet_speed = 10000,
 		.autocharge = false,
 		.initial_charge_time = 0,
+		.reload_time = 2.0,
+		.max_ammo = 6
 	};
 
 	const cg_gun_spec_t mini_gun_spec = {
@@ -250,6 +254,8 @@ server_init_coregame_gun_specs(server_t* server)
 		.bullet_speed = 9000,
 		.autocharge = false,
 		.initial_charge_time = 1.0,
+		.reload_time = 4.0,
+		.max_ammo = 1000
 	};
 
 	coregame_add_gun_spec(&server->game, &small_gun_spec);

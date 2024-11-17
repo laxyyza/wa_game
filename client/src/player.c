@@ -1,6 +1,9 @@
 #include "player.h"
 #include "game.h"
 
+#define GUNCHARGE_COLOR 0x1111FFCC
+#define RELOADING_COLOR 0x737373FF
+
 player_t* 
 player_new_from(client_game_t* game, cg_player_t* cg_player)
 {
@@ -24,7 +27,7 @@ player_new_from(client_game_t* game, cg_player_t* cg_player)
 	);
 
 	progress_bar_init(&player->guncharge, player->rect.pos, vec2f(150, 15), 
-				   NULL, NULL, 0x1111FFCC);
+				   NULL, NULL, GUNCHARGE_COLOR);
 
 	player->guncharge.parent_pos = &cg_player->pos;	
 	player->guncharge.offset = vec2f(
@@ -60,7 +63,13 @@ player_update_guncharge(player_t* player, progress_bar_t* bar)
 		progress_bar_update_pos(guncharge);
 	}
 
-	if (gun->spec->initial_charge_time)
+	guncharge->fill.color = rgba(GUNCHARGE_COLOR);
+	if (gun->ammo <= 0)
+	{
+		progress_bar_update_valmax(guncharge, gun->reload_time, gun->spec->reload_time);
+		guncharge->fill.color = rgba(RELOADING_COLOR);
+	}
+	else if (gun->spec->initial_charge_time)
 		progress_bar_update_valmax(guncharge, gun->charge_time, gun->spec->initial_charge_time);
 	else
 		progress_bar_update_valmax(guncharge, gun->bullet_timer, gun->spec->bullet_spawn_interval);

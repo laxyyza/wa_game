@@ -144,6 +144,9 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 		case WA_KEY_3:
 			game_handle_num_keys(game, ev);
 			break;
+		case WA_KEY_R:
+			coregame_player_reload(game->player->core);
+			break;
 		default:
 			break;
 	}

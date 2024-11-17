@@ -481,9 +481,6 @@ game_ui_healthbar_window(client_game_t* game, struct nk_context* ctx)
 {
 	const rect_t* r = &game->health_bar.background; 
 
-	struct nk_vec2 padding = ctx->style.window.padding;
-	ctx->style.window.padding = nk_vec2(0, 0);
-
 	if (nk_begin(ctx, "health", nk_rect(r->pos.x, r->pos.y, r->size.x, r->size.y), 
 			  NK_WINDOW_NO_INPUT | NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR))
 	{
@@ -499,8 +496,33 @@ game_ui_healthbar_window(client_game_t* game, struct nk_context* ctx)
 		nk_label_colored(ctx, healthstr, NK_TEXT_RIGHT, nk_rgba_f(1, 1, 1, 1.0));
 	}
 	nk_end(ctx);
+}
 
-	ctx->style.window.padding = padding;
+static void
+game_ui_ammo_window(client_game_t* game, struct nk_context* ctx)
+{
+	const rect_t* guncharge = &game->guncharge_bar.background;
+	const rect_t* healthbar = &game->health_bar.background;
+	struct nk_rect bounds = nk_rect(
+		guncharge->pos.x, 
+		guncharge->pos.y, 
+		healthbar->size.x, 
+		healthbar->size.y
+	);
+	bounds.y -= bounds.h;
+	if (nk_begin(ctx, "ammo", bounds, 
+			  NK_WINDOW_BACKGROUND | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_NOT_INTERACTIVE))
+	{
+		const cg_gun_t* gun = game->player->core->gun;
+		char label[64];
+		nk_layout_row_dynamic(ctx, bounds.h, 1);
+		if (gun->ammo <= 0)
+			snprintf(label, 64, "Reloading...");
+		else
+			snprintf(label, 64, "Ammo %d/%d", gun->ammo, gun->spec->max_ammo);
+		nk_label(ctx, label, NK_TEXT_RIGHT);
+	}
+	nk_end(ctx);
 }
 
 void 
@@ -520,7 +542,12 @@ game_ui_update(client_game_t* game)
 
 	game_ui_kills_window(game, ctx);
 	game_ui_score_window(game, ctx);
+
+	struct nk_vec2 padding = ctx->style.window.padding;
+	ctx->style.window.padding = nk_vec2(0, 0);
 	game_ui_healthbar_window(game, ctx);
+	game_ui_ammo_window(game, ctx);
+	ctx->style.window.padding = padding;
 
 	ctx->style.window.fixed_background = og_bg;
 	gui_set_font(game->app, game->app->font);

@@ -770,6 +770,19 @@ coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet)
 void
 coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 {
+	if (gun->ammo <= 0)
+	{
+		gun->reload_time += cg->delta;
+
+		if (gun->reload_time >= gun->spec->reload_time)
+		{
+			gun->ammo = gun->spec->max_ammo;
+			gun->reload_time = 0;
+		}
+		else
+			return;
+	}
+
 	if (gun->owner->shoot)
 	{
 		if (gun->bullet_timer == 0 && gun->spec->initial_charge_time &&
@@ -798,10 +811,11 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 		return;
 	}
 
-	while (gun->bullet_timer >= gun->spec->bullet_spawn_interval)
+	while (gun->bullet_timer >= gun->spec->bullet_spawn_interval && gun->ammo > 0)
 	{
 		cg_default_gun_shoot(cg, gun);
 		gun->bullet_timer -= gun->spec->bullet_spawn_interval;
+		gun->ammo--;
 	}
 }
 
@@ -817,6 +831,7 @@ coregame_create_gun(coregame_t* cg, enum cg_gun_id id, cg_player_t* owner)
 	gun = calloc(1, sizeof(cg_gun_t));
 	gun->spec = spec;
 	gun->owner = owner;
+	gun->ammo = spec->max_ammo;
 	owner->gun = gun;
 
 	return gun;
@@ -833,6 +848,9 @@ coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec)
 		new_spec->initial_charge_time = 1.0 / new_spec->initial_charge_time;
 	else
 		new_spec->initial_charge_time = 0;
+
+	if (new_spec->reload_time)
+		new_spec->reload_time = 1.0 / new_spec->reload_time;
 }
 
 bool
@@ -842,9 +860,21 @@ coregame_player_change_gun(coregame_t* cg, cg_player_t* player, enum cg_gun_id i
 	{
 		if (player->gun->spec->id == id)
 			return false;
+		if (player->gun->ammo <= 0)
+			return false;
 
 		free(player->gun);
 	}
 
 	return coregame_create_gun(cg, id, player) != NULL;
 }
+
+void 
+coregame_player_reload(cg_player_t* player)
+{
+	if (player->gun == NULL || player->gun->ammo == player->gun->spec->max_ammo)
+		return;
+
+	player->gun->ammo = 0;
+}
+

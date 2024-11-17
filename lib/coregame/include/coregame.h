@@ -103,6 +103,8 @@ typedef struct cg_gun_spec
 	f32 bullet_speed;
 	f32 dmg;
 	f32 knockback_force;
+	i32 max_ammo;
+	f32 reload_time;
 	bool autocharge;
 } cg_gun_spec_t;
 
@@ -111,6 +113,8 @@ typedef struct cg_gun
 	const cg_gun_spec_t* spec;
 	f32 bullet_timer;
 	f32 charge_time;
+	i32 ammo;
+	f32 reload_time;
 	cg_player_t* owner;
 
 	/**	`shoot`
@@ -171,5 +175,6 @@ cg_gun_t* coregame_create_gun(coregame_t* cg, enum cg_gun_id id, cg_player_t* ow
 void coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec);
 void coregame_gun_update(coregame_t* cg, cg_gun_t* gun);
 bool coregame_player_change_gun(coregame_t* cg, cg_player_t* player, enum cg_gun_id id);
+void coregame_player_reload(cg_player_t* player);
 
 #endif // _CORE_GAME_H_
