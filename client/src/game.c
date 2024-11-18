@@ -62,6 +62,9 @@ game_lock_cam(client_game_t* game)
 static void
 game_handle_num_keys(client_game_t* game, const wa_event_key_t* ev)
 {
+	if (ev->pressed == false)
+		return;
+
 	enum cg_gun_id gun_id;
 
 	if (ev->key == WA_KEY_1)
