@@ -202,7 +202,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
     static nk_flags win_flags = 
         NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | 
          NK_WINDOW_TITLE | NK_WINDOW_MINIMIZED |
-        NK_WINDOW_CLOSABLE | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE;
+        NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE;
     const char* window_name = state->window.title;
     // static struct nk_vec2 window_offset = {10, 10};
     static struct nk_rect window_rect = {
@@ -219,18 +219,25 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
         if (win_flags & NK_WINDOW_MINIMIZED)
             win_flags ^= NK_WINDOW_MINIMIZED;
 
-		snprintf(udp_in_stat, 256, "Game Server: %s:%u (%.1f/s)",
+		snprintf(udp_in_stat, 256, "Server: %s:%u (%.1f Hz)",
 				game->net->udp.ipaddr, game->net->udp.port, game->net->udp.tickrate);
         nk_layout_row_dynamic(ctx, 20, 1);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
 		if (game->net->udp.latency < 1.0)
-			snprintf(udp_in_stat, 256, "PING: %.4f ms", game->net->udp.latency);
+			snprintf(udp_in_stat, 256, "RTT: %.4f ms", game->net->udp.latency);
 		else
-			snprintf(udp_in_stat, 256, "PING: %.2f ms", game->net->udp.latency);
+			snprintf(udp_in_stat, 256, "RTT: %.2f ms", game->net->udp.latency);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
-		snprintf(udp_in_stat, 256, "CLIENT FPS: %u (%.2f ms)", app->fps, app->frame_time);
+		snprintf(udp_in_stat, 256, "FPS: %u (%.2f ms)", app->fps, app->frame_time);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
+		struct timespec cpu_time;
+		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpu_time);
+		f64 cpu_time_s = (cpu_time.tv_nsec / 1e9) + cpu_time.tv_sec;
+
+		snprintf(udp_in_stat, 256, "TOTAL CPU TIME: %.2fs", cpu_time_s);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
 		wa_state_t* state = wa_window_get_state(app->window);
@@ -308,17 +315,18 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 		if (app->get_server_stats)
 			game_ui_server_stats(game, ctx);
 
+		nk_layout_row_dynamic(ctx, 30, 1);
+
 		if (nk_button_label(ctx, "Main Menu"))
-		{
 			waapp_state_switch(app, &app->sm.states.main_menu);
-		}
+
+		if (nk_button_label(ctx, "Quit"))
+			wa_window_stop(app->window);
 
 		if (nk_window_is_hovered(ctx))
 			game->app->on_ui = true;
     }
     nk_end(ctx);
-	if (nk_window_is_hidden(ctx, window_name))
-		wa_window_stop(app->window);
 }
 
 static void
