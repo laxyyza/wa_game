@@ -208,8 +208,14 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 i32 
 waapp_init(waapp_t* app, i32 argc, char* const* argv)
 {
-    const char* title = "WA OpenGL";
-    const char* app_id = "wa_opengl";
+#ifdef __linux__
+    const char* title = "WA Game linux v" VERSION " (" BUILD_TYPE ")";
+#elif _WIN32
+    const char* title = "WA Game win32 v" VERSION " (" BUILD_TYPE ")";
+#else
+    const char* title = "WA Game unknown v" VERSION " (" BUILD_TYPE ")";
+#endif
+    const char* app_id = "wa_game";
     i32 w = 1280;
     i32 h = 720;
     bool fullscreen = false;

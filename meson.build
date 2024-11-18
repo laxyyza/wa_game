@@ -11,6 +11,12 @@ project('wa_game', 'c',
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required: true)
 
+add_project_arguments(
+  '-DVERSION="' + meson.project_version() + '"',
+  '-DBUILD_TYPE="' + get_option('buildtype') + '"',
+  language : 'c'
+)
+
 subdir('lib/')
 subdir('client/')
 if not meson.is_cross_build()

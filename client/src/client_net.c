@@ -475,7 +475,7 @@ client_net_parse_address(waapp_t* app, const char* addr)
 	sock->addr.sockaddr.in.sin_family = AF_INET;
 	sock->addr.sockaddr.in.sin_addr.s_addr = inet_addr(ip_addr);
 	sock->addr.sockaddr.in.sin_port = htons(port);
-	strncpy(sock->ipstr, ip_addr, INET6_ADDRSTRLEN);
+	strncpy(sock->ipstr, ip_addr, INET6_ADDRSTRLEN - 1);
 
 	free(addrdup);
 
