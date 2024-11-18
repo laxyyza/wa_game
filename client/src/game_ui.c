@@ -301,6 +301,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 
 		snprintf(udp_in_stat, 256, "Draw calls: %u", game->ren->draw_calls);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		game->ren->draw_calls = 0;
 
 		nk_bool get_server_stats = !app->get_server_stats;
 		if (nk_checkbox_label(ctx, "Get server stats", &get_server_stats))
