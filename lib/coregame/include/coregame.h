@@ -20,10 +20,11 @@
 #define PLAYER_NAME_MAX 32
 #define UNUSED __attribute__((unused))
 
-#define PLAYER_DIR_UP	 0x01
-#define PLAYER_DIR_DOWN	 0x02
-#define PLAYER_DIR_RIGHT 0x04
-#define PLAYER_DIR_LEFT  0x08
+#define PLAYER_INPUT_UP	   0x01
+#define PLAYER_INPUT_DOWN  0x02
+#define PLAYER_INPUT_RIGHT 0x04
+#define PLAYER_INPUT_LEFT  0x08
+#define PLAYER_INPUT_SHOOT 0x10
 
 typedef struct cg_player cg_player_t;
 typedef struct cg_bullet cg_bullet_t;
@@ -166,7 +167,8 @@ void coregame_cleanup(coregame_t* coregame);
 cg_player_t* coregame_add_player(coregame_t* coregame, const char* name);
 void coregame_add_player_from(coregame_t* coregame, cg_player_t* player);
 void coregame_free_player(coregame_t* coregame, cg_player_t* player);
-void coregame_set_player_dir(cg_player_t* player, u8 dir);
+void coregame_set_player_input(cg_player_t* player, u8 input);
+u8	 coregame_get_player_input(const cg_player_t* player);
 void coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet);
 
 f32  coregame_dist(const vec2f_t* a, const vec2f_t* b);

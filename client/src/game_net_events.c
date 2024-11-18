@@ -100,15 +100,6 @@ game_player_cursor(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 }
 
 void 
-game_player_shoot(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
-{
-	const net_udp_player_shoot_t* shoot = (net_udp_player_shoot_t*)segment->data;
-	cg_player_t* player = ght_get(&app->game->cg.players, shoot->player_id);
-	if (player)
-		player->shoot = shoot->shoot;
-}
-
-void 
 game_player_health(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_health_t* health = (net_udp_player_health_t*)segment->data;
@@ -240,4 +231,14 @@ game_player_gun_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 
 	if (player)
 		coregame_player_change_gun(&app->game->cg, player, player_gun_id->gun_id);
+}
+
+void 
+game_player_input(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	const net_udp_player_input_t* input = (const net_udp_player_input_t*)segment->data;
+	cg_player_t* player = ght_get(&app->game->cg.players, input->player_id);
+
+	if (player)
+		coregame_set_player_input(player, input->flags);
 }

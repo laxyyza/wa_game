@@ -730,22 +730,44 @@ coregame_free_player(coregame_t* coregame, cg_player_t* player)
 }
 
 void 
-coregame_set_player_dir(cg_player_t* player, u8 dir)
+coregame_set_player_input(cg_player_t* player, u8 input)
 {
 	vec2f_t dir_vec = {0.0, 0.0};
 	
-	if (dir & PLAYER_DIR_UP)
+	if (input & PLAYER_INPUT_UP)
 		dir_vec.y -= 1.0;
-	if (dir & PLAYER_DIR_DOWN)
+	if (input & PLAYER_INPUT_DOWN)
 		dir_vec.y += 1.0;
-	if (dir & PLAYER_DIR_LEFT)
+	if (input & PLAYER_INPUT_LEFT)
 		dir_vec.x -= 1.0;
-	if (dir & PLAYER_DIR_RIGHT)
+	if (input & PLAYER_INPUT_RIGHT)
 		dir_vec.x += 1.0;
 
 	player->dir = dir_vec;
 
 	vec2f_norm(&player->dir);
+
+	player->shoot = input & PLAYER_INPUT_SHOOT;
+}
+
+u8
+coregame_get_player_input(const cg_player_t* player)
+{
+	u8 input = 0;
+
+	if (player->dir.x > 0)
+		input |= PLAYER_INPUT_RIGHT;
+	else if (player->dir.x < 0)
+		input |= PLAYER_INPUT_LEFT;
+	if (player->dir.y > 0)
+		input |= PLAYER_INPUT_DOWN;
+	if (player->dir.y < 0)
+		input |= PLAYER_INPUT_UP;
+
+	if (player->shoot)
+		input |= PLAYER_INPUT_SHOOT;
+
+	return input;
 }
 
 void 

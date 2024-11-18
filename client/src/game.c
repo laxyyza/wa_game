@@ -101,27 +101,27 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 			break;
 		case WA_KEY_W:
 			if (ev->pressed)
-				player->movement_dir |= PLAYER_DIR_UP;
+				player->input |= PLAYER_INPUT_UP;
 			else
-				player->movement_dir ^= PLAYER_DIR_UP;
+				player->input ^= PLAYER_INPUT_UP;
 			break;
 		case WA_KEY_S:
 			if (ev->pressed)
-				player->movement_dir |= PLAYER_DIR_DOWN;
+				player->input |= PLAYER_INPUT_DOWN;
 			else
-				player->movement_dir ^= PLAYER_DIR_DOWN;
+				player->input ^= PLAYER_INPUT_DOWN;
 			break;
 		case WA_KEY_A:
 			if (ev->pressed)
-				player->movement_dir |= PLAYER_DIR_LEFT;
+				player->input |= PLAYER_INPUT_LEFT;
 			else
-				player->movement_dir ^= PLAYER_DIR_LEFT;
+				player->input ^= PLAYER_INPUT_LEFT;
 			break;
 		case WA_KEY_D:
 			if (ev->pressed)
-				player->movement_dir |= PLAYER_DIR_RIGHT;
+				player->input |= PLAYER_INPUT_RIGHT;
 			else
-				player->movement_dir ^= PLAYER_DIR_RIGHT;
+				player->input ^= PLAYER_INPUT_RIGHT;
 			break;
 		case WA_KEY_SPACE:
 			if (ev->pressed && ((game->lock_cam = !game->lock_cam)))
@@ -129,10 +129,7 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 			break;
 		case WA_KEY_T:
 			if (ev->pressed)
-			{
-				game->player->core->shoot = !game->player->core->shoot;
-				ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(bool), &game->player->core->shoot);
-			}
+				game->player->input ^= PLAYER_INPUT_SHOOT;
 			break;
 		case WA_KEY_ENTER:
 			if (ev->pressed)
@@ -170,9 +167,10 @@ game_handle_mouse_button(client_game_t* game, const wa_event_mouse_t* ev)
 {
 	if (ev->button == WA_MOUSE_LEFT)
 	{
-		game->player->core->shoot = ev->pressed;
-
-		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_SHOOT, sizeof(bool), &game->player->core->shoot);
+		if (ev->pressed)
+			game->player->input |= PLAYER_INPUT_SHOOT;
+		else if (game->player->input & PLAYER_INPUT_SHOOT)
+			game->player->input ^= PLAYER_INPUT_SHOOT;
 	}
 }
 
@@ -236,7 +234,7 @@ game_update_logic(client_game_t* game)
 	if (player == NULL)
 		return;
 
-	coregame_set_player_dir(player->core, player->movement_dir);
+	coregame_set_player_input(player->core, player->input);
 
 	coregame_update(&game->cg);
 	progress_bar_update(&game->health_bar);
@@ -248,10 +246,10 @@ game_update_logic(client_game_t* game)
 			game_lock_cam(game);
 		game->prev_pos = player->core->pos;
 	}
-	if (game->prev_dir.x != player->core->dir.x || game->prev_dir.y != player->core->dir.y)
+	if (game->player->input != game->prev_input)
 	{
-		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_DIR, sizeof(net_udp_player_dir_t), &player->core->dir);
-		game->prev_dir = player->core->dir;
+		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(u8), &player->input);
+		game->prev_input = player->input;
 	}
 
 	client_net_try_udp_flush(game->app);

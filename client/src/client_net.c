@@ -549,7 +549,6 @@ client_net_init(waapp_t* app)
 	callbacks[NET_TCP_DELETE_PLAYER] = (ssp_segmap_callback_t)game_delete_player;
 	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)game_player_move;
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)game_player_cursor;
-	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)game_player_shoot;
 	callbacks[NET_UDP_PLAYER_HEALTH] = (ssp_segmap_callback_t)game_player_health;
 	callbacks[NET_UDP_PONG] = (ssp_segmap_callback_t)udp_pong;
 	callbacks[NET_UDP_PLAYER_DIED] = (ssp_segmap_callback_t)game_player_died;
@@ -562,6 +561,7 @@ client_net_init(waapp_t* app)
 	callbacks[NET_UDP_DO_RECONNECT] = (ssp_segmap_callback_t)do_reconnect;
 	callbacks[NET_TCP_GUN_SPEC] = (ssp_segmap_callback_t)game_gun_spec;
 	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segmap_callback_t)game_player_gun_id;
+	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segmap_callback_t)game_player_input;
 
 	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_state.user_data = app;

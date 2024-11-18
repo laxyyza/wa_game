@@ -22,14 +22,13 @@ enum segtypes
 	NET_TCP_GUN_SPEC,
 
 	NET_UDP_PLAYER_MOVE,
-	NET_UDP_PLAYER_DIR,
 	NET_UDP_PLAYER_CURSOR,
-	NET_UDP_PLAYER_SHOOT,
 	NET_UDP_PLAYER_HEALTH,
 	NET_UDP_PLAYER_STATS,
 	NET_UDP_PLAYER_DIED,
 	NET_UDP_PLAYER_PING,
 	NET_UDP_PLAYER_GUN_ID,
+	NET_UDP_PLAYER_INPUT,
 
 	NET_UDP_PING,
 	NET_UDP_PONG,
@@ -44,6 +43,12 @@ enum segtypes
 
 typedef cg_disk_map_t net_tcp_cg_map_t;
 typedef cg_gun_spec_t net_tcp_gun_spec_t;
+
+typedef struct 
+{
+	u8 flags;
+	u32 player_id;
+} net_udp_player_input_t;
 
 typedef struct 
 {
@@ -88,20 +93,9 @@ typedef struct
 
 typedef struct 
 {
-	vec2f_t dir;
-} net_udp_player_dir_t;
-
-typedef struct 
-{
 	vec2f_t cursor_pos;
 	u32		player_id;
 } net_udp_player_cursor_t;
-
-typedef struct 
-{
-	bool shoot;
-	u32 player_id;
-} net_udp_player_shoot_t;
 
 typedef struct 
 {

@@ -206,13 +206,12 @@ server_init_netdef(server_t* server)
 	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
 	callbacks[NET_TCP_CONNECT] = (ssp_segmap_callback_t)client_tcp_connect;
 	callbacks[NET_TCP_WANT_SERVER_STATS] = (ssp_segmap_callback_t)want_server_stats;
-	callbacks[NET_UDP_PLAYER_DIR] = (ssp_segmap_callback_t)player_dir;
 	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
-	callbacks[NET_UDP_PLAYER_SHOOT] = (ssp_segmap_callback_t)player_shoot;
 	callbacks[NET_UDP_PING] = (ssp_segmap_callback_t)udp_ping;
 	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)player_ping;
 	callbacks[NET_TCP_CHAT_MSG] = (ssp_segmap_callback_t)chat_msg;
 	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segmap_callback_t)player_gun_id;
+	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segmap_callback_t)player_input;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_state.user_data = server;

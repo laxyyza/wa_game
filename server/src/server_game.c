@@ -155,14 +155,6 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 }
 
 void 
-player_dir(const ssp_segment_t* segment, UNUSED server_t* server, client_t* source_client)
-{
-	const net_udp_player_dir_t* dir = (const net_udp_player_dir_t*)segment->data;
-
-	source_client->player->dir = dir->dir;
-}
-
-void 
 player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_client)
 {
 	ght_t* clients = &server->clients;
@@ -177,23 +169,6 @@ player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_c
 	GHT_FOREACH(client_t* client, clients, {
 		if (client != source_client)
 			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(net_udp_player_cursor_t), new_cursor);
-	});
-}
-
-void 
-player_shoot(const ssp_segment_t* segment, server_t* server, client_t* source_client)
-{
-	ght_t* clients = &server->clients;
-
-	const net_udp_player_shoot_t* shoot = (const net_udp_player_shoot_t*)segment->data;
-	source_client->player->shoot = shoot->shoot;
-
-	net_udp_player_shoot_t* new_shoot = mmframes_alloc(&server->mmf, sizeof(net_udp_player_shoot_t));
-	new_shoot->player_id = source_client->player->id;
-	new_shoot->shoot = shoot->shoot;
-
-	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_SHOOT, sizeof(net_udp_player_shoot_t), new_shoot);
 	});
 }
 
@@ -268,4 +243,23 @@ player_gun_id(const ssp_segment_t* segment, server_t* server, client_t* source_c
 				ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
 		});
 	}
+}
+
+void 
+player_input(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	ght_t* clients = &server->clients;
+	const net_udp_player_input_t* input_in = (void*)segment->data;
+	net_udp_player_input_t* input_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_input_t));
+
+	coregame_set_player_input(source_client->player, input_in->flags);
+
+	input_out->player_id = source_client->player->id;
+	input_out->flags = input_in->flags;
+
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		if (client->player && client != source_client)
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
+	});
 }

@@ -13,7 +13,7 @@ typedef struct
 	cg_player_t* core;
 	rect_t rect;
 	rect_t gun_rect;
-	u8 movement_dir;
+	u8 input;
 	progress_bar_t hpbar; 
 	progress_bar_t guncharge; 
 } player_t;

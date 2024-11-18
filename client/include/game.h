@@ -28,7 +28,6 @@ typedef struct client_game
 {
 	coregame_t cg;
 	player_t* player;
-	vec2f_t prev_dir;
 	vec2f_t prev_pos;
 
 	texture_t* tank_bottom_tex;
@@ -57,6 +56,8 @@ typedef struct client_game
 
 	progress_bar_t health_bar;
 	progress_bar_t guncharge_bar;
+
+	u8 prev_input;
 } client_game_t;
 
 void* game_init(waapp_t* app);
