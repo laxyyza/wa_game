@@ -181,6 +181,7 @@ typedef struct
 void netdef_init(netdef_t* netdef, coregame_t* coregame, 
 				 const ssp_segmap_callback_t callbacks_override[NET_SEGTYPES_LEN]);
 void netdef_destroy(netdef_t* netdef);
+const char* netdef_segtypes_str(enum segtypes type);
 
 #endif // _NETDEF_H_
 

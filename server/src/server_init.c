@@ -93,6 +93,7 @@ server_print_help(const char* exe_path)
 		"  -p, --port=PORT\t\tPort number for TCP and UDP + 1. (Default 49420 TCP, 49421 UDP)\n"
 		"  --tcp-port=PORT\t\tTCP Port. (Default 49420)\n"
 		"  --udp-port=PORT\t\tUDP Port. (Default 49421)\n"
+		"  --ssp-debug\t\t\tPrint IN SSP Packets.\n"
 		"  -t, --tickrate=TICKRATE\tTickrate. (Default 64)\n"
 		"  -r, --routine-time=SECONDS\tRoutine checks in seconds. (Default 20s)\n"
 		"  -c, --client-timeout=SECONDS\tTime in seconds before a client is disconnected due to inactivity (no packets received). (Default 15s)\n"
@@ -124,6 +125,7 @@ server_argv(server_t* server, i32 argc, char* const* argv)
 		{"map",			required_argument,	0, 'm'},
 		{"udp-port",	required_argument,	0,  0 },
 		{"tcp-port",	required_argument,	0,  0 },
+		{"ssp-debug",	no_argument,		0,  0 },
 		{"tickrate",	required_argument,	0, 't'},
 		{"routine-time",	required_argument,	0, 'r'},
 		{"client-timeout",	required_argument,	0, 'c'},
@@ -167,6 +169,8 @@ server_argv(server_t* server, i32 argc, char* const* argv)
 					server_set_port(&server->udp_port, optarg);
 				else if (strcmp(long_options[opt_idx].name, "tcp-port") == 0)
 					server_set_port(&server->port, optarg);
+				else if (strcmp(long_options[opt_idx].name, "ssp-debug") == 0)
+					server->netdef.ssp_state.debug = true;
 				break;
 			}
 			case 'r':

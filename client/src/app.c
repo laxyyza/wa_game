@@ -161,6 +161,7 @@ waapp_print_help(const char* path)
 	printf(
 		"Usage:\n\t%s [options]\n\n"\
 		"	-d, --disable-debug\tDisable OpenGL Debug.\n"\
+		"	--ssp-debug\t\tPrint IN SSP Packets.\n"\
 		"	-f, --fullscreen\tOpen in fullscreen.\n"\
 		"	-h, --help\tShow this message.\n\n",
 		path
@@ -173,9 +174,10 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 	i32 opt;
 
 	struct option long_options[] = {
-		{"disable-debug", no_argument, 0, 'd'},
-		{"fullscreen", no_argument, 0, 'f'},
-		{"help", no_argument, 0, 'h'},
+		{"disable-debug",	no_argument, 0, 'd'},
+		{"ssp-debug",		no_argument, 0, 's'},
+		{"fullscreen",		no_argument, 0, 'f'},
+		{"help",			no_argument, 0, 'h'},
 		{0, 0, 0, 0}
 	};
 
@@ -192,6 +194,9 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 			case 'h':
 				waapp_print_help(argv[0]);
 				return -1;
+			case 's':
+				app->net.def.ssp_state.debug = true;
+				break;
 			default:
 				return -1;
 		}
