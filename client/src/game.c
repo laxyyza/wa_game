@@ -78,9 +78,9 @@ game_handle_num_keys(client_game_t* game, const wa_event_key_t* ev)
 	
 	if (coregame_player_change_gun(&game->cg, game->player->core, gun_id))
 	{
-		net_udp_player_gun_id_t* udp_gun_id = mmframes_alloc(&game->app->mmf, sizeof(net_udp_player_gun_id_t));
-		udp_gun_id->gun_id = gun_id;
-		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_gun_id);
+		u32* udp_gun_id = mmframes_alloc(&game->app->mmf, sizeof(u32));
+		*udp_gun_id = gun_id;
+		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_GUN_ID, sizeof(u32), udp_gun_id);
 	}
 }
 
