@@ -170,7 +170,7 @@ server_argv(server_t* server, i32 argc, char* const* argv)
 				else if (strcmp(long_options[opt_idx].name, "tcp-port") == 0)
 					server_set_port(&server->port, optarg);
 				else if (strcmp(long_options[opt_idx].name, "ssp-debug") == 0)
-					server->netdef.ssp_state.debug = true;
+					server->netdef.ssp_ctx.debug = true;
 				break;
 			}
 			case 'r':
@@ -207,20 +207,20 @@ server_argv(server_t* server, i32 argc, char* const* argv)
 static void
 server_init_netdef(server_t* server)
 {
-	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
-	callbacks[NET_TCP_CONNECT] = (ssp_segmap_callback_t)client_tcp_connect;
-	callbacks[NET_TCP_WANT_SERVER_STATS] = (ssp_segmap_callback_t)want_server_stats;
-	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)player_cursor;
-	callbacks[NET_UDP_PING] = (ssp_segmap_callback_t)udp_ping;
-	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)player_ping;
-	callbacks[NET_TCP_CHAT_MSG] = (ssp_segmap_callback_t)chat_msg;
-	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segmap_callback_t)player_gun_id;
-	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segmap_callback_t)player_input;
-	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segmap_callback_t)player_reload;
+	ssp_segment_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
+	callbacks[NET_TCP_CONNECT] = (ssp_segment_callback_t)client_tcp_connect;
+	callbacks[NET_TCP_WANT_SERVER_STATS] = (ssp_segment_callback_t)want_server_stats;
+	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segment_callback_t)player_cursor;
+	callbacks[NET_UDP_PING] = (ssp_segment_callback_t)udp_ping;
+	callbacks[NET_UDP_PLAYER_PING] = (ssp_segment_callback_t)player_ping;
+	callbacks[NET_TCP_CHAT_MSG] = (ssp_segment_callback_t)chat_msg;
+	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segment_callback_t)player_gun_id;
+	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segment_callback_t)player_input;
+	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segment_callback_t)player_reload;
 
 	netdef_init(&server->netdef, NULL, callbacks);
-	server->netdef.ssp_state.user_data = server;
-	server->netdef.ssp_state.verify_session = (ssp_session_verify_callback_t)server_verify_session;
+	server->netdef.ssp_ctx.user_data = server;
+	server->netdef.ssp_ctx.verify_session = (ssp_session_verify_callback_t)server_verify_session;
 }
 
 static void
@@ -344,7 +344,7 @@ server_init(server_t* server, i32 argc, char* const* argv)
 		goto err;
 	server_init_netdef(server);
 	mmframes_init(&server->mmf);
-	ssp_segbuff_init(&server->segbuf, 4, 0);
+	ssp_segbuf_init(&server->segbuf, 4, 0);
 
 	server->running = true;
 

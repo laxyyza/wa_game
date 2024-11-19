@@ -41,7 +41,7 @@ typedef struct
 
 	udp_addr_t server;
 
-	ssp_segbuff_t buf;
+	ssp_segbuf_t buf;
 
 	struct timespec current_time;
 	struct timespec inout_start_time;
@@ -81,7 +81,7 @@ typedef struct
 
 	struct {
 		ssp_tcp_sock_t	sock;
-		ssp_segbuff_t	buf;
+		ssp_segbuf_t	buf;
 		fdevent_t*		fdev;
 	} tcp;
 

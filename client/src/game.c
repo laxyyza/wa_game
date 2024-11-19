@@ -56,7 +56,7 @@ game_lock_cam(client_game_t* game)
 	ren_set_view(game->ren, &game->app->cam);
 
 	player->core->cursor = screen_to_world(game->ren, &game->app->mouse);
-	ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &player->core->cursor);
+	ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &player->core->cursor);
 }
 
 static void
@@ -80,7 +80,7 @@ game_handle_num_keys(client_game_t* game, const wa_event_key_t* ev)
 	{
 		u32* udp_gun_id = mmframes_alloc(&game->app->mmf, sizeof(u32));
 		*udp_gun_id = gun_id;
-		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_GUN_ID, sizeof(u32), udp_gun_id);
+		ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_GUN_ID, sizeof(u32), udp_gun_id);
 	}
 }
 
@@ -158,7 +158,7 @@ game_handle_pointer(client_game_t* game, UNUSED const wa_event_pointer_t* ev)
 	if (game->player)
 	{
 		game->player->core->cursor = screen_to_world(game->ren, &game->app->mouse);
-		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &game->player->core->cursor);
+		ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &game->player->core->cursor);
 	}
 }
 
@@ -248,7 +248,7 @@ game_update_logic(client_game_t* game)
 	}
 	if (game->player->input != game->prev_input)
 	{
-		ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(u8), &player->input);
+		ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(u8), &player->input);
 		game->prev_input = player->input;
 	}
 
@@ -289,7 +289,7 @@ game_send_chatmsg(client_game_t* game, const char* msg)
 	net_tcp_chat_msg_t* chatmsg = mmframes_alloc(&game->app->mmf, sizeof(net_tcp_chat_msg_t));
 	strncpy(chatmsg->msg, msg, CHAT_MSG_MAX - 1);
 
-	ssp_segbuff_add(&game->net->tcp.buf, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), chatmsg);
+	ssp_segbuf_add(&game->net->tcp.buf, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), chatmsg);
 	ssp_tcp_send_segbuf(&game->net->tcp.sock, &game->net->tcp.buf);
 }
 
@@ -357,7 +357,7 @@ game_on_player_reload(cg_player_t* player, client_game_t* game)
 	if (player->id != game->player->core->id)
 		return;
 
-	ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_RELOAD, 0, NULL);
+	ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_RELOAD, 0, NULL);
 }
 
 void* 

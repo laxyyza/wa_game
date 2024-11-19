@@ -167,7 +167,7 @@ client_net_on_connect(waapp_t* app)
 	memset(&connect, 9, sizeof(net_tcp_connect_t));
 	strncpy(connect.username, username, PLAYER_NAME_MAX);
 
-	ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
+	ssp_segbuf_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
 	ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
 
 	client_net_udp_init(app);
@@ -294,7 +294,7 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 	if ((bytes_read = recv(fdev->fd, buf, BUFFER_SIZE, 0)) == -1)
 		perror("tcp_recv");
 	else
-		ssp_parse_buf(&app->net.def.ssp_state, &app->net.tcp.buf, buf, bytes_read, NULL);
+		ssp_parse_buf(&app->net.def.ssp_ctx, &app->net.tcp.buf, buf, bytes_read, NULL);
 	free(buf);
 }
 
@@ -339,7 +339,7 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 	net->udp.in.bytes += bytes_read;
 	net->udp.in.count++;
 
-	if (ssp_parse_buf(&net->def.ssp_state, &net->udp.buf, buf, bytes_read, &addr) == SSP_FAILED)
+	if (ssp_parse_buf(&net->def.ssp_ctx, &net->udp.buf, buf, bytes_read, &addr) == SSP_FAILED)
 		errorf("Invalid UDP Packet!\n");
 	free(buf);
 }
@@ -403,7 +403,7 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 
 	app->net.udp.port = info->port;
 
-	ssp_segbuff_init(&app->net.udp.buf, 10, info->ssp_flags);
+	ssp_segbuf_init(&app->net.udp.buf, 10, info->ssp_flags);
 
 	waapp_state_switch(app, &app->sm.states.game);
 }
@@ -429,7 +429,7 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	f64 elapsed_time = get_elapsed_time(&current_time, &pong->start_time);
 	app->game->player->core->stats.ping = player_ping->ms = net->udp.latency = elapsed_time * 1000.0;
 
-	ssp_segbuff_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
+	ssp_segbuf_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
 }
 
 i32 
@@ -446,7 +446,7 @@ client_net_connect(waapp_t* app, const char* ipaddr, u16 port)
 			.username = "Test User"
 		};
 
-		ssp_segbuff_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
+		ssp_segbuf_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
 		ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
 
 		client_net_add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, NULL, &net->tcp.sock);
@@ -542,7 +542,7 @@ static bool
 net_verify_session(u32 session_id, waapp_t* app, 
 				   UNUSED void* source_data, 
 				   UNUSED void** new_source, 
-				   UNUSED ssp_segbuff_t* segbuf)
+				   UNUSED ssp_segbuf_t* segbuf)
 {
 	return session_id == app->net.session_id;
 }
@@ -552,31 +552,31 @@ client_net_init(waapp_t* app)
 {
 	i32 ret = 0;
 	client_net_t* net = &app->net;
-	ssp_segmap_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
-	callbacks[NET_TCP_SESSION_ID] = (ssp_segmap_callback_t)session_id;
-	callbacks[NET_TCP_UDP_INFO] = (ssp_segmap_callback_t)udp_info;
-	callbacks[NET_TCP_NEW_PLAYER] = (ssp_segmap_callback_t)game_new_player;
-	callbacks[NET_TCP_DELETE_PLAYER] = (ssp_segmap_callback_t)game_delete_player;
-	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segmap_callback_t)game_player_move;
-	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segmap_callback_t)game_player_cursor;
-	callbacks[NET_UDP_PLAYER_HEALTH] = (ssp_segmap_callback_t)game_player_health;
-	callbacks[NET_UDP_PONG] = (ssp_segmap_callback_t)udp_pong;
-	callbacks[NET_UDP_PLAYER_DIED] = (ssp_segmap_callback_t)game_player_died;
-	callbacks[NET_UDP_PLAYER_STATS] = (ssp_segmap_callback_t)game_player_stats;
-	callbacks[NET_UDP_PLAYER_PING] = (ssp_segmap_callback_t)game_player_ping;
-	callbacks[NET_TCP_CG_MAP] = (ssp_segmap_callback_t)game_cg_map;
-	callbacks[NET_TCP_SERVER_SHUTDOWN] = (ssp_segmap_callback_t)game_server_shutdown;
-	callbacks[NET_UDP_SERVER_STATS] = (ssp_segmap_callback_t)server_stats;
-	callbacks[NET_TCP_CHAT_MSG] = (ssp_segmap_callback_t)game_chat_msg;
-	callbacks[NET_UDP_DO_RECONNECT] = (ssp_segmap_callback_t)do_reconnect;
-	callbacks[NET_TCP_GUN_SPEC] = (ssp_segmap_callback_t)game_gun_spec;
-	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segmap_callback_t)game_player_gun_id;
-	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segmap_callback_t)game_player_input;
-	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segmap_callback_t)game_player_reload;
+	ssp_segment_callback_t callbacks[NET_SEGTYPES_LEN] = {0};
+	callbacks[NET_TCP_SESSION_ID] = (ssp_segment_callback_t)session_id;
+	callbacks[NET_TCP_UDP_INFO] = (ssp_segment_callback_t)udp_info;
+	callbacks[NET_TCP_NEW_PLAYER] = (ssp_segment_callback_t)game_new_player;
+	callbacks[NET_TCP_DELETE_PLAYER] = (ssp_segment_callback_t)game_delete_player;
+	callbacks[NET_UDP_PLAYER_MOVE] = (ssp_segment_callback_t)game_player_move;
+	callbacks[NET_UDP_PLAYER_CURSOR] = (ssp_segment_callback_t)game_player_cursor;
+	callbacks[NET_UDP_PLAYER_HEALTH] = (ssp_segment_callback_t)game_player_health;
+	callbacks[NET_UDP_PONG] = (ssp_segment_callback_t)udp_pong;
+	callbacks[NET_UDP_PLAYER_DIED] = (ssp_segment_callback_t)game_player_died;
+	callbacks[NET_UDP_PLAYER_STATS] = (ssp_segment_callback_t)game_player_stats;
+	callbacks[NET_UDP_PLAYER_PING] = (ssp_segment_callback_t)game_player_ping;
+	callbacks[NET_TCP_CG_MAP] = (ssp_segment_callback_t)game_cg_map;
+	callbacks[NET_TCP_SERVER_SHUTDOWN] = (ssp_segment_callback_t)game_server_shutdown;
+	callbacks[NET_UDP_SERVER_STATS] = (ssp_segment_callback_t)server_stats;
+	callbacks[NET_TCP_CHAT_MSG] = (ssp_segment_callback_t)game_chat_msg;
+	callbacks[NET_UDP_DO_RECONNECT] = (ssp_segment_callback_t)do_reconnect;
+	callbacks[NET_TCP_GUN_SPEC] = (ssp_segment_callback_t)game_gun_spec;
+	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segment_callback_t)game_player_gun_id;
+	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segment_callback_t)game_player_input;
+	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segment_callback_t)game_player_reload;
 
 	netdef_init(&net->def, NULL, callbacks);
-	net->def.ssp_state.user_data = app;
-	net->def.ssp_state.verify_session = (ssp_session_verify_callback_t)net_verify_session;
+	net->def.ssp_ctx.user_data = app;
+	net->def.ssp_ctx.verify_session = (ssp_session_verify_callback_t)net_verify_session;
 
 	array_init(&net->events, sizeof(fdevent_t), 4);
 
@@ -591,7 +591,7 @@ client_net_init(waapp_t* app)
 	waapp_wayland_add_fdevent(app);
 #endif
 
-	ssp_segbuff_init(&net->tcp.buf, 10, 0);
+	ssp_segbuf_init(&net->tcp.buf, 10, 0);
 
 	return ret;
 }

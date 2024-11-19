@@ -156,7 +156,7 @@ typedef struct
 typedef struct 
 {
 	coregame_t* coregame;
-	ssp_state_t ssp_state;
+	ssp_ctx_t ssp_ctx;
 } netdef_t;
 
 typedef struct 
@@ -185,7 +185,7 @@ typedef struct
 } server_stats_t, udp_server_stats_t;
 
 void netdef_init(netdef_t* netdef, coregame_t* coregame, 
-				 const ssp_segmap_callback_t callbacks_override[NET_SEGTYPES_LEN]);
+				 const ssp_segment_callback_t callbacks_override[NET_SEGTYPES_LEN]);
 void netdef_destroy(netdef_t* netdef);
 const char* netdef_segtypes_str(enum segtypes type);
 

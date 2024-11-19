@@ -309,7 +309,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			app->get_server_stats = !get_server_stats;
 
 			net_tcp_want_server_stats_t want_stats = {app->get_server_stats};
-			ssp_segbuff_add(&app->net.tcp.buf, NET_TCP_WANT_SERVER_STATS, sizeof(net_tcp_want_server_stats_t), &want_stats);
+			ssp_segbuf_add(&app->net.tcp.buf, NET_TCP_WANT_SERVER_STATS, sizeof(net_tcp_want_server_stats_t), &want_stats);
 			ssp_tcp_send_segbuf(&app->net.tcp.sock, &app->net.tcp.buf);
 		}
 

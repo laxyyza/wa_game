@@ -76,7 +76,7 @@ read_client(server_t* server, event_t* event)
 		server_close_event(server, event);
 	else
 	{
-		ret = ssp_parse_buf(&server->netdef.ssp_state, &client->tcp_buf, buf, bytes_read, client);
+		ret = ssp_parse_buf(&server->netdef.ssp_ctx, &client->tcp_buf, buf, bytes_read, client);
 		if (ret == SSP_FAILED)
 		{
 			printf("Client (%s) sent invalid packet. Closing client.\n",
@@ -96,7 +96,7 @@ server_close_client(server_t* server, client_t* client)
 
 	if (server->running == false && client->player)
 	{
-		ssp_segbuff_add(&client->tcp_buf, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
+		ssp_segbuf_add(&client->tcp_buf, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
 		ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
 	}
 
@@ -110,8 +110,8 @@ server_close_client(server_t* server, client_t* client)
 		coregame_free_player(&server->game, client->player);
 	}
 
-	ssp_segbuff_destroy(&client->udp_buf);
-	ssp_segbuff_destroy(&client->tcp_buf);
+	ssp_segbuf_destroy(&client->udp_buf);
+	ssp_segbuf_destroy(&client->tcp_buf);
 	ght_del(&server->clients, client->session_id);
 
 	if (player_id)
@@ -163,7 +163,7 @@ server_read_udp_packet(server_t* server, event_t* event)
 	if ((server->stats.udp_pps_in_bytes += bytes_read) > server->stats.udp_pps_in_bytes_highest)
 		server->stats.udp_pps_in_bytes_highest = server->stats.udp_pps_in_bytes;
 
-	ret = ssp_parse_buf(&server->netdef.ssp_state, NULL, buf, bytes_read, &info);
+	ret = ssp_parse_buf(&server->netdef.ssp_ctx, NULL, buf, bytes_read, &info);
 	if (ret == SSP_FAILED)
 	{
 		printf("Invalid UDP packet (%zu bytes) from %s:%u.\n", bytes_read, info.ipaddr, info.port);
@@ -188,7 +188,7 @@ free_packet:
 }
 
 bool 
-server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_segbuff_t** segbuf)
+server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_segbuf_t** segbuf)
 {
 	client_t* client;
 
@@ -291,7 +291,7 @@ server_flush_udp_clients(server_t* server)
 				if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
 					server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
 
-				ssp_segbuff_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
+				ssp_segbuf_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
 			}
 
 			ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
@@ -459,7 +459,7 @@ server_cleanup_clients(server_t* server)
 	GHT_FOREACH(client_t* client, clients, {
 		if (client->player)
 		{
-			ssp_segbuff_add(&client->tcp_buf, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
+			ssp_segbuf_add(&client->tcp_buf, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
 			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
 		}
 		server_close_client(server, client);

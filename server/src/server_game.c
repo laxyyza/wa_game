@@ -12,7 +12,7 @@ server_on_player_reload(cg_player_t* player, server_t* server)
 	GHT_FOREACH(client_t* client, clients, 
 	{
 		if (client->player)
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_RELOAD, sizeof(net_udp_player_reload_t), reload_out);
+			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_RELOAD, sizeof(net_udp_player_reload_t), reload_out);
 	});
 }
 
@@ -45,11 +45,11 @@ broadcast_new_player(server_t* server, client_t* new_client)
 	GHT_FOREACH(client_t* client, clients, {
 		if (client->player)
 		{
-			ssp_segbuff_add(&client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), new_player);
+			ssp_segbuf_add(&client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), new_player);
 			if (client != new_client)
 			{
 				const net_tcp_new_player_t* other_player = client_to_tcp_new_player(server, client);
-				ssp_segbuff_add(&new_client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), other_player);
+				ssp_segbuf_add(&new_client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), other_player);
 
 				ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
 			}
@@ -65,7 +65,7 @@ broadcast_delete_player(server_t* server, u32 id)
 	net_tcp_delete_player_t del_player = {id};
 
 	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuff_add(&client->tcp_buf, NET_TCP_DELETE_PLAYER, sizeof(net_tcp_delete_player_t), &del_player);
+		ssp_segbuf_add(&client->tcp_buf, NET_TCP_DELETE_PLAYER, sizeof(net_tcp_delete_player_t), &del_player);
 		ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
 	});
 }
@@ -80,7 +80,7 @@ on_player_changed(cg_player_t* player, server_t* server)
 	move->dir = player->dir;
 
 	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
+		ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
 	});
 }
 
@@ -125,13 +125,13 @@ on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, serv
 	}
 
 	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_HEALTH, sizeof(net_udp_player_health_t), health);
+		ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_HEALTH, sizeof(net_udp_player_health_t), health);
 		if (move)
 		{
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_DIED, sizeof(net_udp_player_died_t), player_died);
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), target_stats);
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), attacker_stats);
+			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
+			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_DIED, sizeof(net_udp_player_died_t), player_died);
+			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), target_stats);
+			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), attacker_stats);
 		}
 	});
 }
@@ -160,13 +160,13 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 	printf("Client '%s' (%s) got %u for session ID.\n", 
 			connect->username, client->tcp_sock.ipstr, session->session_id);
 
-	ssp_segbuff_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), session);
-	ssp_segbuff_add(&client->tcp_buf, NET_TCP_CG_MAP, server->disk_map_size, server->disk_map);
-	ssp_segbuff_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), udp_info);
+	ssp_segbuf_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), session);
+	ssp_segbuf_add(&client->tcp_buf, NET_TCP_CG_MAP, server->disk_map_size, server->disk_map);
+	ssp_segbuf_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), udp_info);
 
 	const cg_gun_spec_t* gun_specs = (const cg_gun_spec_t*)server->game.gun_specs.buf;
 	for (u32 i = 0; i < server->game.gun_specs.count; i++)
-		ssp_segbuff_add(&client->tcp_buf, NET_TCP_GUN_SPEC, sizeof(cg_gun_spec_t), gun_specs + i);
+		ssp_segbuf_add(&client->tcp_buf, NET_TCP_GUN_SPEC, sizeof(cg_gun_spec_t), gun_specs + i);
 
 	broadcast_new_player(server, client);
 }
@@ -185,7 +185,7 @@ player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_c
 
 	GHT_FOREACH(client_t* client, clients, {
 		if (client != source_client)
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(net_udp_player_cursor_t), new_cursor);
+			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(net_udp_player_cursor_t), new_cursor);
 	});
 }
 
@@ -211,7 +211,7 @@ player_ping(const ssp_segment_t* segment, server_t* server, client_t* source_cli
 
 	GHT_FOREACH(client_t* client, clients, {
 		if (client != source_client)
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), client_ping);
+			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), client_ping);
 	});
 }
 
@@ -236,7 +236,7 @@ chat_msg(const ssp_segment_t* segment, server_t* server, client_t* source_client
 	GHT_FOREACH(client_t* client, clients, {
 		if (client->player)
 		{
-			ssp_segbuff_add(&client->tcp_buf, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), &new_msg);
+			ssp_segbuf_add(&client->tcp_buf, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), &new_msg);
 			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
 		}
 	});
@@ -257,7 +257,7 @@ player_gun_id(const ssp_segment_t* segment, server_t* server, client_t* source_c
 
 		GHT_FOREACH(client_t* client, clients, {
 			if (client->player)
-				ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
+				ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
 		});
 	}
 }
@@ -277,7 +277,7 @@ player_input(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 	GHT_FOREACH(client_t* client, clients, 
 	{
 		if (client->player && client != source_client)
-			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
+			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
 	});
 }
 
