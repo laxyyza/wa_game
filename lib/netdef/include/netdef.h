@@ -29,6 +29,7 @@ enum segtypes
 	NET_UDP_PLAYER_PING,
 	NET_UDP_PLAYER_GUN_ID,
 	NET_UDP_PLAYER_INPUT,
+	NET_UDP_PLAYER_RELOAD,
 
 	NET_UDP_PING,
 	NET_UDP_PONG,
@@ -132,6 +133,11 @@ typedef struct
 	u32 gun_id;
 	u32 player_id;
 } net_udp_player_gun_id_t;
+
+typedef struct
+{
+	u32 player_id;
+} net_udp_player_reload_t;
 
 typedef struct 
 {

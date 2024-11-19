@@ -145,7 +145,7 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 			game_handle_num_keys(game, ev);
 			break;
 		case WA_KEY_R:
-			coregame_player_reload(game->player->core);
+			coregame_player_reload(&game->cg, game->player->core);
 			break;
 		default:
 			break;
@@ -351,6 +351,15 @@ game_on_bullet_create(cg_bullet_t* bullet, client_game_t* game)
 		bullet->data = &game->big_laser;
 }
 
+static void
+game_on_player_reload(cg_player_t* player, client_game_t* game)
+{
+	if (player->id != game->player->core->id)
+		return;
+
+	ssp_segbuff_add(&game->net->udp.buf, NET_UDP_PLAYER_RELOAD, 0, NULL);
+}
+
 void* 
 game_init(waapp_t* app)
 {
@@ -366,6 +375,7 @@ game_init(waapp_t* app)
 	game->cg.user_data = game;
 	game->cg.player_free_callback = on_player_free;
 	game->cg.on_bullet_create = (cg_bullet_create_callback_t)game_on_bullet_create;
+	game->cg.player_reload = (cg_player_reload_callback_t)game_on_player_reload;
 
 	game->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
 	game->tank_bottom_tex->name = "Tank Bottom";

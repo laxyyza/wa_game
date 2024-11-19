@@ -1,5 +1,21 @@
 #include "server_game.h"
 
+void
+server_on_player_reload(cg_player_t* player, server_t* server)
+{
+	ght_t* clients = &server->clients;
+	client_t* source_client = player->user_data;
+
+	net_udp_player_reload_t* reload_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_reload_t));
+	reload_out->player_id = source_client->player->id;
+
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		if (client->player)
+			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_RELOAD, sizeof(net_udp_player_reload_t), reload_out);
+	});
+}
+
 static net_tcp_new_player_t*
 client_to_tcp_new_player(server_t* server, const client_t* client)
 {
@@ -133,6 +149,7 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
 	client->player = coregame_add_player(&server->game, connect->username);
+	client->player->user_data = client;
 	coregame_create_gun(&server->game, CG_GUN_ID_SMALL, client->player);
 
 	client->player->pos = server_next_spawn(server);
@@ -262,4 +279,12 @@ player_input(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 		if (client->player && client != source_client)
 			ssp_segbuff_add(&client->udp_buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
 	});
+}
+
+void 
+player_reload(UNUSED const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	source_client->player->gun->ammo = 0;
+
+	server_on_player_reload(source_client->player, server);
 }

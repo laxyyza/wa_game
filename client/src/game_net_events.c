@@ -242,3 +242,13 @@ game_player_input(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	if (player)
 		coregame_set_player_input(player, input->flags);
 }
+
+void 
+game_player_reload(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	const net_udp_player_reload_t* reload = (const net_udp_player_reload_t*)segment->data;
+	cg_player_t* player = ght_get(&app->game->cg.players, reload->player_id);
+
+	if (player)
+		coregame_player_reload(&app->game->cg, player);
+}

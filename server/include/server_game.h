@@ -3,6 +3,7 @@
 
 #include "server.h"
 
+void server_on_player_reload(cg_player_t* player, server_t* server);
 void player_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client);
 void udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client);
 void player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_client);
@@ -14,5 +15,6 @@ void want_server_stats(const ssp_segment_t* segment, UNUSED server_t* server, cl
 void chat_msg(const ssp_segment_t* segment, server_t* server, client_t* source_client);
 void player_gun_id(const ssp_segment_t* segment, server_t* server, client_t* source_client);
 void player_input(const ssp_segment_t* segment, server_t* server, client_t* source_client);
+void player_reload(const ssp_segment_t* segment, server_t* server, client_t* source_client);
 
 #endif // _SERVER_GAME_H_

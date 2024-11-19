@@ -839,6 +839,9 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 		gun->bullet_timer -= gun->spec->bullet_spawn_interval;
 		gun->ammo--;
 	}
+
+	if (gun->ammo <= 0 && cg->player_reload)
+		cg->player_reload(gun->owner, cg->user_data);
 }
 
 cg_gun_t* 
@@ -889,11 +892,14 @@ coregame_player_change_gun(coregame_t* cg, cg_player_t* player, enum cg_gun_id i
 }
 
 void 
-coregame_player_reload(cg_player_t* player)
+coregame_player_reload(coregame_t* cg, cg_player_t* player)
 {
 	if (player->gun == NULL || player->gun->ammo == player->gun->spec->max_ammo)
 		return;
 
 	player->gun->ammo = 0;
+
+	if (cg->player_reload)
+		cg->player_reload(player, cg->user_data);
 }
 

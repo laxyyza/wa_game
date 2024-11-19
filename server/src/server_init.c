@@ -216,6 +216,7 @@ server_init_netdef(server_t* server)
 	callbacks[NET_TCP_CHAT_MSG] = (ssp_segmap_callback_t)chat_msg;
 	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segmap_callback_t)player_gun_id;
 	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segmap_callback_t)player_input;
+	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segmap_callback_t)player_reload;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_state.user_data = server;
@@ -280,6 +281,7 @@ server_init_coregame(server_t* server)
 	server->game.user_data = server;
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 	server->game.player_damaged = (cg_player_damaged_callback_t)on_player_damaged;
+	server->game.player_reload = (cg_player_reload_callback_t)server_on_player_reload;
 
 	array_init(&server->spawn_points, sizeof(cg_runtime_cell_t**), 10);
 	cg_runtime_cell_t* cell;
