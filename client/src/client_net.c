@@ -339,7 +339,8 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 	net->udp.in.bytes += bytes_read;
 	net->udp.in.count++;
 
-	ssp_parse_buf(&net->def.ssp_state, &net->udp.buf, buf, bytes_read, &addr);
+	if (ssp_parse_buf(&net->def.ssp_state, &net->udp.buf, buf, bytes_read, &addr) == SSP_FAILED)
+		errorf("Invalid UDP Packet!\n");
 	free(buf);
 }
 
@@ -537,6 +538,15 @@ do_reconnect(UNUSED const ssp_segment_t* segment, waapp_t* app, UNUSED void* dat
 	coregame_free_player(&app->game->cg, player);
 }
 
+static bool
+net_verify_session(u32 session_id, waapp_t* app, 
+				   UNUSED void* source_data, 
+				   UNUSED void** new_source, 
+				   UNUSED ssp_segbuff_t* segbuf)
+{
+	return session_id == app->net.session_id;
+}
+
 i32 
 client_net_init(waapp_t* app)
 {
@@ -565,6 +575,7 @@ client_net_init(waapp_t* app)
 
 	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_state.user_data = app;
+	net->def.ssp_state.verify_session = (ssp_session_verify_callback_t)net_verify_session;
 
 	array_init(&net->events, sizeof(fdevent_t), 4);
 
