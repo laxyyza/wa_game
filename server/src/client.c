@@ -27,6 +27,7 @@ accept_client(server_t* server)
 	ssp_segbuff_init(&client->udp_buf, 10, SSP_FLAGS);
 
 	getrandom(&client->session_id, sizeof(u32), 0);
+	client->udp_buf.session_id = client->session_id;
 
 	ght_insert(&server->clients, client->session_id, client);
 
