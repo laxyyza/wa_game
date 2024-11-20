@@ -15,6 +15,7 @@ netdef_init(netdef_t* netdef, coregame_t* coregame,
 {
 	netdef->coregame = coregame;
 	ssp_ctx_init(&netdef->ssp_ctx);
+	ssp_set_magic(ssp_checksum32(VERSION, sizeof(VERSION)));
 	netdef->ssp_ctx.segment_type_str = (void*)netdef_segtypes_str;
 
 	ssp_segment_callback(&netdef->ssp_ctx, NET_DEBUG_MSG, tcp_debug_msg);
