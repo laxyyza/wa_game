@@ -423,8 +423,8 @@ cg_player_handle_block_collision(coregame_t* cg,
 								 const cg_runtime_cell_t* cell)
 {
 	const u32 grid_size = cg->map->grid_size;
-	vec2f_t contact_normal;
-	vec2f_t contact_point;
+	vec2f_t contact_normal = {0, 0};
+	vec2f_t contact_point = {0, 0};
 	f32 contact_time = 0;
 	cg_rect_t target = {
 		.pos = vec2f(
@@ -448,7 +448,7 @@ static void
 cg_player_handle_player_collision(cg_player_t* player, const cg_runtime_cell_t* cell)
 {
 	vec2f_t contact_normal = {0, 0};
-	vec2f_t contact_point;
+	vec2f_t contact_point = {0, 0};
 	f32 contact_time = 0;
 	const cg_empty_cell_data_t* data = cell->data;
 

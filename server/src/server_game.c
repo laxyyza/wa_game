@@ -12,7 +12,7 @@ server_on_player_reload(cg_player_t* player, server_t* server)
 	GHT_FOREACH(client_t* client, clients, 
 	{
 		if (client->player)
-			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_RELOAD, sizeof(net_udp_player_reload_t), reload_out);
+			ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_RELOAD, sizeof(net_udp_player_reload_t), reload_out);
 	});
 }
 
@@ -128,7 +128,7 @@ on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, serv
 		ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_HEALTH, sizeof(net_udp_player_health_t), health);
 		if (move)
 		{
-			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
+			ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
 			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_DIED, sizeof(net_udp_player_died_t), player_died);
 			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), target_stats);
 			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), attacker_stats);
@@ -203,8 +203,16 @@ void
 player_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client)
 {
 	const net_udp_player_ping_t* og_client_ping = (const net_udp_player_ping_t*)segment->data;
+	if (og_client_ping->ms < 0)
+	{
+		printf("Player %u ping is less than zero: %f\n", og_client_ping->player_id, og_client_ping->ms);
+		return;
+	}
+
 	net_udp_player_ping_t* client_ping = mmframes_alloc(&server->mmf, sizeof(net_udp_player_ping_t));
 	ght_t* clients = &server->clients;
+
+	ssp_segbuf_set_rtt(&source_client->udp_buf, og_client_ping->ms);
 
 	client_ping->ms = og_client_ping->ms;
 	client_ping->player_id = source_client->player->id;
@@ -257,7 +265,7 @@ player_gun_id(const ssp_segment_t* segment, server_t* server, client_t* source_c
 
 		GHT_FOREACH(client_t* client, clients, {
 			if (client->player)
-				ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
+				ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
 		});
 	}
 }
@@ -277,7 +285,7 @@ player_input(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 	GHT_FOREACH(client_t* client, clients, 
 	{
 		if (client->player && client != source_client)
-			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
+			ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
 	});
 }
 

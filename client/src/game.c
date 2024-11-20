@@ -80,7 +80,7 @@ game_handle_num_keys(client_game_t* game, const wa_event_key_t* ev)
 	{
 		u32* udp_gun_id = mmframes_alloc(&game->app->mmf, sizeof(u32));
 		*udp_gun_id = gun_id;
-		ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_GUN_ID, sizeof(u32), udp_gun_id);
+		ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_GUN_ID, sizeof(u32), udp_gun_id);
 	}
 }
 
@@ -248,7 +248,7 @@ game_update_logic(client_game_t* game)
 	}
 	if (game->player->input != game->prev_input)
 	{
-		ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(u8), &player->input);
+		ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(u8), &player->input);
 		game->prev_input = player->input;
 	}
 
@@ -357,7 +357,7 @@ game_on_player_reload(cg_player_t* player, client_game_t* game)
 	if (player->id != game->player->core->id)
 		return;
 
-	ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_RELOAD, 0, NULL);
+	ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_RELOAD, 0, NULL);
 }
 
 void* 

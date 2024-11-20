@@ -429,6 +429,8 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	f64 elapsed_time = get_elapsed_time(&current_time, &pong->start_time);
 	app->game->player->core->stats.ping = player_ping->ms = net->udp.latency = elapsed_time * 1000.0;
 
+	ssp_segbuf_set_rtt(&net->udp.buf, player_ping->ms);
+
 	ssp_segbuf_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
 }
 
@@ -898,12 +900,20 @@ client_net_try_udp_flush(waapp_t* app)
 
 	if (elapsed_time >= net->udp.interval)
 	{
+		f64 current_time = (net->udp.current_time.tv_nsec / 1e9) + net->udp.current_time.tv_sec;
 		ssp_packet_t* packet = ssp_serialize_packet(&net->udp.buf);
+
 		if (packet)
 		{
+			packet->timestamp = current_time;
 			client_udp_send(app, packet);
-			mmframes_clear(&app->mmf);
 		}
+
+		while ((packet = ssp_segbuf_get_resend_packet(&net->udp.buf, current_time)))
+			client_udp_send(app, packet);
+
+		mmframes_clear(&app->mmf);
+		
 		net->udp.send_start_time = net->udp.current_time;
 	}
 }

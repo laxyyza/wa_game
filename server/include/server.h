@@ -58,6 +58,7 @@ typedef struct server
 	struct timespec start_time;
 	struct timespec end_time;
 	struct timespec prev_time;
+	f64 current_time;
 
 	f64 routine_time;
 	f64 client_timeout_threshold;

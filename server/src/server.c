@@ -144,7 +144,7 @@ set_udp_info(udp_addr_t* info)
 void 
 server_read_udp_packet(server_t* server, event_t* event)
 {
-	void* buf = malloc(RECV_BUFFER_SIZE);
+	void* buf = calloc(1, RECV_BUFFER_SIZE);
 	i64 bytes_read;
 	i32 ret;
 	udp_addr_t info = {
@@ -281,7 +281,8 @@ server_flush_udp_clients(server_t* server)
 {
 	ght_t* clients = &server->clients;
 
-	GHT_FOREACH(client_t* client, clients, {
+	GHT_FOREACH(client_t* client, clients, 
+	{
 		if (client->udp_connected)
 		{
 			if (server->send_stats && client->want_stats)
@@ -297,6 +298,19 @@ server_flush_udp_clients(server_t* server)
 			ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
 
 			if (packet)
+			{
+				packet->timestamp = server->current_time;
+
+				if (!(server->send_stats && client->want_stats))
+				{
+					server->stats.udp_pps_out++;
+					server->stats.udp_pps_out_bytes += packet->size;
+				}
+
+				client_send(server, client, packet);
+			}
+
+			while ((packet = ssp_segbuf_get_resend_packet(&client->udp_buf, server->current_time)))
 			{
 				if (!(server->send_stats && client->want_stats))
 				{
@@ -441,6 +455,7 @@ server_run(server_t* server)
 		server_poll(server);
 
 		clock_gettime(CLOCK_MONOTONIC, &server->start_time);
+		server->current_time = (server->start_time.tv_nsec / 1e9) + server->start_time.tv_sec;
 
 		coregame_update(&server->game);
 		server_flush_udp_clients(server);
