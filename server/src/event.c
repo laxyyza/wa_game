@@ -71,6 +71,18 @@ server_close_event(server_t* server, event_t* event)
 	if (event->next)
 		event->next->prev = event->prev;
 
+	if (server->events.head == event)
+		server->events.head = event->next;
+	if (server->events.tail == event)
+	{
+		if (event->next)
+			server->events.tail = event->next;
+		else if (event->prev)
+			server->events.tail = event->prev;
+		else
+			server->events.tail = server->events.head;
+	}
+
 	free(event);
 }
 
