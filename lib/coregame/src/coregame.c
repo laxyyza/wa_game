@@ -688,7 +688,7 @@ coregame_update(coregame_t* cg)
 void 
 coregame_cleanup(coregame_t* cg)
 {
-	free(cg->map);
+	cg_runtime_map_free(cg->map);
 	array_del(&cg->gun_specs);
 	ght_destroy(&cg->players);
 }
