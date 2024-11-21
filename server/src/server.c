@@ -490,6 +490,8 @@ server_cleanup(server_t* server)
 	server_cleanup_clients(server);
 	ssp_tcp_sock_close(&server->tcp_sock);
 	signalfd_close(server);
+	ssp_segbuf_destroy(&server->segbuf);
+	free(server->disk_map);
 
 	if (server->timerfd > 0 && close(server->timerfd) == -1)
 		perror("close timerfd");
