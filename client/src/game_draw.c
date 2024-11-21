@@ -193,28 +193,28 @@ game_render_grid(ren_t* ren, u32 w, u32 h, u32 cell_size_w, u32 cell_size_h)
 	}
 }
 
-static void
-game_render_map_cell_edges(ren_t* ren, cg_runtime_map_t* map)
-{
-	const cg_line_t* edges = (const cg_line_t*)map->runtime.edge_pool.buf;
-
-	for (u32 i = 0; i < map->runtime.edge_pool.count; i++)
-	{
-		const cg_line_t* line = edges + i;
-		ren_draw_line(ren, &line->a, &line->b, 0xFFFFFFFF);
-
-		rect_t r = {0};
-		rect_init(&r, line->a, vec2f(16, 16), 0xFF0000FF, NULL);
-		r.pos.x -= r.size.x;
-		r.pos.y -= r.size.y;
-
-		ren_draw_rect(ren, &r);
-
-		rect_init(&r, line->b, vec2f(16, 16), 0x0000FFFF, NULL);
-
-		ren_draw_rect(ren, &r);
-	}
-}
+// static void
+// game_render_map_cell_edges(ren_t* ren, cg_runtime_map_t* map)
+// {
+// 	const cg_line_t* edges = (const cg_line_t*)map->runtime.edge_pool.buf;
+//
+// 	for (u32 i = 0; i < map->runtime.edge_pool.count; i++)
+// 	{
+// 		const cg_line_t* line = edges + i;
+// 		ren_draw_line(ren, &line->a, &line->b, 0xFFFFFFFF);
+//
+// 		rect_t r = {0};
+// 		rect_init(&r, line->a, vec2f(16, 16), 0xFF0000FF, NULL);
+// 		r.pos.x -= r.size.x;
+// 		r.pos.y -= r.size.y;
+//
+// 		ren_draw_rect(ren, &r);
+//
+// 		rect_init(&r, line->b, vec2f(16, 16), 0x0000FFFF, NULL);
+//
+// 		ren_draw_rect(ren, &r);
+// 	}
+// }
 
 void
 game_render_map(waapp_t* app, cg_runtime_map_t* map, bool show_grid)
@@ -237,7 +237,7 @@ game_render_map(waapp_t* app, cg_runtime_map_t* map, bool show_grid)
 	if (show_grid)
 	{
 		game_render_grid(ren, map->w, map->h, map->grid_size, map->grid_size);
-		game_render_map_cell_edges(ren, map);
+		// game_render_map_cell_edges(ren, map);
 	}
 	ren->line_bro->draw_rect(ren, ren->line_bro, &app->map_border);
 

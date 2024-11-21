@@ -105,9 +105,10 @@ map_editor_set_cell(cg_runtime_cell_t* cell, u8 new_type)
 		}
 		cell->type = new_type;
 
-		if (cell->type == CG_CELL_BLOCK)
-			cell->data = calloc(1, sizeof(cg_block_cell_data_t));
-		else
+		// if (cell->type == CG_CELL_BLOCK)
+		// 	cell->data = calloc(1, sizeof(cg_block_cell_data_t));
+		// else
+		if (cell->type != CG_CELL_BLOCK)
 		{
 			cell->data = calloc(1, sizeof(cg_empty_cell_data_t));
 			cg_empty_cell_data_t* data = cell->data;
@@ -145,7 +146,7 @@ map_editor_handle_building(waapp_t* app, waapp_map_editor_t* editor)
 		map_editor_del_block(app, editor);
 	else
 		return;
-	cg_map_compute_edge_pool(editor->map);
+	// cg_map_compute_edge_pool(editor->map);
 }
 
 static bool
@@ -217,7 +218,7 @@ map_editor_ui(waapp_t* app, waapp_map_editor_t* editor)
 		i32 width = editor->map->w;
 		i32 height = editor->map->h;
 		i32 grid_size = editor->map->grid_size;
-		bool re_compute_edge_pool = false;
+		// bool re_compute_edge_pool = false;
 
 		nk_property_int(ctx, "Grid Width", 1, &width, UINT16_MAX, 1, 10);
 		nk_property_int(ctx, "Grid Height", 1, &height, UINT16_MAX, 1, 10);
@@ -226,16 +227,16 @@ map_editor_ui(waapp_t* app, waapp_map_editor_t* editor)
 		if ((u16)width != editor->map->w || (u16)height != editor->map->h)
 		{
 			cg_map_resize(&editor->map, width, height);
-			re_compute_edge_pool = true;
+			// re_compute_edge_pool = true;
 		}
 		if (editor->map->grid_size != (u16)grid_size)
 		{
 			editor->map->grid_size = (u16)grid_size;
-			re_compute_edge_pool = true;
+			// re_compute_edge_pool = true;
 		}
-
-		if (re_compute_edge_pool)
-			cg_map_compute_edge_pool(editor->map);
+		//
+		// if (re_compute_edge_pool)
+		// 	cg_map_compute_edge_pool(editor->map);
 
 		nk_label(ctx, "Map name:", NK_TEXT_LEFT);
 		nk_edit_string_zero_terminated(ctx, 

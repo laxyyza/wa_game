@@ -23,13 +23,13 @@ typedef struct
 	vec2f_t b;
 } cg_line_t;
 
-typedef struct 
-{
-	cg_line_t* top;
-	cg_line_t* bot;
-	cg_line_t* left;
-	cg_line_t* right;
-} cg_block_cell_data_t;
+// typedef struct 
+// {
+// 	cg_line_t* top;
+// 	cg_line_t* bot;
+// 	cg_line_t* left;
+// 	cg_line_t* right;
+// } cg_block_cell_data_t;
 
 typedef struct 
 {
@@ -75,9 +75,9 @@ typedef struct
 	u32 grid_size;
 	bool editor_mode;
 
-	struct {
-		array_t edge_pool;
-	} runtime;
+	// struct {
+	// 	array_t edge_pool;
+	// } runtime;
 
 	cg_runtime_cell_t		cells[];
 } cg_runtime_map_t;
@@ -97,7 +97,7 @@ u32					cg_disk_map_calc_size(u16 w, u16 h);
 u32					cg_runtime_map_calc_size(u16 w, u16 h);
 u32					cg_map_size(const cg_runtime_map_t* map);
 void				cg_runtime_map_free(cg_runtime_map_t* map);
-void				cg_map_compute_edge_pool(cg_runtime_map_t* map);
+// void				cg_map_compute_edge_pool(cg_runtime_map_t* map);
 
 u64			file_size(FILE* f);
 u16			mini16(u16 a, u16 b);
