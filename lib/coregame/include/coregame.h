@@ -5,9 +5,9 @@
 #include <int.h>
 #include <ght.h>
 #include "rect.h"
-#include <time.h>
 #include "cg_map.h"
 #include "mmframes.h"
+#include "nano_timer.h"
 
 #define INTERPOLATE_FACTOR			0.2
 #define INTERPOLATE_THRESHOLD_DIST	0.001
@@ -142,7 +142,7 @@ typedef struct coregame
 	cg_runtime_map_t* map;
 
 	array_t gun_specs;
-	struct timespec last_time;
+	hr_time_t last_time;
 	f64 delta;
 	void* user_data;
 

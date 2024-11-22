@@ -27,13 +27,8 @@ server_routine_checks(server_t* server)
 	if (clients->count == 0)
 		return;
 
-	f64 current_time = (server->start_time.tv_nsec / 1e9) +
-						(server->start_time.tv_sec);
-
 	GHT_FOREACH(client_t* client, clients, {
-		f64 client_packet_time = (client->last_packet_time.tv_nsec / 1e9) +
-								(client->last_packet_time.tv_sec);
-		f64 time_elapsed = current_time - client_packet_time;
+		f64 time_elapsed = server->current_time - client->last_packet_time;
 
 		if (time_elapsed > server->client_timeout_threshold)
 		{
@@ -83,7 +78,7 @@ read_client(server_t* server, event_t* event)
 				client->tcp_sock.ipstr);
 			server_close_event(server, event);
 		}
-		client->last_packet_time = server->start_time;
+		client->last_packet_time = server->timer.start_time_s;
 	}
 
 	free(buf);
@@ -227,7 +222,7 @@ server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data,
 	}
 	*new_source = client;
 	*segbuf = &client->udp_buf;
-	client->last_packet_time = server->start_time;
+	client->last_packet_time = server->timer.start_time_s;
 
 	return true;
 }
@@ -360,15 +355,13 @@ server_poll(server_t* server)
 	i64 elapsed_time_ns;
 	i64 timeout_time_ns = 0;
 	u32 errors = 0;
-	struct timespec* prev_start_time = &server->start_time;
-	struct timespec* prev_end_time = &server->end_time;
 	struct timespec timeout = {0};
-	struct timespec current_time;
+	hr_time_t current_time;
 	struct timespec* do_timeout = (server->clients.count == 0) ? NULL : &timeout;
 	struct epoll_event* event;
 
 
-	f64 current_time_s = (server->start_time.tv_nsec / 1e9) + server->start_time.tv_sec;
+	f64 current_time_s = server->timer.start_time_s;
 	f64 time_elapsed = current_time_s - server->last_stat_update;
 	
 	if (time_elapsed >= 1.0)
@@ -380,8 +373,7 @@ server_poll(server_t* server)
 
 	if (do_timeout)
 	{
-		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
-							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
+		prev_frame_time_ns = server->timer.elapsed_time_ns;
 		server->stats.tick_time = prev_frame_time_ns;
 		server->tick_time_total += prev_frame_time_ns;
 		server->stats.tick_time_avg = server->tick_time_total / server->tick_count;
@@ -420,10 +412,8 @@ server_poll(server_t* server)
 
 		if (do_timeout)
 		{
-			clock_gettime(CLOCK_MONOTONIC, &current_time);
-			elapsed_time_ns =	((current_time.tv_sec - prev_end_time->tv_sec) * 1e9) +
-								(current_time.tv_nsec - prev_end_time->tv_nsec);
-			memcpy(prev_end_time, &current_time, sizeof(struct timespec));
+			nano_gettime(&current_time);
+			elapsed_time_ns = nano_time_diff_ns(&server->timer.end_time, &current_time);
 			timeout_time_ns -= elapsed_time_ns;
 			if (timeout_time_ns > 0)
 				ns_to_timespec(&timeout, timeout_time_ns);
@@ -446,18 +436,14 @@ server_run(server_t* server)
 		printf("Connect to TCP port.\n\n");
 	}
 
-	clock_gettime(CLOCK_MONOTONIC, &server->start_time);
-	memcpy(&server->end_time, &server->start_time, sizeof(struct timespec));
-	memcpy(&server->prev_time, &server->start_time, sizeof(struct timespec));
-
-	server->last_stat_update = (server->start_time.tv_nsec / 1e9) + server->start_time.tv_sec;
+	server->last_stat_update = server->timer.start_time_s;
 
 	while (server->running)
 	{
 		server_poll(server);
 
-		clock_gettime(CLOCK_MONOTONIC, &server->start_time);
-		server->current_time = (server->start_time.tv_nsec / 1e9) + server->start_time.tv_sec;
+		nano_start_time(&server->timer);
+		server->current_time = server->timer.start_time_s;
 		server->netdef.ssp_ctx.current_time = server->current_time;
 
 		coregame_update(&server->game);
@@ -465,7 +451,7 @@ server_run(server_t* server)
 		mmframes_clear(&server->mmf);
 		server->tick_count++;
 
-		clock_gettime(CLOCK_MONOTONIC, &server->end_time);
+		nano_end_time(&server->timer);
 	}
 }
 

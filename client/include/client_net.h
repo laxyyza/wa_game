@@ -43,9 +43,8 @@ typedef struct
 
 	ssp_segbuf_t buf;
 
-	struct timespec current_time;
-	struct timespec inout_start_time;
-	struct timespec send_start_time;
+	hr_time_t inout_start_time;
+	hr_time_t send_start_time;
 
 	struct {
 		u32 count;
@@ -99,10 +98,9 @@ typedef struct
 } client_net_t;
 
 i32 client_net_init(waapp_t* app);
-i32 client_net_connect(waapp_t* app, const char* ipaddr, u16 port);
 void client_net_disconnect(waapp_t* app);
 const char* client_net_async_connect(waapp_t* app, const char* addr);
-void client_net_poll(waapp_t* app, struct timespec* start_time, struct timespec* end_time);
+void client_net_poll(waapp_t* app);
 // void client_net_poll(waapp_t* app, i32 timeout);
 void client_net_try_udp_flush(waapp_t* app);
 void client_net_get_stats(waapp_t* app);
@@ -113,6 +111,5 @@ fdevent_t* client_net_add_fdevent(waapp_t* app, sock_t fd,
 							fdevent_callback_t write, 
 							void* data);
 void client_net_udp_init(waapp_t* app);
-f64  get_elapsed_time(const struct timespec* current_time, const struct timespec* start_time);
 
 #endif // _CLIENT_NET_H_

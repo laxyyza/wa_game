@@ -55,9 +55,8 @@ typedef struct server
 	cg_disk_map_t*	disk_map;
 	u32			disk_map_size;
 
-	struct timespec start_time;
-	struct timespec end_time;
-	struct timespec prev_time;
+	nano_timer_t timer;
+	hr_time_t prev_time;
 	f64 current_time;
 
 	f64 routine_time;

@@ -286,13 +286,12 @@ cg_get_cells_2points(cg_runtime_map_t* map,
 static void
 coregame_get_delta_time(coregame_t* cg)
 {
-	struct timespec current_time;
-	clock_gettime(CLOCK_MONOTONIC, &current_time);
+	hr_time_t current_time;
+	nano_gettime(&current_time);
 
-	cg->delta =	((current_time.tv_sec - cg->last_time.tv_sec) + 
-				(current_time.tv_nsec - cg->last_time.tv_nsec) / 1e9) * cg->time_scale;
+	cg->delta = nano_time_diff_s(&cg->last_time, &current_time) * cg->time_scale;
 
-	memcpy(&cg->last_time, &current_time, sizeof(struct timespec));
+	memcpy(&cg->last_time, &current_time, sizeof(hr_time_t));
 }
 
 static cg_bullet_t*

@@ -4,6 +4,7 @@
 #include "coregame.h"
 #include "ssp.h"
 #include "ssp_tcp.h"
+#include "nano_timer.h"
 
 #define DEFAULT_PORT 49420
 #define CHAT_MSG_MAX 128
@@ -119,7 +120,7 @@ typedef struct
 
 typedef struct 
 {
-	struct timespec start_time;
+	hr_time_t start_time;
 } net_udp_pingpong_t;
 
 typedef struct 

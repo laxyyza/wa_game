@@ -16,7 +16,7 @@ typedef struct
 	udp_addr_t		udp;
 	bool			udp_connected;
 	bool			want_stats;
-	struct timespec last_packet_time;
+	f64				last_packet_time;
 } client_t;
 
 client_t* accept_client(server_t* server);

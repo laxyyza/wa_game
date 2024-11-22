@@ -31,7 +31,7 @@ accept_client(server_t* server)
 
 	ght_insert(&server->clients, client->session_id, client);
 
-	client->last_packet_time = server->start_time;
+	client->last_packet_time = server->timer.start_time_s;
 
 	printf("Client (%s) (fd:%d) connected.\t(%zu connected clients)\n", 
 			client->tcp_sock.ipstr, client->tcp_sock.sockfd, server->clients.count);

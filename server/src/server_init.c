@@ -346,6 +346,8 @@ server_init(server_t* server, i32 argc, char* const* argv)
 	mmframes_init(&server->mmf);
 	ssp_segbuf_init(&server->segbuf, 4, 0);
 
+	nano_timer_init(&server->timer);
+
 	server->running = true;
 
 	return 0;

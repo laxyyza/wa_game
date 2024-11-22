@@ -86,13 +86,13 @@ main_menu_enter(waapp_t* app, waapp_main_menu_t* mm)
 static void 
 mm_bg_update(waapp_t* app, waapp_main_menu_t* mm)
 {
-	clock_gettime(CLOCK_MONOTONIC, &app->start_time);
+	nano_start_time(&app->timer);
 
 	if (mm->speed_changed)
 		mm->speed_changed = false;
 	else
 	{
-		f32 seconds = (app->start_time.tv_nsec / 1e9) + app->start_time.tv_sec;
+		f32 seconds = app->timer.start_time_s;
 
 		seconds *= mm->bg_speed;
 

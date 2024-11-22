@@ -22,7 +22,7 @@ typedef struct
 {
 	char target_name[PLAYER_NAME_MAX];
 	char attacker_name[PLAYER_NAME_MAX];
-	struct timespec timestamp;
+	f64 timestamp;
 } player_kill_t;
 
 player_t* player_new(client_game_t* game, const char* name);

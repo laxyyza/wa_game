@@ -2,7 +2,6 @@
 #include "client_net.h"
 #include "app.h"
 #include "player.h"
-#include <time.h>
 #include "main_menu.h"
 #include "state.h"
 #include "gui/gui.h"
@@ -28,14 +27,6 @@ char wsa_error_string[WSA_ERROR_STR_MAX];
 
 #define BUFFER_SIZE 4096
 #define MAX_EVENTS 4
-
-f64 
-get_elapsed_time(const struct timespec* current_time, const struct timespec* start_time)
-{
-	f64 elapsed_time =	(current_time->tv_sec - start_time->tv_sec) +
-						(current_time->tv_nsec - start_time->tv_nsec) / 1e9;
-	return elapsed_time;
-}
 
 #ifdef _WIN32
 const char*
@@ -339,7 +330,7 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 
 	net->udp.in.bytes += bytes_read;
 	net->udp.in.count++;
-	net->def.ssp_ctx.current_time = ((net->udp.current_time.tv_nsec / 1e9) + net->udp.current_time.tv_sec);
+	net->def.ssp_ctx.current_time = app->timer.start_time_s;
 
 	if ((ret = ssp_parse_buf(&net->def.ssp_ctx, &net->udp.buf, buf, bytes_read, &addr)) == SSP_FAILED)
 		errorf("Invalid UDP Packet!\n");
@@ -424,43 +415,18 @@ static void
 udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 {
 	client_net_t* net = &app->net;
-	struct timespec current_time;
 	const net_udp_pingpong_t* pong = (const net_udp_pingpong_t*)segment->data;
 	net_udp_player_ping_t* player_ping = mmframes_alloc(&app->mmf, sizeof(net_udp_player_ping_t));
 
-	clock_gettime(CLOCK_MONOTONIC, &current_time);
+	hr_time_t current_time;
+	nano_gettime(&current_time);
+	f32 elapsed_time_ms = nano_time_diff_ms(&pong->start_time, &current_time);
 
-	f64 elapsed_time = get_elapsed_time(&current_time, &pong->start_time);
-	app->game->player->core->stats.ping = player_ping->ms = net->udp.latency = elapsed_time * 1000.0;
+	app->game->player->core->stats.ping = player_ping->ms = net->udp.latency = elapsed_time_ms;
 
 	ssp_segbuf_set_rtt(&net->udp.buf, player_ping->ms);
 
 	ssp_segbuf_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
-}
-
-i32 
-client_net_connect(waapp_t* app, const char* ipaddr, u16 port)
-{
-	i32 ret;
-	client_net_t* net = &app->net;
-
-	if ((ret = ssp_tcp_connect(&net->tcp.sock, ipaddr, port)) == 0)
-	{
-		net->udp.ipaddr = ipaddr;
-
-		net_tcp_connect_t connect = {
-			.username = "Test User"
-		};
-
-		ssp_segbuf_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
-		ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
-
-		client_net_add_fdevent(app, net->tcp.sock.sockfd, tcp_read, tcp_close, NULL, &net->tcp.sock);
-
-		client_net_poll(app, NULL, NULL);
-
-	}
-	return ret;
 }
 
 static bool
@@ -653,7 +619,7 @@ handle_event(waapp_t* app, fdevent_t* fdev, u32 events)
 }
 
 void
-client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec* prev_end_time)
+client_net_poll(waapp_t* app)
 {
 	i32 nfds;
 	i64 prev_frame_time_ns;
@@ -662,20 +628,16 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	u32 errors = 0;
 	client_net_t* net = &app->net;
 	struct timespec timeout = {.tv_nsec = 1, .tv_sec = 0};
-	struct timespec current_time;
-	struct timespec* do_timeout = (prev_start_time == NULL) ? NULL : &timeout;
 	struct epoll_event* event;
 	struct epoll_event events[MAX_EVENTS];
 	wa_state_t* state = wa_window_get_state(app->window);
+	hr_time_t current_time;
+	hr_time_t* prev_end_time = &app->timer.end_time;
 
-	if (prev_start_time)
-	{
-		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
-							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
-		app->frame_time = prev_frame_time_ns / 1e6;
-	}
+	prev_frame_time_ns = app->timer.elapsed_time_ns;
+	app->frame_time = prev_frame_time_ns / 1e6;
 
-	if (do_timeout && state->window.vsync == false && app->fps_limit)
+	if (state->window.vsync == false && app->fps_limit)
 	{
 		timeout_time_ns = app->fps_interval - prev_frame_time_ns;
 		if (timeout_time_ns > 0)
@@ -683,7 +645,7 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	}
 
 	do {
-		nfds = epoll_pwait2(net->epfd, events, MAX_EVENTS, do_timeout, NULL);
+		nfds = epoll_pwait2(net->epfd, events, MAX_EVENTS, &timeout, NULL);
 		if (nfds == -1)
 		{
 			if (errno == EINTR)
@@ -700,12 +662,12 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 			handle_event(app, event->data.ptr, event->events);
 		}
 
-		if (do_timeout && state->window.vsync == false && app->fps_limit)
+		if (state->window.vsync == false && app->fps_limit)
 		{
-			clock_gettime(CLOCK_MONOTONIC, &current_time);
-			elapsed_time_ns =	((current_time.tv_sec - prev_end_time->tv_sec) * 1e9) +
-								(current_time.tv_nsec - prev_end_time->tv_nsec);
-			memcpy(prev_end_time, &current_time, sizeof(struct timespec));
+			nano_gettime(&current_time);
+			elapsed_time_ns = nano_time_diff_ns(prev_end_time, &current_time);
+			memcpy(prev_end_time, &current_time, sizeof(hr_time_t));
+
 			timeout_time_ns -= elapsed_time_ns;
 			if (timeout_time_ns > 0)
 				ns_to_timespec(&timeout, timeout_time_ns);
@@ -731,7 +693,7 @@ ns_to_timeval(struct timeval* timeval, i64 ns)
 }
 
 void 
-client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec* prev_end_time)
+client_net_poll(waapp_t* app)
 {
 	client_net_t* net = &app->net;
 	i64 timeout_time_ns = 0;
@@ -741,9 +703,9 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 	i32 ret;
 	fdevent_t* events = (fdevent_t*)net->events.buf;
 	struct timeval timeval = {0, 0};
-	struct timeval* do_timeout = (prev_start_time == NULL) ? NULL : &timeval;
-	struct timespec current_time;
 	wa_state_t* state = wa_window_get_state(app->window);
+	hr_time_t current_time;
+	hr_time_t* prev_end_time = &app->timer.end_time;
 
 	if (app->net.events.count == 0)
 	{
@@ -751,14 +713,10 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 		return;
 	}
 
-	if (prev_start_time)
-	{
-		prev_frame_time_ns = ((prev_end_time->tv_sec - prev_start_time->tv_sec) * 1e9) + 
-							 (prev_end_time->tv_nsec - prev_start_time->tv_nsec);
-		app->frame_time = prev_frame_time_ns / 1e6;
-	}
+	prev_frame_time_ns = app->timer.elapsed_time_ns;
+	app->frame_time = ns_to_ms(prev_frame_time_ns);
 
-	if (do_timeout && state->window.vsync == false && app->fps_limit)
+	if (state->window.vsync == false && app->fps_limit)
 	{
 		timeout_time_ns = app->fps_interval - prev_frame_time_ns;
 		if (timeout_time_ns > 0)
@@ -781,7 +739,7 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 				max_fd = fdev->fd;
 		}
 
-		ret = select(max_fd + 1, &net->read_fds, &net->write_fds, &net->execpt_fds, do_timeout);
+		ret = select(max_fd + 1, &net->read_fds, &net->write_fds, &net->execpt_fds, &timeval);
 		if (ret == -1)
 		{
 			errorf("select error: %s\n", last_errstr());
@@ -810,12 +768,12 @@ client_net_poll(waapp_t* app, struct timespec* prev_start_time, struct timespec*
 			}
 		}
 
-		if (do_timeout && state->window.vsync == false && app->fps_limit)
+		if (state->window.vsync == false && app->fps_limit)
 		{
-			clock_gettime(CLOCK_MONOTONIC, &current_time);
-			elapsed_time_ns =	((current_time.tv_sec - prev_end_time->tv_sec) * 1e9) +
-								(current_time.tv_nsec - prev_end_time->tv_nsec);
-			memcpy(prev_end_time, &current_time, sizeof(struct timespec));
+			nano_gettime(&current_time);
+			elapsed_time_ns = nano_time_diff_ns(prev_end_time, &current_time);
+			memcpy(prev_end_time, &current_time, sizeof(hr_time_t));
+
 			timeout_time_ns -= elapsed_time_ns;
 			if (timeout_time_ns > 0)
 				ns_to_timeval(&timeval, timeout_time_ns);
@@ -857,7 +815,7 @@ client_net_ping_server(waapp_t* app)
 
 	ssp_packet_t* packet;
 	net_udp_pingpong_t ping;
-	clock_gettime(CLOCK_MONOTONIC, &ping.start_time);
+	nano_gettime(&ping.start_time);
 
 	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &ping, sizeof(net_udp_pingpong_t));
 	client_udp_send(app, packet);
@@ -871,9 +829,7 @@ client_net_get_stats(waapp_t* app)
 	if (net->tcp.sock.connected == false)
 		return;
 
-	clock_gettime(CLOCK_MONOTONIC, &net->udp.current_time);
-
-	f64 elapsed_time = get_elapsed_time(&net->udp.current_time, &net->udp.inout_start_time);
+	f64 elapsed_time = nano_time_diff_s(&net->udp.inout_start_time, &app->timer.start_time);
 
 	if (elapsed_time >= 1.0)
 	{
@@ -887,7 +843,7 @@ client_net_get_stats(waapp_t* app)
 		net->udp.out.count = 0;
 		net->udp.out.bytes = 0;
 
-		net->udp.inout_start_time = net->udp.current_time;
+		net->udp.inout_start_time = app->timer.start_time;
 
 		client_net_ping_server(app);
 	}
@@ -898,16 +854,14 @@ client_net_try_udp_flush(waapp_t* app)
 {
 	client_net_t* net = &app->net;
 
-	// f64 elapsed_time = (net->udp.current_time.tv_sec - net->udp.send_start_time.tv_sec) + 
-	// 					(net->udp.current_time.tv_nsec - net->udp.send_start_time.tv_nsec) / 1e9;
-	f64 elapsed_time = get_elapsed_time(&net->udp.current_time, &net->udp.send_start_time);
+	const f64 elapsed_time = nano_time_diff_s(&net->udp.send_start_time, &app->timer.start_time);
+	const f64 current_time = app->timer.start_time_s;
 
-	net->def.ssp_ctx.current_time = (net->udp.current_time.tv_nsec / 1e9) + net->udp.current_time.tv_sec;
+	net->def.ssp_ctx.current_time = app->timer.start_time_s;
 	ssp_parse_sliding_window(&net->def.ssp_ctx, &net->udp.buf, NULL);
 
 	if (elapsed_time >= net->udp.interval)
 	{
-		f64 current_time = (net->udp.current_time.tv_nsec / 1e9) + net->udp.current_time.tv_sec;
 		ssp_packet_t* packet = ssp_serialize_packet(&net->udp.buf);
 
 		if (packet)
@@ -921,7 +875,7 @@ client_net_try_udp_flush(waapp_t* app)
 
 		mmframes_clear(&app->mmf);
 		
-		net->udp.send_start_time = net->udp.current_time;
+		net->udp.send_start_time = app->timer.start_time;
 	}
 }
 

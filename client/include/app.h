@@ -12,6 +12,7 @@
 #include "state.h"
 #include "nlog.h"
 #include "game.h"
+#include "nano_timer.h"
 
 struct nk_wa;
 struct nk_conext;
@@ -49,9 +50,8 @@ typedef struct waapp
     struct nk_wa* nk_wa;
     struct nk_context* nk_ctx;
 
-	struct timespec start_time;
-	struct timespec end_time;
-	struct timespec last_time;
+	nano_timer_t timer;
+	hr_time_t last_time;
 
 	struct {
 		wa_mouse_butt_t cam_move;

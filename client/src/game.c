@@ -277,7 +277,7 @@ game_add_chatmsg(client_game_t* game, const char* name, const char* msg)
 		array_erase(&game->chat_msgs, 0);
 
 	game->new_msg = true;
-	game->last_chatmsg = (game->app->start_time.tv_nsec / 1e9) + game->app->start_time.tv_sec;
+	game->last_chatmsg = game->app->timer.start_time_s;
 }
 
 void 
@@ -443,7 +443,7 @@ game_init(waapp_t* app)
 void 
 game_update(waapp_t* app, client_game_t* game)
 {
-	clock_gettime(CLOCK_MONOTONIC, &app->start_time);
+	nano_start_time(&app->timer);
 
 	game_ui_update(game);
 	game_update_logic(game);
@@ -456,15 +456,15 @@ game_update(waapp_t* app, client_game_t* game)
 		app->update_vync = false;
 	}
 
-	clock_gettime(CLOCK_MONOTONIC, &app->end_time);
+	nano_end_time(&app->timer);
 
-	f64 elapsed_time_sec = (app->end_time.tv_sec - app->last_time.tv_sec) + 
-							(app->end_time.tv_nsec - app->last_time.tv_nsec) / 1e9;
+	f64 elapsed_time_sec = nano_time_diff_s(&app->last_time, &app->timer.end_time);
+
 	if (elapsed_time_sec > 1.0)
 	{
 		app->fps = app->frames;
 		app->frames = 0;
-		app->last_time = app->end_time;
+		app->last_time = app->timer.end_time;
 	}
 }
 

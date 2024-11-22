@@ -5,7 +5,6 @@
 #include <wa_cursor.h>
 #include <string.h>
 #include "gui/gui.h"
-#include <time.h>
 #include "nuklear.h"
 #include "cutils.h"
 #include <getopt.h>
@@ -265,6 +264,8 @@ waapp_init(waapp_t* app, i32 argc, char* const* argv)
 	app->max_zoom = 4.0;
 	app->clamp_cam = true;
 
+	nano_timer_init(&app->timer);
+
     return 0;
 }
 
@@ -280,15 +281,12 @@ waapp_run(waapp_t* app)
 {
 	wa_state_t* state = wa_window_get_state(app->window);
 
-	clock_gettime(CLOCK_MONOTONIC, &app->last_time);
-	app->start_time = app->end_time = app->last_time;
-
 	wa_window_vsync(app->window, true);
 	waapp_set_max_fps(app, 144.0);
 
 	while (wa_window_running(app->window))
 	{
-		client_net_poll(app, &app->start_time, &app->end_time);
+		client_net_poll(app);
 
 		if (state->window.vsync == false)
 			waapp_state_update(app->window, app);

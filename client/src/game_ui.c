@@ -7,7 +7,6 @@ static void
 game_ui_kills_window(client_game_t* game, struct nk_context* ctx)
 {
 	array_t* player_deaths = &game->player_deaths;
-	struct timespec current_time;
 	u32 delete_count = 0;
 
 	if (player_deaths->count == 0)
@@ -15,8 +14,6 @@ game_ui_kills_window(client_game_t* game, struct nk_context* ctx)
 
 	player_kill_t* kills = (player_kill_t*)player_deaths->buf;
 	player_kill_t* kill;
-
-	clock_gettime(CLOCK_MONOTONIC, &current_time);
 
     static struct nk_rect kill_window_rect = {
         .w = 500,
@@ -36,7 +33,7 @@ game_ui_kills_window(client_game_t* game, struct nk_context* ctx)
 			snprintf(label, 256, "%s -> %s", kill->attacker_name, kill->target_name); 
 			nk_label(ctx, label, NK_TEXT_RIGHT);
 
-			f64 elapsed_time = get_elapsed_time(&current_time, &kill->timestamp);
+			f64 elapsed_time = game->app->timer.start_time_s - kill->timestamp;
 
 			if (elapsed_time >= game->death_kill_time)
 				delete_count++;
@@ -233,12 +230,12 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 		snprintf(udp_in_stat, 256, "FPS: %u (%.2f ms)", app->fps, app->frame_time);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
-		struct timespec cpu_time;
-		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpu_time);
-		f64 cpu_time_s = (cpu_time.tv_nsec / 1e9) + cpu_time.tv_sec;
-
-		snprintf(udp_in_stat, 256, "TOTAL CPU TIME: %.2fs", cpu_time_s);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		// struct timespec cpu_time;
+		// clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpu_time);
+		// f64 cpu_time_s = (cpu_time.tv_nsec / 1e9) + cpu_time.tv_sec;
+		//
+		// snprintf(udp_in_stat, 256, "TOTAL CPU TIME: %.2fs", cpu_time_s);
+		// nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
 		wa_state_t* state = wa_window_get_state(app->window);
 		nk_bool vsync = !state->window.vsync;
@@ -333,7 +330,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 static void
 game_ui_chat_window(client_game_t* game, struct nk_context* ctx)
 {
-	f64 current_time = (game->app->start_time.tv_nsec / 1e9) + game->app->start_time.tv_sec;
+	f64 current_time = game->app->timer.start_time_s;
 	if (game->open_chat == false)
 	{
 		f64 elapsed_time = current_time - game->last_chatmsg;

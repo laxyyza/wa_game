@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 #include "game_net_events.h"
 #include "main_menu.h"
-#include <time.h>
 
 void 
 game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
@@ -141,7 +140,7 @@ game_player_died(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	kill = array_add_into(&app->game->player_deaths);
 	strncpy(kill->target_name, target->username, PLAYER_NAME_MAX);
 	strncpy(kill->attacker_name, attacker->username, PLAYER_NAME_MAX);
-	clock_gettime(CLOCK_MONOTONIC, &kill->timestamp);
+	kill->timestamp = app->timer.start_time_s;
 }
 
 void 
