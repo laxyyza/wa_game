@@ -685,10 +685,25 @@ coregame_update(coregame_t* cg)
 	coregame_update_bullets(cg);
 }
 
+static void
+cg_free_bullets(coregame_t* cg)
+{
+	cg_bullet_t* bullet = cg->bullets.head;
+	cg_bullet_t* bullet_next;
+
+	while (bullet)
+	{
+		bullet_next = bullet->next;
+		coregame_free_bullet(cg, bullet);
+		bullet = bullet_next;
+	}
+}
+
 void 
 coregame_cleanup(coregame_t* cg)
 {
 	cg_runtime_map_free(cg->map);
+	cg_free_bullets(cg);
 	array_del(&cg->gun_specs);
 	ght_destroy(&cg->players);
 }
