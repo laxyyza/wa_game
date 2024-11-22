@@ -178,6 +178,7 @@ f32  coregame_dist(const vec2f_t* a, const vec2f_t* b);
 cg_gun_t* coregame_create_gun(coregame_t* cg, enum cg_gun_id id, cg_player_t* owner);
 void coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec);
 void coregame_gun_update(coregame_t* cg, cg_gun_t* gun);
+bool coregame_player_change_gun_force(coregame_t* cg, cg_player_t *player, enum cg_gun_id id);
 bool coregame_player_change_gun(coregame_t* cg, cg_player_t* player, enum cg_gun_id id);
 void coregame_player_reload(coregame_t* cg, cg_player_t* player);
 

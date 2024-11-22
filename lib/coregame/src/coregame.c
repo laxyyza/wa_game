@@ -875,6 +875,15 @@ coregame_add_gun_spec(coregame_t* cg, const cg_gun_spec_t* spec)
 		new_spec->initial_charge_time = 0;
 }
 
+bool 
+coregame_player_change_gun_force(coregame_t* cg, cg_player_t *player, enum cg_gun_id id)
+{
+	if (player->gun)
+		free(player->gun);
+
+	return coregame_create_gun(cg, id, player) != NULL;
+}
+
 bool
 coregame_player_change_gun(coregame_t* cg, cg_player_t* player, enum cg_gun_id id)
 {
