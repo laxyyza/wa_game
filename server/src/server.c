@@ -165,10 +165,10 @@ server_read_udp_packet(server_t* server, event_t* event)
 
 	ret = ssp_parse_buf(&server->netdef.ssp_ctx, NULL, buf, bytes_read, &info);
 	if (ret == SSP_FAILED)
-	{
 		printf("Invalid UDP packet (%zu bytes) from %s:%u.\n", bytes_read, info.ipaddr, info.port);
-	}
-	free(buf);
+
+	if (ret != SSP_BUFFERED)
+		free(buf);
 }
 
 static void
@@ -288,7 +288,7 @@ server_flush_udp_clients(server_t* server)
 			if (server->send_stats && client->want_stats)
 			{
 				server->stats.udp_pps_out++;
-				server->stats.udp_pps_out_bytes += ssp_segbuf_serialized_size(&client->udp_buf) + sizeof(server_stats_t);
+				server->stats.udp_pps_out_bytes += ssp_segbuf_serialized_size(&client->udp_buf, NULL) + sizeof(server_stats_t);
 				if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
 					server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
 
@@ -320,6 +320,8 @@ server_flush_udp_clients(server_t* server)
 
 				client_send(server, client, packet);
 			}
+
+			ssp_parse_sliding_window(&server->netdef.ssp_ctx, &client->udp_buf, client);
 		}
 	});
 
@@ -456,6 +458,7 @@ server_run(server_t* server)
 
 		clock_gettime(CLOCK_MONOTONIC, &server->start_time);
 		server->current_time = (server->start_time.tv_nsec / 1e9) + server->start_time.tv_sec;
+		server->netdef.ssp_ctx.current_time = server->current_time;
 
 		coregame_update(&server->game);
 		server_flush_udp_clients(server);

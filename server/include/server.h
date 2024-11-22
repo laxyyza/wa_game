@@ -20,7 +20,7 @@
 #define MAX_EVENTS 8
 #define FRAMETIMES_LEN 128
 #define FRAMETIME_LEN 63
-#define SSP_FLAGS (SSP_SESSION_BIT | SSP_SEQUENCE_COUNT_BIT)
+#define SSP_FLAGS (SSP_SESSION_BIT)
 
 typedef struct server
 {

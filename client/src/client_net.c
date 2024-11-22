@@ -322,6 +322,7 @@ tcp_error(waapp_t* app, fdevent_t* fdev, i32 error_code)
 static void
 udp_read(waapp_t* app, fdevent_t* fdev)
 {
+	i32 ret;
 	client_net_t* net = &app->net;
 
 	void* buf = malloc(BUFFER_SIZE);
@@ -338,10 +339,13 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 
 	net->udp.in.bytes += bytes_read;
 	net->udp.in.count++;
+	net->def.ssp_ctx.current_time = ((net->udp.current_time.tv_nsec / 1e9) + net->udp.current_time.tv_sec);
 
-	if (ssp_parse_buf(&net->def.ssp_ctx, &net->udp.buf, buf, bytes_read, &addr) == SSP_FAILED)
+	if ((ret = ssp_parse_buf(&net->def.ssp_ctx, &net->udp.buf, buf, bytes_read, &addr)) == SSP_FAILED)
 		errorf("Invalid UDP Packet!\n");
-	free(buf);
+
+	if (ret != SSP_BUFFERED)
+		free(buf);
 }
 
 static void
@@ -897,6 +901,9 @@ client_net_try_udp_flush(waapp_t* app)
 	// f64 elapsed_time = (net->udp.current_time.tv_sec - net->udp.send_start_time.tv_sec) + 
 	// 					(net->udp.current_time.tv_nsec - net->udp.send_start_time.tv_nsec) / 1e9;
 	f64 elapsed_time = get_elapsed_time(&net->udp.current_time, &net->udp.send_start_time);
+
+	net->def.ssp_ctx.current_time = (net->udp.current_time.tv_nsec / 1e9) + net->udp.current_time.tv_sec;
+	ssp_parse_sliding_window(&net->def.ssp_ctx, &net->udp.buf, NULL);
 
 	if (elapsed_time >= net->udp.interval)
 	{
