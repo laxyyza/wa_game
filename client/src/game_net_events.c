@@ -230,7 +230,7 @@ game_player_gun_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	cg_player_t* player = ght_get(&app->game->cg.players, player_gun_id->player_id);
 
 	if (player)
-		coregame_player_change_gun(&app->game->cg, player, player_gun_id->gun_id);
+		coregame_player_change_gun_force(&app->game->cg, player, player_gun_id->gun_id);
 }
 
 void 
