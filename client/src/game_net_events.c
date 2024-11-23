@@ -83,7 +83,6 @@ game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		}
 		else
 			player->pos = *server_pos;
-		player->dir = move->dir;
 	}
 }
 
