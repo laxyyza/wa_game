@@ -69,6 +69,7 @@ game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	const vec2f_t* server_pos = &move->pos;
 	const vec2f_t* client_pos;
 	cg_player_t* player = ght_get(&app->game->cg.players, move->player_id);
+	client_game_t* game = app->game;
 
 	if (player)
 	{
@@ -83,6 +84,17 @@ game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		}
 		else
 			player->pos = *server_pos;
+
+		if (player->id == game->player->core->id)
+		{
+			if (move->input != game->player->input)
+			{
+				ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(u8), &game->player->input);
+				return;
+			}
+		}
+
+		coregame_set_player_input(player, move->input);
 	}
 }
 

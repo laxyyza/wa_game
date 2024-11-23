@@ -818,7 +818,8 @@ client_net_ping_server(waapp_t* app)
 	nano_gettime(&ping.start_time);
 
 	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &ping, sizeof(net_udp_pingpong_t));
-	client_udp_send(app, packet);
+	if (packet)
+		client_udp_send(app, packet);
 }
 
 void 

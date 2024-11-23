@@ -762,6 +762,7 @@ coregame_set_player_input(cg_player_t* player, u8 input)
 	vec2f_norm(&player->dir);
 
 	player->shoot = input & PLAYER_INPUT_SHOOT;
+	player->input = input;
 }
 
 u8

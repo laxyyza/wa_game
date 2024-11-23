@@ -77,6 +77,7 @@ on_player_changed(cg_player_t* player, server_t* server)
 	net_udp_player_move_t* move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
 	move->player_id = player->id;
 	move->pos = player->pos;
+	move->input = player->input;
 
 	GHT_FOREACH(client_t* client, clients, {
 		ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
@@ -99,6 +100,7 @@ on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, serv
 	{
 		move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
 		move->player_id = target_player->id;
+		move->input = 0;
 		target_player->pos = move->pos = server_next_spawn(server);
 		target_player->health = health->health = target_player->max_health;
 

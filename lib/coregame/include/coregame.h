@@ -69,6 +69,7 @@ typedef struct cg_player
 	vec2f_t cursor;
 	char	username[PLAYER_NAME_MAX];
 	array_t cells;
+	u8		input;
 
 	struct {
 		vec2f_t server_pos;
