@@ -178,6 +178,9 @@ client_net_del_fdevent(waapp_t* app, sock_t fd)
 	{
 		if (events[i].fd == fd)
 		{
+		#ifdef _WIN32
+			CloseHandle(events[i].wsa_event);
+		#endif
 			array_erase(&net->events, i);
 			break;
 		}
@@ -238,6 +241,21 @@ client_net_add_fdevent(waapp_t* app, sock_t fd,
 	if (epoll_ctl(net->epfd, EPOLL_CTL_ADD, fd, &ev) == -1)
 		perror("epoll_ctl ADD");
 #endif
+#ifdef _WIN32
+	event->events = FD_CLOSE;
+
+	if (read)
+		event->events |= FD_READ;
+	if (write)
+		event->events |= FD_WRITE;
+
+	event->wsa_event = WSACreateEvent();
+
+	if (WSAEventSelect(fd, event->wsa_event, event->events) == SOCKET_ERROR)
+	{
+		printf("WSAEventSelect() failed: %d\n", WSAGetLastError());
+	}
+#endif
 	return event;
 }
 
@@ -263,6 +281,14 @@ client_net_fdevent_del_write(waapp_t* app, fdevent_t* fdev)
 static void 
 client_net_fdevent_del_write(UNUSED waapp_t* app, fdevent_t* fdev)
 {
+	if (fdev->events & FD_WRITE)
+	{
+		fdev->events ^= FD_WRITE;
+		if (WSAEventSelect(fdev->fd, fdev->wsa_event, fdev->events) == SOCKET_ERROR)
+		{
+			printf("WSAEventSelect() failed: %d\n", WSAGetLastError());
+		}
+	}
 	fdev->write = NULL;
 }
 #endif // _WIN32
@@ -696,93 +722,80 @@ void
 client_net_poll(waapp_t* app)
 {
 	client_net_t* net = &app->net;
-	i64 timeout_time_ns = 0;
-	i64 prev_frame_time_ns;
-	i64 elapsed_time_ns;
-	sock_t max_fd = 0;
-	i32 ret;
-	fdevent_t* events = (fdevent_t*)net->events.buf;
-	struct timeval timeval = {0, 0};
+	i64 elapsed_time_ms;
 	wa_state_t* state = wa_window_get_state(app->window);
 	hr_time_t current_time;
 	hr_time_t* prev_end_time = &app->timer.end_time;
+	
+	i64 timeout = 0;
+	HANDLE events[MAX_EVENTS] = {0};
+	for (u32 i = 0; i < net->events.count; i++)
+		events[i] = ((fdevent_t*)net->events.buf)[i].wsa_event;
+	i64 ret;
 
-	if (app->net.events.count == 0)
-	{
-		wa_window_poll_timeout(app->window, 0);
-		return;
-	}
-
-	prev_frame_time_ns = app->timer.elapsed_time_ns;
-	app->frame_time = ns_to_ms(prev_frame_time_ns);
+	f64 prev_frame_time = ns_to_ms(app->timer.elapsed_time_ns);
+	app->frame_time = prev_frame_time;
 
 	if (state->window.vsync == false && app->fps_limit)
 	{
-		timeout_time_ns = app->fps_interval - prev_frame_time_ns;
-		if (timeout_time_ns > 0)
-			ns_to_timeval(&timeval, timeout_time_ns);
+		timeout = app->fps_interval_ms - prev_frame_time - 1;
 	}
-
+	bool do_again = true;
+	
 	do {
-		FD_ZERO(&net->read_fds);
-		FD_ZERO(&net->execpt_fds);
-		FD_ZERO(&net->write_fds);
-		for (u32 i = 0; i < net->events.count; i++)
-		{
-			fdevent_t* fdev = events + i;
-			if (fdev->write)
-				FD_SET(fdev->fd, &net->write_fds);
-			else
-				FD_SET(fdev->fd, &net->read_fds);
-			FD_SET(fdev->fd, &net->execpt_fds);
-			if (fdev->fd > max_fd)
-				max_fd = fdev->fd;
-		}
+		ret = MsgWaitForMultipleObjects(
+			net->events.count, 
+			events, 
+			FALSE, 
+			timeout, 
+			QS_ALLEVENTS);
 
-		ret = select(max_fd + 1, &net->read_fds, &net->write_fds, &net->execpt_fds, &timeval);
-		if (ret == -1)
+		if (ret == WAIT_OBJECT_0 + net->events.count)
 		{
-			errorf("select error: %s\n", last_errstr());
-			return;
+			wa_window_poll_timeout(app->window, 0);
 		}
-		else if (ret > 0)
+		else if (ret >= WAIT_OBJECT_0 && ret <= WAIT_OBJECT_0 + net->events.count)
 		{
-			for (u32 i = 0; i < net->events.count; i++)
+			u32 index = ret - WAIT_OBJECT_0;
+			fdevent_t* fdev = array_idx(&net->events, index);
+			if (fdev)
 			{
-				fdevent_t* fdev = events + i;
-				if (fdev->write && FD_ISSET(fdev->fd, &net->write_fds))
-					fdev->write(app, fdev);
-				else if (FD_ISSET(fdev->fd, &net->execpt_fds))
+				WSANETWORKEVENTS ev;
+				if (WSAEnumNetworkEvents(fdev->fd, fdev->wsa_event, &ev) == SOCKET_ERROR)
 				{
-					i32 err = 0;
-					socklen_t len = sizeof(i32);
-					getsockopt(fdev->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
-
-					if (fdev->err)
-						fdev->err(app, fdev, err);
-					else if (fdev->close)
-						fdev->close(app, fdev);
+					printf("WSAEnumNetworkEvents failed: %d\n", WSAGetLastError());
 				}
-				else if (FD_ISSET(fdev->fd, &net->read_fds))
-					fdev->read(app, fdev);
+				else
+				{
+					if (ev.lNetworkEvents & FD_READ)
+					{
+						fdev->read(app, fdev);
+					}
+					if ((ev.lNetworkEvents & FD_WRITE))
+					{
+						fdev->write(app, fdev);
+					}
+					if (ev.lNetworkEvents & FD_CLOSE)
+					{
+						fdev->close(app, fdev);
+					}
+				}
 			}
 		}
+		else
+			do_again = false;
 
 		if (state->window.vsync == false && app->fps_limit)
 		{
 			nano_gettime(&current_time);
-			elapsed_time_ns = nano_time_diff_ns(prev_end_time, &current_time);
+			elapsed_time_ms = nano_time_diff_s(prev_end_time, &current_time) * 1000.0;
 			memcpy(prev_end_time, &current_time, sizeof(hr_time_t));
 
-			timeout_time_ns -= elapsed_time_ns;
-			if (timeout_time_ns > 0)
-				ns_to_timeval(&timeval, timeout_time_ns);
-			else
-				timeval.tv_sec = timeval.tv_usec = 0;
+			timeout -= elapsed_time_ms;
+			if (timeout < 0)
+				timeout = 0;
 		}
-		else 
-			break;
-	} while(ret || timeout_time_ns > 0);
+	} while (timeout > 0 || do_again);
 
 	client_net_get_stats(app);
 	wa_window_poll_timeout(app->window, 0);

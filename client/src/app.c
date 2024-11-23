@@ -273,6 +273,7 @@ void
 waapp_set_max_fps(waapp_t* app, f64 max_fps)
 {
 	app->fps_interval = (1.0 / max_fps) * 1e9;
+	app->fps_interval_ms = (1.0 / max_fps) * 1e3;
 	app->max_fps = max_fps;
 }
 

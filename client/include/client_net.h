@@ -29,6 +29,10 @@ typedef struct fdevent
 	fdevent_callback_t write;
 	fdevent_callback_t close;
 	fdevent_err_callback_t err;
+
+#ifdef _WIN32
+	WSAEVENT wsa_event;
+#endif
 } fdevent_t;
 
 typedef struct 
@@ -90,9 +94,6 @@ typedef struct
 	server_stats_t server_stats;
 
 #ifdef _WIN32
-	fd_set read_fds;
-	fd_set execpt_fds;
-	fd_set write_fds;
 	WSADATA wsa_data;
 #endif
 } client_net_t;

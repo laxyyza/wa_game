@@ -40,6 +40,7 @@ typedef struct waapp
 	u32		frames;
 	f32		max_fps;
 	f64		fps_interval;
+	f64		fps_interval_ms;
 	bool	fps_limit;
 
 	bool update_vync;
