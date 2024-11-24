@@ -120,7 +120,8 @@ typedef struct
 
 typedef struct 
 {
-	hr_time_t start_time;
+	f64 t_client_s;
+	f64 t_server_s;
 } net_udp_pingpong_t;
 
 typedef struct 

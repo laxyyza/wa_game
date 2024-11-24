@@ -192,10 +192,17 @@ player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_c
 void 
 udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client)
 {
-	const net_udp_pingpong_t* ping = (const net_udp_pingpong_t*)segment->data;
+	const net_udp_pingpong_t* in_ping = (const net_udp_pingpong_t*)segment->data;
+	net_udp_pingpong_t out_ping = {
+		.t_client_s = in_ping->t_client_s,
+	};
+
+	hr_time_t current_time;
+	nano_gettime(&current_time);
+	out_ping.t_server_s = nano_time_s(&current_time);
 
 	// insta send to client. No buffering. 
-	ssp_packet_t* packet = ssp_insta_packet(&source_client->udp_buf, NET_UDP_PONG, ping, sizeof(net_udp_pingpong_t));
+	ssp_packet_t* packet = ssp_insta_packet(&source_client->udp_buf, NET_UDP_PONG, &out_ping, sizeof(net_udp_pingpong_t));
 	client_send(server, source_client, packet);
 }
 

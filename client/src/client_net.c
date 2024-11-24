@@ -454,12 +454,24 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 
 	hr_time_t current_time;
 	nano_gettime(&current_time);
-	f32 elapsed_time_ms = nano_time_diff_ms(&pong->start_time, &current_time);
+	const f64 current_time_s = nano_time_s(&current_time);
 
-	net->udp.jitter = fabsf(elapsed_time_ms - net->udp.prev_latency);
-	net->udp.prev_latency = elapsed_time_ms;
+	const f64 rtt = current_time_s - pong->t_client_s;
+	const f64 one_way_latency = rtt / 2;
+	const f64 time_offset = pong->t_server_s + one_way_latency - current_time_s;
+	const f32 rtt_ms = sec_to_ms(rtt);
 
-	app->game->player->core->stats.ping = player_ping->ms = net->udp.latency = elapsed_time_ms;
+	printf("TIME:\n");
+	printf("\tt1_client: %f\n", pong->t_client_s);
+	printf("\tt2_client: %f\n", current_time_s);
+	printf("\tt_server:  %f\n", pong->t_server_s);
+	printf("\toffset:    %f\n", time_offset);
+	printf("\tcalc:      %f\n", current_time_s + time_offset);
+
+	net->udp.jitter = fabsf(rtt_ms - net->udp.prev_latency);
+	net->udp.prev_latency = rtt_ms;
+
+	app->game->player->core->stats.ping = player_ping->ms = net->udp.latency = rtt_ms;
 
 	ssp_segbuf_set_rtt(&net->udp.buf, player_ping->ms);
 
@@ -837,11 +849,13 @@ client_net_ping_server(waapp_t* app)
 	if (app->net.udp.port == 0)
 		return;
 
+	hr_time_t current_time;
 	ssp_packet_t* packet;
-	net_udp_pingpong_t ping;
-	nano_gettime(&ping.start_time);
 
-	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &ping, sizeof(net_udp_pingpong_t));
+	nano_gettime(&current_time);
+	f64 time_s = nano_time_s(&current_time);
+
+	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &time_s, sizeof(f64));
 	if (packet)
 		client_udp_send(app, packet);
 }
