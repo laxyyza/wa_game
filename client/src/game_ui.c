@@ -133,13 +133,10 @@ format_ns(char* buf, u64 max, i64 ns)
 		snprintf(buf, max, "%zu ns", ns);
 }
 
-#define STATS_LABEL_LEN 64
-
 static void
 game_ui_server_stats(client_game_t* game, struct nk_context* ctx)
 {
-	// char label_str[128];
-	char label_str[STATS_LABEL_LEN];
+	char* label = game->ui_label;
 	nk_flags col0 = NK_TEXT_CENTERED;
 	nk_flags col1 = NK_TEXT_CENTERED;
 
@@ -150,40 +147,40 @@ game_ui_server_stats(client_game_t* game, struct nk_context* ctx)
 		nk_layout_row_dynamic(ctx, 20, 2);
 
 		nk_label(ctx, "Tick time:", col0);
-		format_ns(label_str, STATS_LABEL_LEN, stats->tick_time);
-		nk_label(ctx, label_str, col1);
+		format_ns(label, UI_LABEL_SIZE, stats->tick_time);
+		nk_label(ctx, label, col1);
 
 		nk_label(ctx, "Tick time avg:", col0);
-		format_ns(label_str, STATS_LABEL_LEN, stats->tick_time_avg);
-		nk_label(ctx, label_str, col1);
+		format_ns(label, UI_LABEL_SIZE, stats->tick_time_avg);
+		nk_label(ctx, label, col1);
 		
 		nk_label(ctx, "Tick time (high):", col0);
-		format_ns(label_str, STATS_LABEL_LEN, stats->tick_time_highest);
-		nk_label(ctx, label_str, col1);
+		format_ns(label, UI_LABEL_SIZE, stats->tick_time_highest);
+		nk_label(ctx, label, col1);
 
 		nk_label(ctx, "UDP PPS in:", col0);
-		snprintf(label_str, STATS_LABEL_LEN, "%u", stats->udp_pps_in);
-		nk_label(ctx, label_str, col1);
+		snprintf(label, UI_LABEL_SIZE, "%u", stats->udp_pps_in);
+		nk_label(ctx, label, col1);
 
 		nk_label(ctx, "UDP PPS in:", col0);
-		snprintf(label_str, STATS_LABEL_LEN, "%u bytes", stats->udp_pps_in_bytes);
-		nk_label(ctx, label_str, col1);
+		snprintf(label, UI_LABEL_SIZE, "%u bytes", stats->udp_pps_in_bytes);
+		nk_label(ctx, label, col1);
 
 		nk_label(ctx, "UDP PPS in (high):", col0);
-		snprintf(label_str, STATS_LABEL_LEN, "%u bytes", stats->udp_pps_in_bytes_highest);
-		nk_label(ctx, label_str, col1);
+		snprintf(label, UI_LABEL_SIZE, "%u bytes", stats->udp_pps_in_bytes_highest);
+		nk_label(ctx, label, col1);
 
 		nk_label(ctx, "UDP PPS out:", col0);
-		snprintf(label_str, STATS_LABEL_LEN, "%u", stats->udp_pps_out);
-		nk_label(ctx, label_str, col1);
+		snprintf(label, UI_LABEL_SIZE, "%u", stats->udp_pps_out);
+		nk_label(ctx, label, col1);
 
 		nk_label(ctx, "UDP PPS out:", col0);
-		snprintf(label_str, STATS_LABEL_LEN, "%u bytes", stats->udp_pps_out_bytes);
-		nk_label(ctx, label_str, col1);
+		snprintf(label, UI_LABEL_SIZE, "%u bytes", stats->udp_pps_out_bytes);
+		nk_label(ctx, label, col1);
 
 		nk_label(ctx, "UDP PPS out (high):", col0);
-		snprintf(label_str, STATS_LABEL_LEN, "%u bytes", stats->udp_pps_out_bytes_highest);
-		nk_label(ctx, label_str, col1);
+		snprintf(label, UI_LABEL_SIZE, "%u bytes", stats->udp_pps_out_bytes_highest);
+		nk_label(ctx, label, col1);
 
 		nk_group_end(ctx);
 	}
@@ -195,6 +192,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 {
     wa_state_t* state = wa_window_get_state(game->app->window);
 	waapp_t* app = game->app;
+	char* label = game->ui_label;
 
     static nk_flags win_flags = 
         NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | 
@@ -212,36 +210,28 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
     if (nk_begin(ctx, window_name, window_rect, win_flags))
                  
     {
-		char udp_in_stat[256];
         if (win_flags & NK_WINDOW_MINIMIZED)
             win_flags ^= NK_WINDOW_MINIMIZED;
 
-		snprintf(udp_in_stat, 256, "Server: %s:%u (%.1f Hz)",
+		snprintf(label, UI_LABEL_SIZE, "Server: %s:%u (%.1f Hz)",
 				game->net->udp.ipaddr, game->net->udp.port, game->net->udp.tickrate);
         nk_layout_row_dynamic(ctx, 20, 1);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		nk_label(ctx, label, NK_TEXT_LEFT);
 
 		if (game->net->udp.latency < 1.0)
-			snprintf(udp_in_stat, 256, "RTT: %.4f ms", game->net->udp.latency);
+			snprintf(label, UI_LABEL_SIZE, "RTT: %.4f ms", game->net->udp.latency);
 		else
-			snprintf(udp_in_stat, 256, "RTT: %.2f ms", game->net->udp.latency);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+			snprintf(label, UI_LABEL_SIZE, "RTT: %.2f ms", game->net->udp.latency);
+		nk_label(ctx, label, NK_TEXT_LEFT);
 
 		if (game->net->udp.jitter < 1.0)
-			snprintf(udp_in_stat, 256, "Jitter: %.4f ms", game->net->udp.jitter);
+			snprintf(label, UI_LABEL_SIZE, "Jitter: %.4f ms", game->net->udp.jitter);
 		else
-			snprintf(udp_in_stat, 256, "Jitter: %.2f ms", game->net->udp.jitter);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+			snprintf(label, UI_LABEL_SIZE, "Jitter: %.2f ms", game->net->udp.jitter);
+		nk_label(ctx, label, NK_TEXT_LEFT);
 
-		snprintf(udp_in_stat, 256, "FPS: %u (%.2f ms)", app->fps, app->frame_time);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
-
-		// struct timespec cpu_time;
-		// clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpu_time);
-		// f64 cpu_time_s = (cpu_time.tv_nsec / 1e9) + cpu_time.tv_sec;
-		//
-		// snprintf(udp_in_stat, 256, "TOTAL CPU TIME: %.2fs", cpu_time_s);
-		// nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		snprintf(label, UI_LABEL_SIZE, "FPS: %u (%.2f ms)", app->fps, app->frame_time);
+		nk_label(ctx, label, NK_TEXT_LEFT);
 
 		wa_state_t* state = wa_window_get_state(app->window);
 		nk_bool vsync = !state->window.vsync;
@@ -260,8 +250,8 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 
 			if (app->fps_limit)
 			{
-				snprintf(udp_in_stat, 256, "FPS LIMIT: %u", (u32)app->max_fps);
-				nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+				snprintf(label, UI_LABEL_SIZE, "FPS LIMIT: %u", (u32)app->max_fps);
+				nk_label(ctx, label, NK_TEXT_LEFT);
 				if (nk_slider_float(ctx, 10.0, &app->max_fps, 500.0, 1.0))
 					waapp_set_max_fps(app, app->max_fps);
 			}
@@ -270,20 +260,66 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
         if (nk_button_label(ctx, fullscreen_str))
             wa_window_set_fullscreen(app->window, !(state->window.state & WA_STATE_FULLSCREEN));
 
-		snprintf(udp_in_stat, 256, "IN  UDP Packets/s: %u (%zu bytes)", 
-				game->net->udp.in.last_count, game->net->udp.in.last_bytes);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		nk_layout_row_dynamic(ctx, 135, 1);
+		if (nk_group_begin(ctx, "SSP RX", 
+					 NK_WINDOW_TITLE | NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR))
+		{
+			nk_layout_row_dynamic(ctx, 20, 2);
 
-		snprintf(udp_in_stat, 256, "OUT UDP Packets/s: %u (%zu bytes)", 
-				game->net->udp.out.last_count, game->net->udp.out.last_bytes);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+			nk_label(ctx, "PPS", NK_TEXT_CENTERED);
+			snprintf(label, UI_LABEL_SIZE, "%u (%zu bytes)", 
+					game->net->udp.in.last_count, game->net->udp.in.last_bytes);
+			nk_label(ctx, label, NK_TEXT_LEFT);
 
-		snprintf(udp_in_stat, 256, "Interpolate Factor: %f", game->cg.interp_factor);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+			nk_label(ctx, "TOTAL:", NK_TEXT_CENTERED);
+			snprintf(label, UI_LABEL_SIZE, "%u", 
+					game->net->udp.buf.in_total_packets);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+
+			nk_label(ctx, "DROPPED:", NK_TEXT_CENTERED);
+			snprintf(label, UI_LABEL_SIZE, "%u", 
+					game->net->udp.buf.in_dropped_packets);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+
+			nk_label(ctx, "LOST:", NK_TEXT_CENTERED);
+			snprintf(label, UI_LABEL_SIZE, "%u", 
+					game->net->udp.buf.sliding_window.lost_packets);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+
+			nk_group_end(ctx);
+		}
+
+		nk_layout_row_dynamic(ctx, 110, 1);
+		if (nk_group_begin(ctx, "SSP TX", 
+					 NK_WINDOW_TITLE | NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR))
+		{
+			nk_layout_row_dynamic(ctx, 20, 2);
+
+			nk_label(ctx, "PPS:", NK_TEXT_CENTERED);
+			snprintf(label, UI_LABEL_SIZE, "%u (%zu bytes)", 
+					game->net->udp.out.last_count, game->net->udp.out.last_bytes);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+
+			nk_label(ctx, "TOTAL:", NK_TEXT_CENTERED);
+			snprintf(label, UI_LABEL_SIZE, "%u", 
+					game->net->udp.buf.out_total_packets);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+
+			nk_label(ctx, "RTO:", NK_TEXT_CENTERED);
+			snprintf(label, UI_LABEL_SIZE, "%u", 
+					game->net->udp.buf.rto);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+
+			nk_group_end(ctx);
+		}
+        nk_layout_row_dynamic(ctx, 20, 1);
+
+		snprintf(label, UI_LABEL_SIZE, "Interpolate Factor: %f", game->cg.interp_factor);
+		nk_label(ctx, label, NK_TEXT_LEFT);
 		nk_slider_float(ctx, 0.01, &game->cg.interp_factor, 1.0, 0.005);
 
-		snprintf(udp_in_stat, 256, "Interp Threshold Dist: %f", game->cg.interp_threshold_dist);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		snprintf(label, UI_LABEL_SIZE, "Interp Threshold Dist: %f", game->cg.interp_threshold_dist);
+		nk_label(ctx, label, NK_TEXT_LEFT);
 		nk_slider_float(ctx, 0.0001, &game->cg.interp_threshold_dist, 20.0, 0.0001);
 
 		nk_bool pause = !game->cg.pause;
@@ -292,8 +328,8 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			game->cg.pause = !pause;
 		}
 
-		snprintf(udp_in_stat, 256, "Time Scale: %f", game->cg.time_scale);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		snprintf(label, UI_LABEL_SIZE, "Time Scale: %f", game->cg.time_scale);
+		nk_label(ctx, label, NK_TEXT_LEFT);
 		nk_slider_float(ctx, 0, &game->cg.time_scale, 10.0, 0.1);
 
 		nk_bool game_debug = !game->game_debug;
@@ -302,8 +338,8 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			game->game_debug = !game_debug;
 		}
 
-		snprintf(udp_in_stat, 256, "Draw calls: %u", game->ren->draw_calls);
-		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+		snprintf(label, UI_LABEL_SIZE, "Draw calls: %u", game->ren->draw_calls);
+		nk_label(ctx, label, NK_TEXT_LEFT);
 		game->ren->draw_calls = 0;
 
 		nk_bool get_server_stats = !app->get_server_stats;
@@ -492,20 +528,20 @@ static void
 game_ui_healthbar_window(client_game_t* game, struct nk_context* ctx)
 {
 	const rect_t* r = &game->health_bar.background; 
+	char* label = game->ui_label;
 
 	if (nk_begin(ctx, "health", nk_rect(r->pos.x, r->pos.y, r->size.x, r->size.y), 
 			  NK_WINDOW_NO_INPUT | NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR))
 	{
 		nk_layout_row_dynamic(ctx, r->size.y, 1);
-		char healthstr[64];
 		f32 health = game->player->core->health;
 		if (health == game->player->core->max_health)
-			snprintf(healthstr, 64, "%.0f HP", health);
+			snprintf(label, UI_LABEL_SIZE, "%.0f HP", health);
 		else if (health <= 0)
-			snprintf(healthstr, 64, "%f HP", health);
+			snprintf(label, UI_LABEL_SIZE, "%f HP", health);
 		else
-			snprintf(healthstr, 64, "%.2f HP", health);
-		nk_label_colored(ctx, healthstr, NK_TEXT_RIGHT, nk_rgba_f(1, 1, 1, 1.0));
+			snprintf(label, UI_LABEL_SIZE, "%.2f HP", health);
+		nk_label_colored(ctx, label, NK_TEXT_RIGHT, nk_rgba_f(1, 1, 1, 1.0));
 	}
 	nk_end(ctx);
 }
@@ -522,19 +558,20 @@ game_ui_ammo_window(client_game_t* game, struct nk_context* ctx)
 		healthbar->size.y
 	);
 	bounds.y -= bounds.h;
+	char* label = game->ui_label;
+
 	if (nk_begin(ctx, "ammo", bounds, 
 			  NK_WINDOW_BACKGROUND | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_NOT_INTERACTIVE))
 	{
 		const cg_gun_t* gun = game->player->core->gun;
-		char label[64];
 		nk_layout_row_dynamic(ctx, bounds.h, 1);
 		if (gun->ammo <= 0)
 		{
 			f32 time_left = (gun->spec->reload_time - gun->reload_time);
-			snprintf(label, 64, "%.2fs", time_left);
+			snprintf(label, UI_LABEL_SIZE, "%.2fs", time_left);
 		}
 		else
-			snprintf(label, 64, "Ammo %d/%d", gun->ammo, gun->spec->max_ammo);
+			snprintf(label, UI_LABEL_SIZE, "Ammo %d/%d", gun->ammo, gun->spec->max_ammo);
 		nk_label(ctx, label, NK_TEXT_RIGHT);
 	}
 	nk_end(ctx);

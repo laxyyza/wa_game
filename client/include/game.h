@@ -7,6 +7,8 @@
 #include "renderer.h"
 #include "client_net.h"
 
+#define UI_LABEL_SIZE 128
+
 typedef struct waapp waapp_t;
 
 typedef struct 
@@ -58,6 +60,8 @@ typedef struct client_game
 	progress_bar_t guncharge_bar;
 
 	u8 prev_input;
+
+	char ui_label[UI_LABEL_SIZE];
 } client_game_t;
 
 void* game_init(waapp_t* app);
