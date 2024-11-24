@@ -456,6 +456,9 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	nano_gettime(&current_time);
 	f32 elapsed_time_ms = nano_time_diff_ms(&pong->start_time, &current_time);
 
+	net->udp.jitter = fabsf(elapsed_time_ms - net->udp.prev_latency);
+	net->udp.prev_latency = elapsed_time_ms;
+
 	app->game->player->core->stats.ping = player_ping->ms = net->udp.latency = elapsed_time_ms;
 
 	ssp_segbuf_set_rtt(&net->udp.buf, player_ping->ms);

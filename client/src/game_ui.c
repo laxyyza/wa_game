@@ -227,6 +227,12 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			snprintf(udp_in_stat, 256, "RTT: %.2f ms", game->net->udp.latency);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
+		if (game->net->udp.jitter < 1.0)
+			snprintf(udp_in_stat, 256, "Jitter: %.4f ms", game->net->udp.jitter);
+		else
+			snprintf(udp_in_stat, 256, "Jitter: %.2f ms", game->net->udp.jitter);
+		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
+
 		snprintf(udp_in_stat, 256, "FPS: %u (%.2f ms)", app->fps, app->frame_time);
 		nk_label(ctx, udp_in_stat, NK_TEXT_LEFT);
 
