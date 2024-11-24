@@ -297,7 +297,13 @@ waapp_run(waapp_t* app)
 void 
 waapp_cleanup(waapp_t* app)
 {
+	texture_del(app->grass_tex);
+	texture_del(app->block_tex);
+
+	waapp_state_manager_cleanup(app);
 	mmframes_free(&app->mmf);
+	gui_free(app);
     waapp_opengl_cleanup(app);
+	client_net_cleanup(app);
     wa_window_delete(app->window);
 }

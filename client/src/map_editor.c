@@ -9,6 +9,13 @@
 static u32 map_header_iq_seq = 1;
 
 static void
+map_editor_header_free(editor_map_header_t* map_header)
+{
+	cg_runtime_map_free(map_header->map);
+	free(map_header);
+}
+
+static void
 map_editor_read_header(waapp_map_editor_t* editor, const char* path)
 {
 	FILE* f;
@@ -68,7 +75,7 @@ map_editor_init(waapp_t* app)
 	wa_state_t* state = wa_window_get_state(app->window);
 	editor->mouse_map = state->mouse_map;
 
-	ght_init(&editor->maps, 5, free);
+	ght_init(&editor->maps, 5, (ght_free_t)map_editor_header_free);
 
 	editor->cell_types[0] = "Block";
 	editor->cell_types[1] = "Spawn";
@@ -100,9 +107,13 @@ map_editor_set_cell(cg_runtime_cell_t* cell, u8 new_type)
 		else
 		{
 			cg_empty_cell_data_t* data = cell->data;
-			array_del(&data->contents);
-			free(cell->data);
+			if (data)
+			{
+				array_del(&data->contents);
+				free(cell->data);
+			}
 		}
+		cell->data = NULL;
 		cell->type = new_type;
 
 		// if (cell->type == CG_CELL_BLOCK)
@@ -318,6 +329,7 @@ map_editor_update(waapp_t* app, waapp_map_editor_t* editor)
 				app->current_map = editor->map = cg_map_new(10, 10, 100);
 				editor->map_selected = calloc(1, sizeof(editor_map_header_t));
 				editor->map_selected->id = map_header_iq_seq;
+				editor->map_selected->map = editor->map;
 				map_header_iq_seq++;
 				ght_insert(&editor->maps, editor->map_selected->id, editor->map_selected);
 			}
@@ -417,10 +429,11 @@ map_editor_exit(waapp_t* app, waapp_map_editor_t* editor)
 }
 
 void 
-map_editor_cleanup(UNUSED waapp_t* app, waapp_map_editor_t* editor)
+map_editor_cleanup(waapp_t* app, waapp_map_editor_t* editor)
 {
 	ght_destroy(&editor->maps);
-	cg_runtime_map_free(editor->map);
+	// cg_runtime_map_free(editor->map);
+	app->current_map = NULL;
 
 	free(editor);
 }

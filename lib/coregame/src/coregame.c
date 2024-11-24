@@ -346,10 +346,21 @@ cg_default_gun_shoot(coregame_t* cg, cg_gun_t* gun)
 	}
 }
 
+static void
+cg_do_free_player(cg_player_t* player)
+{
+	if (player->on_player_free)
+		player->on_player_free(player);
+	free(player->gun);
+	cg_player_remove_self_from_cells(player);
+	array_del(&player->cells);
+	free(player);
+}
+
 void 
 coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map)
 {
-	ght_init(&coregame->players, 10, free);
+	ght_init(&coregame->players, 10, (ght_free_t)cg_do_free_player);
 	coregame->time_scale = 1.0;
 
 	coregame->world_border = cg_rect(
@@ -701,10 +712,10 @@ cg_free_bullets(coregame_t* cg)
 void 
 coregame_cleanup(coregame_t* cg)
 {
+	ght_destroy(&cg->players);
 	cg_runtime_map_free(cg->map);
 	cg_free_bullets(cg);
 	array_del(&cg->gun_specs);
-	ght_destroy(&cg->players);
 }
 
 cg_player_t* 
@@ -730,16 +741,12 @@ coregame_add_player_from(coregame_t* cg, cg_player_t* player)
 	array_init(&player->cells, sizeof(cg_runtime_cell_t**), 6);
 	cg_player_get_cells(cg->map, player);
 	cg_player_add_into_cells(player);
+	player->on_player_free = cg->player_free_callback;
 }
 
 void 
 coregame_free_player(coregame_t* coregame, cg_player_t* player)
 {
-	if (coregame->player_free_callback)
-		coregame->player_free_callback(player, coregame->user_data);
-	free(player->gun);
-	cg_player_remove_self_from_cells(player);
-	array_del(&player->cells);
 	ght_del(&coregame->players, player->id);
 }
 

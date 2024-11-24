@@ -222,7 +222,7 @@ game_handle_mouse_wheel(waapp_t* app, const wa_event_wheel_t* ev)
 }
 
 static void 
-on_player_free(cg_player_t* player, UNUSED void* data)
+on_player_free(cg_player_t* player)
 {
 	free(player->user_data);
 }
@@ -507,6 +507,7 @@ game_cleanup(waapp_t* app, client_game_t* game)
 	array_del(&game->player_deaths);
 	array_del(&game->chat_msgs);
 	coregame_cleanup(&game->cg);
+	ssp_segbuf_destroy(&app->net.udp.buf);
 	client_net_disconnect(app);
 	game->player = NULL;
 	app->game = NULL;

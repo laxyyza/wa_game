@@ -167,6 +167,21 @@ client_net_on_connect(waapp_t* app)
 		free((void*)app->save_username);
 }
 
+static void
+client_net_close_fdevent(waapp_t* app, fdevent_t* fdev)
+{
+#ifdef _WIN32
+	CloseHandle(fdev->wsa_event);
+#endif
+#ifdef __linux__
+	if (epoll_ctl(app->net.epfd, EPOLL_CTL_DEL, fdev->fd, NULL) == -1)
+	{
+		perror("epoll_ctl DEL");
+		return;
+	}
+#endif
+}
+
 void
 client_net_del_fdevent(waapp_t* app, sock_t fd)
 {
@@ -176,23 +191,16 @@ client_net_del_fdevent(waapp_t* app, sock_t fd)
 
 	for (u32 i = 0; i < net->events.count; i++)
 	{
-		if (events[i].fd == fd)
+		fdevent_t* fdev = events + i;
+		if (fdev->fd == fd)
 		{
-		#ifdef _WIN32
-			CloseHandle(events[i].wsa_event);
-		#endif
+			client_net_close_fdevent(app, fdev);
 			array_erase(&net->events, i);
 			break;
 		}
 	}
 
 #ifdef __linux__
-	if (epoll_ctl(net->epfd, EPOLL_CTL_DEL, fd, NULL) == -1)
-	{
-		perror("epoll_ctl DEL");
-		return;
-	}
-
 	// Update pointers.
 	for (u32 i = 0; i < net->events.count; i++)
 	{
@@ -898,4 +906,26 @@ client_net_set_tickrate(waapp_t* app, f64 tickrate)
 {
 	app->net.udp.tickrate = tickrate;
 	app->net.udp.interval = 1.0 / tickrate;
+}
+
+void 
+client_net_cleanup(waapp_t* app)
+{
+	client_net_t* net = &app->net;
+	fdevent_t* events = (fdevent_t*)net->events.buf;
+	netdef_destroy(&net->def);
+
+	for (u32 i = 0; i < net->events.count; i++)
+		client_net_close_fdevent(app, events + i);
+	array_del(&net->events);
+
+	ssp_tcp_sock_close(&app->net.tcp.sock);
+	ssp_segbuf_destroy(&app->net.tcp.buf);
+
+#ifdef __linux__
+	close(net->epfd);
+#endif
+#ifdef _WIN32
+	WSACleanup();
+#endif
 }

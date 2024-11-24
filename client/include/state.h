@@ -41,5 +41,6 @@ typedef struct
 void waapp_state_manager_init(waapp_t* app);
 void waapp_state_switch(waapp_t* app, waapp_state_t* state);
 void waapp_state_update(wa_window_t* window, waapp_t* app);
+void waapp_state_manager_cleanup(waapp_t* app);
 
 #endif // _WAAPP_STATE_H_

@@ -99,6 +99,7 @@ typedef struct
 } client_net_t;
 
 i32 client_net_init(waapp_t* app);
+void client_net_cleanup(waapp_t* app);
 void client_net_disconnect(waapp_t* app);
 const char* client_net_async_connect(waapp_t* app, const char* addr);
 void client_net_poll(waapp_t* app);

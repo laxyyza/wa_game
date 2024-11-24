@@ -30,6 +30,7 @@ waapp_state_manager_init(waapp_t* app)
 	sm->states.map_editor.update = (state_callback_t)map_editor_update;
 	sm->states.map_editor.event = (state_event_callback_t)map_editor_event;
 	sm->states.map_editor.exit = (state_callback_t)map_editor_exit;
+	sm->states.map_editor.cleanup = (state_callback_t)map_editor_cleanup;
 	sm->states.map_editor.flags = STATE_CLEANED_UP;
 
 	waapp_state_switch(app, &sm->states.main_menu);
@@ -64,6 +65,15 @@ waapp_state_switch(waapp_t* app, waapp_state_t* state)
 	sm->current = state;
 }
 
+static void
+waapp_state_cleanup(waapp_t* app, waapp_state_t* state)
+{
+	if (state->cleanup)
+		state->cleanup(app, state->data);
+	state->data = NULL;
+	state->flags |= STATE_CLEANED_UP;
+}
+
 void
 waapp_state_update(wa_window_t* window, waapp_t* app)
 {
@@ -82,12 +92,22 @@ waapp_state_update(wa_window_t* window, waapp_t* app)
 
 	if (sm->cleanup_pending)
 	{
-		if (sm->prev->cleanup)
-		{
-			sm->prev->cleanup(app, sm->prev->data);
-			sm->prev->data = NULL;
-		}
-		sm->prev->flags |= STATE_CLEANED_UP;
+		waapp_state_cleanup(app, sm->prev);
 		sm->cleanup_pending = false;
 	}
+}
+
+void
+waapp_state_manager_cleanup(waapp_t* app)
+{
+	waapp_state_manager_t* sm = &app->sm;
+
+	if ((sm->states.main_menu.flags & STATE_CLEANED_UP) == 0)
+		waapp_state_cleanup(app, &sm->states.main_menu);
+	if ((sm->states.map_editor.flags & STATE_CLEANED_UP) == 0)
+	{
+		waapp_state_cleanup(app, &sm->states.map_editor);
+	}
+	if ((sm->states.game.flags & STATE_CLEANED_UP) == 0)
+		waapp_state_cleanup(app, &sm->states.game);
 }

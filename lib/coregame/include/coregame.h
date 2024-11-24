@@ -36,6 +36,7 @@ typedef void (*cg_player_changed_callback_t)(cg_player_t* player, void* user_dat
 typedef void (*cg_player_reload_callback_t)(cg_player_t* player, void* user_data);
 typedef void (*cg_player_damaged_callback_t)(cg_player_t* target_player, 
 											 cg_player_t* attacker_player, void* user_data);
+typedef void (*cg_player_free_callback_t)(cg_player_t* player);
 
 enum cg_gun_id
 {
@@ -78,6 +79,7 @@ typedef struct cg_player
 	cg_player_stats_t stats;
 	void*	user_data;
 	bool	shoot;
+	cg_player_free_callback_t on_player_free;
 } cg_player_t;
 
 typedef struct cg_bullet
@@ -149,7 +151,7 @@ typedef struct coregame
 
 	cg_bullet_create_callback_t on_bullet_create;
 	void (*bullet_free_callback)(cg_bullet_t* bullet, void* data);
-	void (*player_free_callback)(cg_player_t* proj, void* data);
+	cg_player_free_callback_t    player_free_callback;	
 	cg_player_reload_callback_t  player_reload;
 	cg_player_changed_callback_t player_changed;
 	cg_player_damaged_callback_t player_damaged;

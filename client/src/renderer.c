@@ -310,6 +310,7 @@ ren_delete_bro(ren_t* ren, bro_t* bro)
     vertbuf_del(&bro->vbo);
     vertarray_del(&bro->vao);
 	array_del(&bro->current_textures);
+	free(bro);
 }
 
 void 

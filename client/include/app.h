@@ -50,6 +50,7 @@ typedef struct waapp
 
     struct nk_wa* nk_wa;
     struct nk_context* nk_ctx;
+	struct nk_font_atlas* atlas;
 
 	nano_timer_t timer;
 	hr_time_t last_time;
