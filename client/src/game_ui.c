@@ -260,7 +260,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
         if (nk_button_label(ctx, fullscreen_str))
             wa_window_set_fullscreen(app->window, !(state->window.state & WA_STATE_FULLSCREEN));
 
-		nk_layout_row_dynamic(ctx, 135, 1);
+		nk_layout_row_dynamic(ctx, 160, 1);
 		if (nk_group_begin(ctx, "SSP RX", 
 					 NK_WINDOW_TITLE | NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR))
 		{
@@ -284,6 +284,11 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			nk_label(ctx, "LOST:", NK_TEXT_CENTERED);
 			snprintf(label, UI_LABEL_SIZE, "%u", 
 					game->net->udp.buf.sliding_window.lost_packets);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+
+			nk_label(ctx, "BUFFERED:", NK_TEXT_CENTERED);
+			snprintf(label, UI_LABEL_SIZE, "%u", 
+					game->net->udp.buf.sliding_window.count);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_group_end(ctx);
