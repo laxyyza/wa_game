@@ -18,7 +18,13 @@
 #define PLAYER_HEALTH 100
 #define	BULLET_DMG	  2.5
 #define PLAYER_NAME_MAX 32
+
 #define UNUSED __attribute__((unused))
+#ifdef _WIN32
+#define UNUSED_WIN32 UNUSED
+#else
+#define UNUSED_WIN32
+#endif 
 
 #define PLAYER_INPUT_UP	   0x01
 #define PLAYER_INPUT_DOWN  0x02

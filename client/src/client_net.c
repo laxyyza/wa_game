@@ -168,7 +168,7 @@ client_net_on_connect(waapp_t* app)
 }
 
 static void
-client_net_close_fdevent(waapp_t* app, fdevent_t* fdev)
+client_net_close_fdevent(UNUSED_WIN32 waapp_t* app, fdevent_t* fdev)
 {
 #ifdef _WIN32
 	CloseHandle(fdev->wsa_event);
