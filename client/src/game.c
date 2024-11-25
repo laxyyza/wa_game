@@ -248,7 +248,11 @@ game_update_logic(client_game_t* game)
 	}
 	if (game->player->input != game->prev_input)
 	{
-		ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(u8), &player->input);
+		net_udp_player_input_t* input_out = mmframes_alloc(&game->app->mmf, sizeof(net_udp_player_input_t));
+		input_out->timestamp = sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset;
+		input_out->flags = player->input;
+
+		ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
 		game->prev_input = player->input;
 	}
 
@@ -370,7 +374,7 @@ game_init(waapp_t* app)
 	app->game = game;
 	game->nk_ctx = app->nk_ctx;
 
-	coregame_init(&game->cg, true, app->map_from_server);
+	coregame_init(&game->cg, true, app->map_from_server, app->net.udp.tickrate);
 	game_init_add_gun_specs(app, game);
 	game->cg.user_data = game;
 	game->cg.player_free_callback = on_player_free;

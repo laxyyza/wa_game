@@ -194,12 +194,10 @@ udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client
 {
 	const net_udp_pingpong_t* in_ping = (const net_udp_pingpong_t*)segment->data;
 	net_udp_pingpong_t out_ping = {
-		.t_client_s = in_ping->t_client_s,
+		.t_client_ms = in_ping->t_client_ms,
 	};
 
-	hr_time_t current_time;
-	nano_gettime(&current_time);
-	out_ping.t_server_s = nano_time_s(&current_time);
+	out_ping.t_server_ms = server->game.sbsm->present->timestamp;
 
 	// insta send to client. No buffering. 
 	ssp_packet_t* packet = ssp_insta_packet(&source_client->udp_buf, NET_UDP_PONG, &out_ping, sizeof(net_udp_pingpong_t));
@@ -292,7 +290,7 @@ player_input(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 	const net_udp_player_input_t* input_in = (void*)segment->data;
 	net_udp_player_input_t* input_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_input_t));
 
-	coregame_set_player_input(source_client->player, input_in->flags);
+	coregame_set_player_input_t(&server->game, source_client->player, input_in->flags, input_in->timestamp);
 
 	input_out->player_id = source_client->player->id;
 	input_out->flags = input_in->flags;

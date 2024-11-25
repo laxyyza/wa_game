@@ -8,6 +8,7 @@
 #include "cg_map.h"
 #include "mmframes.h"
 #include "nano_timer.h"
+#include "sbsm.h"
 
 #define INTERPOLATE_FACTOR			0.2
 #define INTERPOLATE_THRESHOLD_DIST	0.001
@@ -77,6 +78,7 @@ typedef struct cg_player
 	char	username[PLAYER_NAME_MAX];
 	array_t cells;
 	u8		input;
+	bool	dirty;
 
 	struct {
 		vec2f_t server_pos;
@@ -154,6 +156,8 @@ typedef struct coregame
 	hr_time_t last_time;
 	f64 delta;
 	void* user_data;
+	cg_sbsm_t* sbsm;
+	bool rewinding;
 
 	cg_bullet_create_callback_t on_bullet_create;
 	void (*bullet_free_callback)(cg_bullet_t* bullet, void* data);
@@ -171,7 +175,7 @@ typedef struct coregame
 	bool pause;
 } coregame_t;
 
-void coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map);
+void coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map, f32 tick_per_sec);
 void coregame_update(coregame_t* coregame);
 void coregame_cleanup(coregame_t* coregame);
 
@@ -179,6 +183,7 @@ cg_player_t* coregame_add_player(coregame_t* coregame, const char* name);
 void coregame_add_player_from(coregame_t* coregame, cg_player_t* player);
 void coregame_free_player(coregame_t* coregame, cg_player_t* player);
 void coregame_set_player_input(cg_player_t* player, u8 input);
+void coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp);
 u8	 coregame_get_player_input(const cg_player_t* player);
 void coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet);
 
@@ -190,5 +195,6 @@ void coregame_gun_update(coregame_t* cg, cg_gun_t* gun);
 bool coregame_player_change_gun_force(coregame_t* cg, cg_player_t *player, enum cg_gun_id id);
 bool coregame_player_change_gun(coregame_t* cg, cg_player_t* player, enum cg_gun_id id);
 void coregame_player_reload(coregame_t* cg, cg_player_t* player);
+void coregame_update_player(coregame_t* coregame, cg_player_t* player);
 
 #endif // _CORE_GAME_H_

@@ -1,6 +1,7 @@
 coregame_src = files(
     'src/coregame.c',
     'src/cg_map.c',
+    'src/sbsm.c',
 )
 coregame_include = include_directories('include/')
 

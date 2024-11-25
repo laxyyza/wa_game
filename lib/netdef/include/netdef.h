@@ -49,6 +49,7 @@ typedef cg_gun_spec_t net_tcp_gun_spec_t;
 typedef struct 
 {
 	u8 flags;
+	f64 timestamp;
 	u32 player_id;
 } net_udp_player_input_t;
 
@@ -120,8 +121,8 @@ typedef struct
 
 typedef struct 
 {
-	f64 t_client_s;
-	f64 t_server_s;
+	f64 t_client_ms;
+	f64 t_server_ms;
 } net_udp_pingpong_t;
 
 typedef struct 
