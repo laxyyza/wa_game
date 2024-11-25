@@ -428,6 +428,7 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	net_tcp_udp_info_t* info = (net_tcp_udp_info_t*)segment->data;
 	info("UDP Server Port: %u\n", info->port);
 	app->net.udp.server.addr.sin_port = htons(info->port);
+	app->net.udp.time_offset = info->time;
 	client_net_set_tickrate(app, info->tickrate);
 
 	app->net.udp.port = info->port;
@@ -459,7 +460,6 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	const f64 rtt_ms = current_time_ms - pong->t_client_ms;
 	const f64 one_way_latency = rtt_ms / 2;
 	net->udp.time_offset = pong->t_server_ms + one_way_latency - current_time_ms;
-	printf("time_offset: %f\n", net->udp.time_offset);
 
 	net->udp.jitter = fabs(rtt_ms - net->udp.prev_latency);
 	net->udp.prev_latency = rtt_ms;

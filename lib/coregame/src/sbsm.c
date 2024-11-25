@@ -65,6 +65,7 @@ sbsm_commit_player(cg_game_snapshot_t* ss, cg_player_t* player)
 	
 	pss->pos = player->pos;
 	pss->input = player->input;
+	pss->dirty = false;
 	player->dirty = false;
 }
 
@@ -77,11 +78,21 @@ sbsm_rewind(coregame_t* cg, cg_game_snapshot_t* ss)
 
 	cg->rewinding = true;
 
-	while (ss->timestamp < sbsm->present->timestamp)
+	while (ss->timestamp <= sbsm->present->timestamp)
 	{
-		printf("Rewinding %f ms (%u)\n", ss->timestamp, ss->seq);
+		// printf("Rewinding %f ms (%u)\n", ss->timestamp, ss->seq);
 
 		GHT_FOREACH(cg_player_t* player, players, {
+			cg_player_snapshot_t* pss = ght_get(&ss->deltas, player->id);
+
+			if (pss && pss->dirty)
+			{
+				// printf("PSS:%u at ss:%u dirty.\n",
+				// 		pss->player_id, ss->seq);
+				coregame_set_player_input(player, pss->input);
+				pss->dirty = false;
+			}
+
 			player->velocity.x = player->dir.x * PLAYER_SPEED;
 			player->velocity.y = player->dir.y * PLAYER_SPEED;
 
@@ -89,6 +100,9 @@ sbsm_rewind(coregame_t* cg, cg_game_snapshot_t* ss)
 
 			sbsm_commit_player(ss, player);
 		});
+
+		if (ss == sbsm->present)
+			break;
 
 		index++;
 		if (index >= sbsm->size)
@@ -109,19 +123,19 @@ sbsm_rollback(coregame_t* cg)
 
 	cg->delta = sbsm->interval_ms / 1000.0;
 
-	printf("Rollback to %f ms (seq: %u)\n", ss->timestamp, ss->seq);
+	// printf("Rollback to %f ms (seq: %u)\n", ss->timestamp, ss->seq);
 
 	ght_t* deltas = &ss->deltas;
 	GHT_FOREACH(cg_player_snapshot_t* pss, deltas, {
 		cg_player_t* player = ght_get(&cg->players, pss->player_id);
 		if (player)
 		{
-			printf("Player pos (%f/%f) -> (%f/%f)\n",
-				player->pos.x, player->pos.y,
-				pss->pos.x, pss->pos.y);
+			// printf("Player pos (%f/%f) -> (%f/%f)\n",
+			// 	player->pos.x, player->pos.y,
+			// 	pss->pos.x, pss->pos.y);
 			player->pos = pss->pos;
-			player->input = pss->input;
 			coregame_set_player_input(player, pss->input);
+			pss->dirty = false;
 		}
 	});
 
@@ -138,24 +152,24 @@ sbsm_add_ss(cg_sbsm_t* sbsm)
 
 	if (sbsm->present == sbsm->base)
 	{
-		cg_game_snapshot_t* current_base_ss = sbsm->base;
+		// cg_game_snapshot_t* current_base_ss = sbsm->base;
 		sbsm->base_idx++;
 		if (sbsm->base_idx >= sbsm->size)
 			sbsm->base_idx = 0;
 		sbsm->base = sbsm->snapshots + sbsm->base_idx;
-
-		ght_t* old_base_delta = &current_base_ss->deltas;
-		ght_t* new_base_delta = &sbsm->base->deltas;
-
-		GHT_FOREACH(cg_player_snapshot_t* pss, old_base_delta, {
-			cg_player_snapshot_t* new_pss = ght_get(new_base_delta, pss->player_id);
-			if (new_pss == NULL)
-			{
-				cg_player_snapshot_t* pss_copy = malloc(sizeof(cg_player_snapshot_t));
-				memcpy(pss_copy, pss, sizeof(cg_player_snapshot_t));
-				ght_insert(new_base_delta, pss_copy->player_id, pss_copy);
-			}
-		});
+		//
+		// ght_t* old_base_delta = &current_base_ss->deltas;
+		// ght_t* new_base_delta = &sbsm->base->deltas;
+		//
+		// GHT_FOREACH(cg_player_snapshot_t* pss, old_base_delta, {
+		// 	cg_player_snapshot_t* new_pss = ght_get(new_base_delta, pss->player_id);
+		// 	if (new_pss == NULL)
+		// 	{
+		// 		cg_player_snapshot_t* pss_copy = malloc(sizeof(cg_player_snapshot_t));
+		// 		memcpy(pss_copy, pss, sizeof(cg_player_snapshot_t));
+		// 		ght_insert(new_base_delta, pss_copy->player_id, pss_copy);
+		// 	}
+		// });
 	}
 
 	sbsm->time += sbsm->interval_ms;
@@ -200,7 +214,7 @@ sbsm_print(const cg_sbsm_t* sbsm)
 				printf("UP ");
 			if (pss->input & PLAYER_INPUT_DOWN)
 				printf("DOWN ");
-			printf("\n");
+			printf("(%u)\n", pss->input);
 		});
 		printf("\n");
 

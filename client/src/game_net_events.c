@@ -251,6 +251,7 @@ game_player_input(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 
 	if (player)
 		coregame_set_player_input(player, input->flags);
+		// coregame_set_player_input_t(&app->game->cg, player, input->flags, input->timestamp);
 }
 
 void 

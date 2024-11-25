@@ -381,7 +381,7 @@ coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map, f32 tick
 	
 	array_init(&coregame->gun_specs, sizeof(cg_gun_spec_t), 4);
 
-	coregame->sbsm = sbsm_create(tick_per_sec / 4, 1000.0 / tick_per_sec);
+	coregame->sbsm = sbsm_create(tick_per_sec / 8, 1000.0 / tick_per_sec);
 }
 
 f32 
@@ -501,6 +501,10 @@ cg_player_handle_collision(coregame_t* cg, cg_player_t* player)
 void 
 coregame_update_player(coregame_t* coregame, cg_player_t* player)
 {
+	if (coregame->rewinding)
+		if (player->gun)
+			coregame_gun_update(coregame, player->gun);
+
 	if (player->velocity.x || player->velocity.y)
 	{
 		player->velocity.x *= coregame->delta;
@@ -515,22 +519,20 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 
 		cg_player_get_cells(coregame->map, player);
 		cg_player_add_into_cells(player);
-
-		if (coregame->client == false)
-			printf("Player %u: %f/%f\n", player->id, player->pos.x, player->pos.y);
 	}
 
 	if (player->prev_dir.x != player->dir.x || player->prev_dir.y != player->dir.y ||
 		player->prev_pos.x != player->pos.x || player->prev_pos.y != player->pos.y)
 	{
 		player->dirty = true;
-		if (coregame->rewinding == false && coregame->player_changed)
-			coregame->player_changed(player, coregame->user_data);
 		coregame->sbsm->dirty = true;
 
 		player->prev_pos = player->pos;
 		player->prev_dir = player->dir;
 	}
+
+	if (coregame->rewinding == false && coregame->player_changed)
+		coregame->player_changed(player, coregame->user_data);
 }
 
 static void 
@@ -540,11 +542,11 @@ coregame_update_players(coregame_t* coregame)
 
 	GHT_FOREACH(cg_player_t* player, players, 
 	{
+		if (player->gun)
+			coregame_gun_update(coregame, player->gun);
+
 		player->velocity.x = player->dir.x * PLAYER_SPEED;
 		player->velocity.y = player->dir.y * PLAYER_SPEED;
-
-		// if (player->gun)
-		// 	coregame_gun_update(coregame, player->gun);
 
 		if (player->interpolate)
 			coregame_interpolate_player(coregame, player);
@@ -710,11 +712,11 @@ coregame_update(coregame_t* cg)
 	coregame_update_players(cg);
 	coregame_update_bullets(cg);
 
-	if (cg->sbsm->dirty)
-	{
-		sbsm_print(cg->sbsm);
-		cg->sbsm->dirty = false;
-	}
+	// if (cg->sbsm->dirty)
+	// {
+	// 	sbsm_print(cg->sbsm);
+	// 	cg->sbsm->dirty = false;
+	// }
 }
 
 static void
@@ -778,6 +780,19 @@ coregame_free_player(coregame_t* cg, cg_player_t* player)
 	ght_del(&cg->players, player->id);
 }
 
+// static inline void
+// print_input(u8 input)
+// {
+// 	if (input & PLAYER_INPUT_LEFT)
+// 		printf("LEFT ");
+// 	if (input & PLAYER_INPUT_RIGHT)
+// 		printf("RIGHT ");
+// 	if (input & PLAYER_INPUT_UP)
+// 		printf("UP ");
+// 	if (input & PLAYER_INPUT_DOWN)
+// 		printf("DOWN ");
+// }
+
 void 
 coregame_set_player_input(cg_player_t* player, u8 input)
 {
@@ -805,12 +820,11 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 {
 	cg_game_snapshot_t* ss = sbsm_lookup(cg->sbsm, timestamp);
 
-	if (ss == cg->sbsm->present)
-	{
-		coregame_set_player_input(player, input);
-		return;
-	}
-
+	// if (ss == cg->sbsm->present)
+	// {
+	// 	coregame_set_player_input(player, input);
+	// 	return;
+	// }
 	ss->dirty = true;
 	cg_player_snapshot_t* ps = ght_get(&ss->deltas, player->id);
 	if (ps == NULL)
@@ -825,9 +839,12 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 		ght_insert(&ss->deltas, player->id, ps);
 	}
 	ps->input = input;
+	ps->dirty = true;
 
 	if (cg->sbsm->oldest_change == NULL || ss->timestamp < cg->sbsm->oldest_change->timestamp)
+	{
 		cg->sbsm->oldest_change = ss;
+	}
 }
 
 u8

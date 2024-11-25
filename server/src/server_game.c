@@ -145,6 +145,7 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 	udp_info->port = server->udp_port;
 	udp_info->tickrate = server->tickrate;
 	udp_info->ssp_flags = SSP_FLAGS;
+	udp_info->time = server->game.sbsm->present->timestamp;
 
 	const net_tcp_connect_t* connect = (net_tcp_connect_t*)segment->data;
 
@@ -294,6 +295,7 @@ player_input(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 
 	input_out->player_id = source_client->player->id;
 	input_out->flags = input_in->flags;
+	input_out->timestamp = input_in->timestamp;
 
 	GHT_FOREACH(client_t* client, clients, 
 	{

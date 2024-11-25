@@ -251,6 +251,16 @@ game_update_logic(client_game_t* game)
 		net_udp_player_input_t* input_out = mmframes_alloc(&game->app->mmf, sizeof(net_udp_player_input_t));
 		input_out->timestamp = sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset;
 		input_out->flags = player->input;
+		// printf("%u\tSending Input: ", game->net->udp.buf.seqc_sent + 1);
+		// if (input_out->flags & PLAYER_INPUT_LEFT)
+		// 	printf("LEFT ");
+		// if (input_out->flags & PLAYER_INPUT_RIGHT)
+		// 	printf("RIGHT ");
+		// if (input_out->flags & PLAYER_INPUT_UP)
+		// 	printf("UP ");
+		// if (input_out->flags & PLAYER_INPUT_DOWN)
+		// 	printf("DOWN ");
+		// printf("(%u)\n", input_out->flags);
 
 		ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
 		game->prev_input = player->input;
@@ -374,7 +384,13 @@ game_init(waapp_t* app)
 	app->game = game;
 	game->nk_ctx = app->nk_ctx;
 
+	f64 server_time = game->net->udp.time_offset;
+
 	coregame_init(&game->cg, true, app->map_from_server, app->net.udp.tickrate);
+	game->cg.sbsm->time = server_time;
+	game->cg.sbsm->present->timestamp = server_time;
+	game->cg.sbsm->base->timestamp = server_time;
+
 	game_init_add_gun_specs(app, game);
 	game->cg.user_data = game;
 	game->cg.player_free_callback = on_player_free;

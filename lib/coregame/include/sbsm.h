@@ -19,6 +19,7 @@ typedef struct
 	u32		player_id;
 	vec2f_t pos;
 	u8		input;
+	bool	dirty;
 
 	struct cg_game_snapshot_t* prev;
 } cg_player_snapshot_t;
