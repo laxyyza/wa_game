@@ -3,6 +3,10 @@
 VERSION=$(cat VERSION)
 
 BUILD_DIR=build
+if [[ $# -gt 0 ]]; then
+	BUILD_DIR=$1
+fi
+
 STAG_NAME=wa_game_linux$VERSION
 STAG_DIR=$BUILD_DIR/$STAG_NAME
 SHADERS_DIR=$STAG_DIR/client/src/shaders
