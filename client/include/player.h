@@ -25,7 +25,6 @@ typedef struct
 	f64 timestamp;
 } player_kill_t;
 
-player_t* player_new(client_game_t* game, const char* name);
 player_t* player_new_from(client_game_t* game, cg_player_t* cg_player);
 void player_update_guncharge(player_t* player, progress_bar_t* bar);
 

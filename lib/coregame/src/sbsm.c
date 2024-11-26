@@ -57,9 +57,8 @@ sbsm_commit_player(cg_game_snapshot_t* ss, cg_player_t* player)
 
 	if (pss == NULL)
 	{
-		pss = malloc(sizeof(cg_player_snapshot_t));
+		pss = calloc(1, sizeof(cg_player_snapshot_t));
 		pss->player_id = player->id;
-		pss->prev = NULL;
 		ght_insert(&ss->deltas, pss->player_id, pss);
 	}
 	
@@ -152,24 +151,24 @@ sbsm_add_ss(cg_sbsm_t* sbsm)
 
 	if (sbsm->present == sbsm->base)
 	{
-		// cg_game_snapshot_t* current_base_ss = sbsm->base;
+		cg_game_snapshot_t* current_base_ss = sbsm->base;
 		sbsm->base_idx++;
 		if (sbsm->base_idx >= sbsm->size)
 			sbsm->base_idx = 0;
 		sbsm->base = sbsm->snapshots + sbsm->base_idx;
-		//
-		// ght_t* old_base_delta = &current_base_ss->deltas;
-		// ght_t* new_base_delta = &sbsm->base->deltas;
-		//
-		// GHT_FOREACH(cg_player_snapshot_t* pss, old_base_delta, {
-		// 	cg_player_snapshot_t* new_pss = ght_get(new_base_delta, pss->player_id);
-		// 	if (new_pss == NULL)
-		// 	{
-		// 		cg_player_snapshot_t* pss_copy = malloc(sizeof(cg_player_snapshot_t));
-		// 		memcpy(pss_copy, pss, sizeof(cg_player_snapshot_t));
-		// 		ght_insert(new_base_delta, pss_copy->player_id, pss_copy);
-		// 	}
-		// });
+
+		ght_t* old_base_delta = &current_base_ss->deltas;
+		ght_t* new_base_delta = &sbsm->base->deltas;
+
+		GHT_FOREACH(cg_player_snapshot_t* pss, old_base_delta, {
+			cg_player_snapshot_t* new_pss = ght_get(new_base_delta, pss->player_id);
+			if (new_pss == NULL)
+			{
+				cg_player_snapshot_t* pss_copy = malloc(sizeof(cg_player_snapshot_t));
+				memcpy(pss_copy, pss, sizeof(cg_player_snapshot_t));
+				ght_insert(new_base_delta, pss_copy->player_id, pss_copy);
+			}
+		});
 	}
 
 	sbsm->time += sbsm->interval_ms;

@@ -11,6 +11,15 @@ game_render_progress_bar(ren_t* ren, bro_t* bro, const progress_bar_t* bar)
 }
 
 static void 
+game_render_player_body(ren_t* ren, player_t* player)
+{
+	ren_draw_rect(ren, &player->rect);
+
+	if (player->gun_rect.texture)
+		ren_draw_rect(ren, &player->gun_rect);
+}
+
+static void 
 game_render_player(ren_t* ren, player_t* player)
 {
 	progress_bar_t* hpbar = &player->hpbar;
@@ -24,15 +33,10 @@ game_render_player(ren_t* ren, player_t* player)
 	player_update_guncharge(player, NULL);
 	progress_bar_update_pos(hpbar);
 
-	ren_draw_rect(ren, &player->rect);
-
-	ren_draw_rect(ren, &player->rect);
-
 	game_render_progress_bar(ren, ren->default_bro, hpbar);
 	game_render_progress_bar(ren, ren->default_bro, &player->guncharge);
 
-	if (player->gun_rect.texture)
-		ren_draw_rect(ren, &player->gun_rect);
+	game_render_player_body(ren, player);
 }
 
 static void
@@ -106,8 +110,21 @@ game_render_bullets(client_game_t* game)
 }
 
 static void
+game_render_player_server_pos(client_game_t* game, cg_player_t* cg_player)
+{
+	player_t* player = cg_player->user_data;
+
+	player->rect.pos = cg_player->server_pos;
+	player->rect.color.w = 0.5;
+
+	game_render_player_body(game->ren, player);
+	player->rect.color.w = 1.0;
+}
+
+static void
 game_render_players(client_game_t* game)
 {
+	ren_bind_bro(game->ren, game->ren->default_bro);
 	const ght_t* players = &game->cg.players;
 	GHT_FOREACH(cg_player_t* cg_player, players, {
 		player_t* player = cg_player->user_data;
@@ -122,11 +139,38 @@ game_render_players(client_game_t* game)
 		else
 			player->gun_rect.texture = NULL;
 
+		if (game->game_debug)
+		{
+			for (u32 i = 0; i < cg_player->cells.count; i++)
+			{
+				const cg_runtime_cell_t* cell = *(cg_runtime_cell_t**)array_idx(&cg_player->cells, i);
+				printf("cell: %u/%u\n", cell->pos.x, cell->pos.y);
+				u32 color = 0xFFFFFFAA;
+				if (cell->type == CG_CELL_BLOCK)
+					color = 0xFF0000AA;
+
+				u32 grid_size = game->cg.map->grid_size;
+
+				rect_t r;
+				rect_init(&r, 
+					vec2f(
+						cell->pos.x * grid_size, 
+						cell->pos.y * grid_size
+					), 
+					vec2f(grid_size, grid_size), color, NULL
+				);
+				ren_draw_rect(game->ren, &r);
+			}
+		}
+
+		if (game->game_netdebug)
+			game_render_player_server_pos(game, cg_player);
+
 		game_render_player(game->ren, player);
 	});
 }
 
-static void 
+UNUSED static void 
 game_render_cell_debug(ren_t* ren, rect_t* cell_rect, const cg_runtime_cell_t* cell)
 {
 	if (cell->type != CG_CELL_BLOCK)
@@ -150,7 +194,7 @@ game_render_cell(waapp_t* app, const cg_runtime_map_t* map, const cg_runtime_cel
 	ren_t* ren = &app->ren;
 	texture_t* texture = NULL;
 	rect_t cell_rect = {0};
-	u32 color = 0;
+	u32 color = 0xFFFFFFFF;
 
 	if (cell->type == CG_CELL_EMPTY)
 		texture = app->grass_tex;
@@ -164,8 +208,8 @@ game_render_cell(waapp_t* app, const cg_runtime_map_t* map, const cg_runtime_cel
 		vec2f(grid_size, grid_size), color, texture);
 	ren_draw_rect(ren, &cell_rect);
 
-	if (app->game && app->game->game_debug)
-		game_render_cell_debug(ren, &cell_rect, cell);
+	// if (app->game && app->game->game_debug)
+	// 	game_render_cell_debug(ren, &cell_rect, cell);
 }
 
 static void

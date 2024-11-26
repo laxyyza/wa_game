@@ -195,8 +195,8 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 	char* label = game->ui_label;
 
     static nk_flags win_flags = 
-        NK_WINDOW_BORDER | NK_WINDOW_MINIMIZABLE | 
-         NK_WINDOW_TITLE | NK_WINDOW_MINIMIZED |
+        NK_WINDOW_BORDER | 
+         NK_WINDOW_TITLE |
         NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE;
     const char* window_name = state->window.title;
     // static struct nk_vec2 window_offset = {10, 10};
@@ -204,7 +204,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
         .x = 0,
         .y = 0,
         .w = 340,
-        .h = 500
+        .h = 840
     };
 
     if (nk_begin(ctx, window_name, window_rect, win_flags))
@@ -294,7 +294,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			nk_group_end(ctx);
 		}
 
-		nk_layout_row_dynamic(ctx, 110, 1);
+		nk_layout_row_dynamic(ctx, 140, 1);
 		if (nk_group_begin(ctx, "SSP TX", 
 					 NK_WINDOW_TITLE | NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR))
 		{
@@ -315,13 +315,18 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 					game->net->udp.buf.rto);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
+			nk_label(ctx, "BUFFERED:", NK_TEXT_CENTERED);
+			snprintf(label, UI_LABEL_SIZE, "%u", 
+					game->net->udp.buf.important_packets.count);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+
 			nk_group_end(ctx);
 		}
         nk_layout_row_dynamic(ctx, 20, 1);
 
 		snprintf(label, UI_LABEL_SIZE, "Interpolate Factor: %f", game->cg.interp_factor);
 		nk_label(ctx, label, NK_TEXT_LEFT);
-		nk_slider_float(ctx, 0.01, &game->cg.interp_factor, 1.0, 0.005);
+		nk_slider_float(ctx, 0.0001, &game->cg.interp_factor, 1.0, 0.001);
 
 		snprintf(label, UI_LABEL_SIZE, "Interp Threshold Dist: %f", game->cg.interp_threshold_dist);
 		nk_label(ctx, label, NK_TEXT_LEFT);
@@ -341,6 +346,12 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 		if (nk_checkbox_label(ctx, "Game Debug", &game_debug))
 		{
 			game->game_debug = !game_debug;
+		}
+
+		nk_bool game_netdebug = !game->game_netdebug;
+		if (nk_checkbox_label(ctx, "Game Net Debug", &game_netdebug))
+		{
+			game->game_netdebug = !game_netdebug;
 		}
 
 		snprintf(label, UI_LABEL_SIZE, "Draw calls: %u", game->ren->draw_calls);

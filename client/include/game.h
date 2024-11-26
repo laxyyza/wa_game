@@ -47,6 +47,8 @@ typedef struct client_game
 	bool open_chat;
 	bool new_msg;
 	bool game_debug;
+	bool game_netdebug;
+	bool ignore_server_pos;
 	f64 last_chatmsg;
 	array_t chat_msgs;
 	bro_t* laser_bro;
@@ -62,6 +64,8 @@ typedef struct client_game
 	u8 prev_input;
 
 	char ui_label[UI_LABEL_SIZE];
+
+	bool show_stats;
 } client_game_t;
 
 void* game_init(waapp_t* app);

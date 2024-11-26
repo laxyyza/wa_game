@@ -24,7 +24,7 @@ accept_client(server_t* server)
 	client->tcp_buf.compression.auto_do = true;
 	client->tcp_buf.compression.threshold = COMPRESSION_THRESHOLD; // Only do compression over this.
 	client->tcp_buf.compression.level = COMPRESSION_LEVEL;
-	ssp_segbuf_init(&client->udp_buf, 10, SSP_FLAGS);
+	ssp_segbuf_init(&client->udp_buf, 20, SSP_FLAGS);
 
 	getrandom(&client->session_id, sizeof(u32), 0);
 	client->udp_buf.session_id = client->session_id;

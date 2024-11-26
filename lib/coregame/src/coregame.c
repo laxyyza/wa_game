@@ -369,7 +369,7 @@ coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map, f32 tick
 	);
 	coregame_get_delta_time(coregame);
 
-	coregame->interp_factor = INTERPOLATE_FACTOR;
+	coregame->new_interp_factor = coregame->interp_factor = INTERPOLATE_FACTOR;
 	coregame->interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
 	coregame->client = client;
 
@@ -381,7 +381,7 @@ coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map, f32 tick
 	
 	array_init(&coregame->gun_specs, sizeof(cg_gun_spec_t), 4);
 
-	coregame->sbsm = sbsm_create(tick_per_sec / 8, 1000.0 / tick_per_sec);
+	coregame->sbsm = sbsm_create(tick_per_sec / 4, 1000.0 / tick_per_sec);
 }
 
 f32 
@@ -390,29 +390,19 @@ coregame_dist(const vec2f_t* a, const vec2f_t* b)
 	return sqrtf(powf(b->x - a->x, 2) + powf(b->y - a->y, 2));
 }
 
-static void 
-coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
+static inline void
+cg_blend_pos(vec2f_t* dst, const vec2f_t* a, const vec2f_t* b, f32 factor)
 {
-	const vec2f_t* client_pos = &player->pos;
-	const vec2f_t* server_pos = &player->server_pos;
-	f32 dist = coregame_dist(client_pos, server_pos);
-
-	player->velocity.x = player->velocity.y = 0;
-
-	cg_player_remove_self_from_cells(player);
-	cg_player_get_cells(coregame->map, player);
-	if (dist > coregame->interp_threshold_dist)
-	{
-		player->pos.x = client_pos->x + (server_pos->x - client_pos->x) * coregame->interp_factor;
-		player->pos.y = client_pos->y + (server_pos->y - client_pos->y) * coregame->interp_factor;
-	}
-	else
-	{
-		player->pos = player->server_pos;
-		player->interpolate = false;
-	}
-	cg_player_add_into_cells(player);
+	dst->x = a->x * (1 - factor) + b->x * factor;
+	dst->y = a->y * (1 - factor) + b->y * factor;
 }
+
+// static inline void
+// cg_interpolate_pos(vec2f_t* a, const vec2f_t* b, f32 factor)
+// {
+// 	a->x = a->x + (b->x - a->x) * factor;
+// 	a->y = a->y + (b->y - a->y) * factor;
+// }
 
 static void
 cg_resolve_player_collision(cg_player_t* player, 
@@ -512,6 +502,7 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 
 		cg_player_remove_self_from_cells(player);
 		cg_player_get_cells(coregame->map, player);
+
 		cg_player_handle_collision(coregame, player);
 
 		player->pos.x += player->velocity.x;
@@ -527,34 +518,70 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 		player->dirty = true;
 		coregame->sbsm->dirty = true;
 
+		if (coregame->player_changed)
+			coregame->player_changed(player, coregame->user_data);
+
 		player->prev_pos = player->pos;
 		player->prev_dir = player->dir;
 	}
-
-	if (coregame->rewinding == false && coregame->player_changed)
-		coregame->player_changed(player, coregame->user_data);
+	// else if (coregame->client == false)
+	// 	coregame->player_changed(player, coregame->user_data);
 }
 
 static void 
-coregame_update_players(coregame_t* coregame)
+coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
 {
-	const ght_t* players = &coregame->players;
+	vec2f_t* client_pos = &player->pos;
+	const vec2f_t* server_pos = &player->server_pos;
+	f32 dist = coregame_dist(client_pos, server_pos);
+
+	if (dist < coregame->interp_threshold_dist)
+	{
+		player->pos = player->server_pos;
+		player->interpolate = false;
+		return;
+	}
+
+	vec2f_t new_pos;
+	const f32 interp = coregame->interp_factor;
+	cg_blend_pos(&new_pos, client_pos, server_pos, interp);
+
+	player->velocity.x = new_pos.x - client_pos->x;
+	player->velocity.y = new_pos.y - client_pos->y;
+
+	cg_player_remove_self_from_cells(player);
+	cg_player_get_cells(coregame->map, player);
+	cg_player_handle_collision(coregame, player);
+
+	client_pos->x += player->velocity.x;
+	client_pos->y += player->velocity.y;
+
+	cg_player_add_into_cells(player);
+}
+
+static void 
+coregame_update_players(coregame_t* cg)
+{
+	const ght_t* players = &cg->players;
+
+	if (cg->new_interp_factor != cg->interp_factor)
+	{
+		f32 blend_rate = 0.01;
+		cg->interp_factor = cg->interp_factor * (1 - blend_rate) + cg->new_interp_factor * blend_rate;
+	}
 
 	GHT_FOREACH(cg_player_t* player, players, 
 	{
 		if (player->gun)
-			coregame_gun_update(coregame, player->gun);
+			coregame_gun_update(cg, player->gun);
 
 		player->velocity.x = player->dir.x * PLAYER_SPEED;
 		player->velocity.y = player->dir.y * PLAYER_SPEED;
 
+		coregame_update_player(cg, player);
 		if (player->interpolate)
-			coregame_interpolate_player(coregame, player);
-		else
-		{
-			coregame_update_player(coregame, player);
-			sbsm_commit_player(coregame->sbsm->present, player);
-		}
+			 coregame_interpolate_player(cg, player);
+		sbsm_commit_player(cg->sbsm->present, player);
 	});
 }
 
@@ -829,15 +856,16 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 	cg_player_snapshot_t* ps = ght_get(&ss->deltas, player->id);
 	if (ps == NULL)
 	{
-		ps = malloc(sizeof(cg_player_snapshot_t));
+		ps = calloc(1, sizeof(cg_player_snapshot_t));
 		ps->player_id = player->id;
 		ps->pos = player->pos;
 
 		/* TODO: Find the oldest changes */
-		ps->prev = NULL;
+		// ps->prev = NULL;
 
 		ght_insert(&ss->deltas, player->id, ps);
 	}
+
 	ps->input = input;
 	ps->dirty = true;
 

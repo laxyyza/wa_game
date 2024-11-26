@@ -14,6 +14,15 @@
 #define MAX_SOCKETS 8
 #endif
 
+#define RTT_HIGH 150
+#define RTT_MID  60
+#define RTT_MIDL 30
+
+#define INTERP_HIGH 0.005
+#define INTERP_MID  0.025
+#define INTERP_MIDL 0.1
+#define INTERP_LOW  0.2
+
 typedef struct waapp waapp_t;
 typedef struct fdevent fdevent_t;
 

@@ -93,7 +93,8 @@ typedef struct
 	u32		player_id;
 	vec2f_t pos;
 	u8		input;
-} net_udp_player_move_t;
+	bool	absolute;
+} _SSP_PACKED net_udp_player_move_t;
 
 typedef struct 
 {

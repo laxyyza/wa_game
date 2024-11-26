@@ -290,6 +290,23 @@ server_flush_udp_clients(server_t* server)
 				ssp_segbuf_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
 			}
 
+			// cg_sbsm_t* sbsm = server->game.sbsm;
+			// u32 index = sbsm->base_idx;
+			//
+			// for (u32 iii = 0; iii < sbsm->size; iii++)
+			// {
+			// 	cg_game_snapshot_t* ss = sbsm->snapshots + index;
+			// 	cg_player_snapshot_t* pss = ght_get(&ss->deltas, client->player->id);
+			// 	if (pss)
+			// 	{
+			// 		ssp_segbuf_add(&client->udp_buf, NET_UDP_TEST, sizeof(cg_player_snapshot_t), pss);
+			// 	}
+			//
+			// 	index++;
+			// 	if (index >= sbsm->size)
+			// 		index = 0;
+			// }
+			
 			ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
 
 			if (packet)

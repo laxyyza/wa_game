@@ -40,14 +40,6 @@ player_new_from(client_game_t* game, cg_player_t* cg_player)
 	return player;
 }
 
-player_t* 
-player_new(client_game_t* game, const char* name)
-{
-	cg_player_t* cg_player = coregame_add_player(&game->cg, name);
-
-	return player_new_from(game, cg_player);
-}
-
 void 
 player_update_guncharge(player_t* player, progress_bar_t* bar)
 {

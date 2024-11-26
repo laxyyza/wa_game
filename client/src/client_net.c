@@ -457,7 +457,7 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	nano_gettime(&current_time);
 	const f64 current_time_ms = sec_to_ms(nano_time_s(&current_time));
 
-	const f64 rtt_ms = current_time_ms - pong->t_client_ms;
+	f64 rtt_ms = current_time_ms - pong->t_client_ms;
 	const f64 one_way_latency = rtt_ms / 2;
 	net->udp.time_offset = pong->t_server_ms + one_way_latency - current_time_ms;
 
@@ -469,6 +469,17 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	ssp_segbuf_set_rtt(&net->udp.buf, player_ping->ms);
 
 	ssp_segbuf_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
+
+	rtt_ms += net->udp.jitter;
+
+	if (rtt_ms >= RTT_HIGH)
+		app->game->cg.new_interp_factor = INTERP_HIGH;
+	else if (rtt_ms >= RTT_MID)
+		app->game->cg.new_interp_factor = INTERP_MID;
+	else if (rtt_ms >= RTT_MIDL)
+		app->game->cg.new_interp_factor = INTERP_MIDL;
+	else
+		app->game->cg.new_interp_factor = INTERP_LOW;
 }
 
 static bool

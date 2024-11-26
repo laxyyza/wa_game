@@ -136,9 +136,20 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 				game->open_chat = true;
 			break;
 		case WA_KEY_ESC:
+		{
 			if (ev->pressed)
-				game->open_chat = false;
+			{
+				if (game->open_chat)
+					game->open_chat = false;
+				else
+				{
+					wa_state_t* state = wa_window_get_state(window);
+					game->show_stats = !game->show_stats;
+					nk_window_show(game->app->nk_ctx, state->window.title, game->show_stats);
+				}
+			}
 			break;
+		}
 		case WA_KEY_1:
 		case WA_KEY_2:
 		case WA_KEY_3:
@@ -234,8 +245,6 @@ game_update_logic(client_game_t* game)
 	if (player == NULL)
 		return;
 
-	coregame_set_player_input(player->core, player->input);
-
 	coregame_update(&game->cg);
 	progress_bar_update(&game->health_bar);
 	player_update_guncharge(game->player, &game->guncharge_bar);
@@ -248,8 +257,12 @@ game_update_logic(client_game_t* game)
 	}
 	if (game->player->input != game->prev_input)
 	{
+		// coregame_set_player_input_t(&game->cg, player->core, player->input, game->cg.sbsm->present->timestamp);
+		coregame_set_player_input(player->core, player->input);
+		game->ignore_server_pos = true;
+
 		net_udp_player_input_t* input_out = mmframes_alloc(&game->app->mmf, sizeof(net_udp_player_input_t));
-		input_out->timestamp = sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset;
+		input_out->timestamp = (sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset) - ((game->net->udp.latency + game->net->udp.jitter) / 2);
 		input_out->flags = player->input;
 		// printf("%u\tSending Input: ", game->net->udp.buf.seqc_sent + 1);
 		// if (input_out->flags & PLAYER_INPUT_LEFT)
@@ -456,6 +469,10 @@ game_init(waapp_t* app)
 	shader_t* shader = &game->laser_bro->shader;
 	shader_bind(shader);
 	shader_uniform1f(shader, "scale", game->ren->scale.x);
+
+	game->show_stats = true;
+	wa_state_t* state = wa_window_get_state(app->window);
+	nk_window_show(game->app->nk_ctx, state->window.title, game->show_stats);
 
 	return game;
 }

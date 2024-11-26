@@ -14,5 +14,5 @@ void main()
     if (idx == -1)
         out_color = v_color;
     else
-        out_color = texture(u_textures[idx], v_texcoords);
+        out_color = texture(u_textures[idx], v_texcoords) * v_color;
 }

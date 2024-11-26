@@ -22,6 +22,8 @@ game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	coregame_create_gun(&app->game->cg, new_player->gun_id, cg_player);
 
 	player_t* player = player_new_from(app->game, cg_player);
+	player->rect.color = rgba(0xFFFFFFFF);
+	player->gun_rect.color = rgba(0xFFFFFFFF);
 
 	char msg[CHAT_MSG_MAX];
 	snprintf(msg, CHAT_MSG_MAX, "[%s entered the game]", cg_player->username);
@@ -66,25 +68,44 @@ void
 game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
 	const net_udp_player_move_t* move = (net_udp_player_move_t*)segment->data;
-	const vec2f_t* server_pos = &move->pos;
+	const vec2f_t server_pos = move->pos;
 	const vec2f_t* client_pos;
 	cg_player_t* player = ght_get(&app->game->cg.players, move->player_id);
 	// client_game_t* game = app->game;
 
 	if (player)
 	{
+		if (move->absolute)
+		{
+			player->pos = player->server_pos = move->pos;
+			return;
+		}
+
+		// if (game->ignore_server_pos && move->input != player->input)
+		// 	return;
+		// else
+		// 	game->ignore_server_pos = false;
+
 		client_pos = &player->pos;
 
-		f32 dist = coregame_dist(client_pos, server_pos);
+		f32 dist = coregame_dist(client_pos, &server_pos);
+
+		// if (player->input != move->input && player->ignore_count < 3)
+		// {
+		// 	// player->ignore_count++;
+		// 	return;
+		// }
+		// else
+		// 	player->ignore_count = 0;
 
 		if (dist > app->game->cg.interp_threshold_dist)
 		{
 			player->interpolate = true;
-			player->server_pos = *server_pos;
+			player->server_pos = server_pos;
 		}
 		else
-			player->pos = *server_pos;
-
+			player->pos = server_pos;
+		
 		// if (player->id == game->player->core->id)
 		// {
 		// 	if (move->input != game->player->input)
@@ -93,8 +114,6 @@ game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		// 		return;
 		// 	}
 		// }
-
-		coregame_set_player_input(player, move->input);
 	}
 }
 

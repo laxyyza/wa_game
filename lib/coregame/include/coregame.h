@@ -10,7 +10,7 @@
 #include "nano_timer.h"
 #include "sbsm.h"
 
-#define INTERPOLATE_FACTOR			0.2
+#define INTERPOLATE_FACTOR			0.01
 #define INTERPOLATE_THRESHOLD_DIST	0.001
 
 #define GUN_BPS 20.0
@@ -167,6 +167,7 @@ typedef struct coregame
 	cg_player_damaged_callback_t player_damaged;
 
 	f32 interp_factor;
+	f32 new_interp_factor;
 	f32 interp_threshold_dist;
 	f32 time_scale;
 	u32 player_id_seq;
