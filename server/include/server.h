@@ -70,6 +70,8 @@ typedef struct server
 	bool reset_stats;
 
 	ssp_segbuf_t segbuf;
+
+	array_t bullet_create_events;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, char* const* argv);
@@ -84,5 +86,7 @@ void server_read_udp_packet(server_t* server, event_t* event);
 void server_handle_new_connection(server_t* server, UNUSED event_t* event);
 void event_signalfd_close(server_t* server, UNUSED event_t* ev);
 vec2f_t server_next_spawn(server_t* server);
+void server_add_data_all_udp_clients(server_t* server, u8 type, const void* data, u16 size, u32 ignore_player_id);
+void server_add_data_all_udp_clients_i(server_t* server, u8 type, const void* data, u16 size, u32 ignore_player_id);
 
 #endif // _SERVER_H_

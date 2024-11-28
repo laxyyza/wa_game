@@ -11,34 +11,37 @@
 
 enum segtypes
 {
-	NET_TCP_CONNECT,
-	NET_TCP_SESSION_ID,
-	NET_TCP_NEW_PLAYER,
-	NET_TCP_DELETE_PLAYER,
-	NET_TCP_UDP_INFO,
-	NET_TCP_SERVER_SHUTDOWN,
-	NET_TCP_CG_MAP,
-	NET_TCP_WANT_SERVER_STATS,
-	NET_TCP_CHAT_MSG,
-	NET_TCP_GUN_SPEC,
+	NET_TCP_CONNECT = 0,
+	NET_TCP_SESSION_ID = 1,
+	NET_TCP_NEW_PLAYER = 2,
+	NET_TCP_DELETE_PLAYER = 3,
+	NET_TCP_UDP_INFO = 4,
+	NET_TCP_SERVER_SHUTDOWN = 5,
+	NET_TCP_CG_MAP = 6,
+	NET_TCP_WANT_SERVER_STATS = 7,
+	NET_TCP_CHAT_MSG = 8,
+	NET_TCP_GUN_SPEC = 9,
 
-	NET_UDP_PLAYER_MOVE,
-	NET_UDP_PLAYER_CURSOR,
-	NET_UDP_PLAYER_HEALTH,
-	NET_UDP_PLAYER_STATS,
-	NET_UDP_PLAYER_DIED,
-	NET_UDP_PLAYER_PING,
-	NET_UDP_PLAYER_GUN_ID,
-	NET_UDP_PLAYER_INPUT,
-	NET_UDP_PLAYER_RELOAD,
+	NET_UDP_PLAYER_MOVE = 10,
+	NET_UDP_PLAYER_CURSOR = 11,
+	NET_UDP_PLAYER_HEALTH = 12,
+	NET_UDP_PLAYER_STATS = 13,
+	NET_UDP_PLAYER_DIED = 14,
+	NET_UDP_PLAYER_PING = 15,
+	NET_UDP_PLAYER_GUN_ID = 16,
+	NET_UDP_PLAYER_INPUT = 17,
+	NET_UDP_PLAYER_RELOAD = 18,
+	NET_UDP_PLAYER_GUN_STATE = 19,
 
-	NET_UDP_PING,
-	NET_UDP_PONG,
+	NET_UDP_BULLET = 20,
 
-	NET_UDP_SERVER_STATS,
-	NET_UDP_DO_RECONNECT,
+	NET_UDP_PING = 21,
+	NET_UDP_PONG = 22,
 
-	NET_DEBUG_MSG,
+	NET_UDP_SERVER_STATS = 23,
+	NET_UDP_DO_RECONNECT = 24,
+
+	NET_DEBUG_MSG = 25,
 
 	NET_SEGTYPES_LEN
 };
@@ -51,7 +54,7 @@ typedef struct
 	u8 flags;
 	f64 timestamp;
 	u32 player_id;
-} net_udp_player_input_t;
+} _SSP_PACKED net_udp_player_input_t;
 
 typedef struct 
 {
@@ -100,7 +103,7 @@ typedef struct
 {
 	vec2f_t cursor_pos;
 	u32		player_id;
-} net_udp_player_cursor_t;
+} _SSP_PACKED net_udp_player_cursor_t;
 
 typedef struct 
 {
@@ -113,7 +116,7 @@ typedef struct
 	u32 player_id;
 	u16 kills;
 	u16 deaths;
-} net_udp_player_stats_t;
+} _SSP_PACKED net_udp_player_stats_t;
 
 typedef struct 
 {
@@ -143,6 +146,23 @@ typedef struct
 {
 	u32 player_id;
 } net_udp_player_reload_t;
+
+typedef struct
+{
+	u32 player_id;
+	u8 gun_id;
+	u16 ammo;	// ammo count 0 means reloading.
+	f32 bullet_timer;
+	f32 charge_timer;
+	f32 reload_timer;
+} _SSP_PACKED net_udp_player_gun_state_t;
+
+typedef struct 
+{
+	u32		owner_id;
+	vec2f_t pos;
+	vec2f_t dir;
+} net_udp_bullet_t;
 
 typedef struct 
 {

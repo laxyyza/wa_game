@@ -50,7 +50,7 @@ typedef struct
 
 	f64 tickrate;
 	f64 interval;
-	f64 time_offset;
+	f64 time_offset_ms;
 	f64 latency;
 	f64 prev_latency;
 	f64 jitter;

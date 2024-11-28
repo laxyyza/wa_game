@@ -428,7 +428,7 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	net_tcp_udp_info_t* info = (net_tcp_udp_info_t*)segment->data;
 	info("UDP Server Port: %u\n", info->port);
 	app->net.udp.server.addr.sin_port = htons(info->port);
-	app->net.udp.time_offset = info->time;
+	app->net.udp.time_offset_ms = info->time;
 	client_net_set_tickrate(app, info->tickrate);
 
 	app->net.udp.port = info->port;
@@ -455,11 +455,11 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 
 	hr_time_t current_time;
 	nano_gettime(&current_time);
-	const f64 current_time_ms = sec_to_ms(nano_time_s(&current_time));
+	const f64 current_time_ms = nano_time_ns(&current_time) / 1e6;
 
 	f64 rtt_ms = current_time_ms - pong->t_client_ms;
 	const f64 one_way_latency = rtt_ms / 2;
-	net->udp.time_offset = pong->t_server_ms + one_way_latency - current_time_ms;
+	net->udp.time_offset_ms = pong->t_server_ms + one_way_latency - current_time_ms;
 
 	net->udp.jitter = fabs(rtt_ms - net->udp.prev_latency);
 	net->udp.prev_latency = rtt_ms;
@@ -480,6 +480,8 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 		app->game->cg.new_interp_factor = INTERP_MIDL;
 	else
 		app->game->cg.new_interp_factor = INTERP_LOW;
+
+	app->game->pings++;
 }
 
 static bool
@@ -598,6 +600,8 @@ client_net_init(waapp_t* app)
 	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segment_callback_t)game_player_gun_id;
 	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segment_callback_t)game_player_input;
 	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segment_callback_t)game_player_reload;
+	callbacks[NET_UDP_BULLET] = (ssp_segment_callback_t)game_bullet;
+	callbacks[NET_UDP_PLAYER_GUN_STATE] = (ssp_segment_callback_t)game_player_gun_state;
 
 	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_ctx.user_data = app;
@@ -857,9 +861,12 @@ client_net_ping_server(waapp_t* app)
 	ssp_packet_t* packet;
 
 	nano_gettime(&current_time);
-	f64 time_ms = sec_to_ms(nano_time_s(&current_time));
+	net_udp_pingpong_t ping = {
+		.t_client_ms = nano_time_ns(&current_time) / 1e6,
+		.t_server_ms = 0
+	};
 
-	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &time_ms, sizeof(f64));
+	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &ping, sizeof(net_udp_pingpong_t));
 	if (packet)
 		client_udp_send(app, packet);
 }

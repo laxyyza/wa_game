@@ -52,6 +52,7 @@ typedef struct client_game
 	f64 last_chatmsg;
 	array_t chat_msgs;
 	bro_t* laser_bro;
+	u32 pings;
 
 	struct nk_context* nk_ctx;
 
@@ -66,6 +67,8 @@ typedef struct client_game
 	char ui_label[UI_LABEL_SIZE];
 
 	bool show_stats;
+
+	f64 server_time;
 } client_game_t;
 
 void* game_init(waapp_t* app);

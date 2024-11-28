@@ -3,17 +3,12 @@
 void
 server_on_player_reload(cg_player_t* player, server_t* server)
 {
-	ght_t* clients = &server->clients;
 	client_t* source_client = player->user_data;
 
 	net_udp_player_reload_t* reload_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_reload_t));
 	reload_out->player_id = source_client->player->id;
 
-	GHT_FOREACH(client_t* client, clients, 
-	{
-		if (client->player)
-			ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_RELOAD, sizeof(net_udp_player_reload_t), reload_out);
-	});
+	server_add_data_all_udp_clients_i(server, NET_UDP_PLAYER_RELOAD, reload_out, sizeof(net_udp_player_reload_t), player->id);
 }
 
 static net_tcp_new_player_t*
@@ -71,7 +66,7 @@ broadcast_delete_player(server_t* server, u32 id)
 }
 
 void
-on_player_changed(cg_player_t* player, server_t* server)
+server_on_player_changed(cg_player_t* player, server_t* server)
 {
 	ght_t* clients = &server->clients;
 	net_udp_player_move_t* move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
@@ -83,6 +78,32 @@ on_player_changed(cg_player_t* player, server_t* server)
 	GHT_FOREACH(client_t* client, clients, {
 		ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
 	});
+}
+
+void
+server_on_player_gun_changed(cg_player_t* player, server_t* server)
+{
+	net_udp_player_gun_state_t* gun_state_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_gun_state_t));
+
+	gun_state_out->player_id = player->id;
+	gun_state_out->gun_id = player->gun->spec->id;
+	gun_state_out->ammo = player->gun->ammo;
+	gun_state_out->bullet_timer = player->gun->bullet_timer;
+	gun_state_out->charge_timer = player->gun->charge_time;
+	gun_state_out->reload_timer = player->gun->reload_time;
+
+	server_add_data_all_udp_clients_i(server, NET_UDP_PLAYER_GUN_STATE, gun_state_out, sizeof(net_udp_player_gun_state_t), 0);
+}
+
+void 
+server_on_bullet_create(cg_bullet_t* bullet, server_t* server)
+{
+	/* Only send bullet creation events if the bullet is created in rollback resimulation */
+	if (server->game.rewinding == false)
+		return;
+
+	/* Add bullet ID in bullet_create_events to be added into to segbuf after finalized */
+	array_add_i32(&server->bullet_create_events, bullet->id);
 }
 
 void

@@ -20,7 +20,8 @@ executable('server', server_src,
     link_with: [
         libssp,
         libnetdef,
-        libcoregame,
+        libcoregame_server,
         libcutils,
-    ]
+    ],
+    c_args: ['-DCG_SERVER']
 )

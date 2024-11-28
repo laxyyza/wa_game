@@ -56,10 +56,11 @@ executable('wa_game', src,
         libwa,
         libght,
         libglad,
-        libcoregame,
+        libcoregame_client,
         libnetdef,
         libssp,
         libcutils,
     ],
-    link_args: ['-Wl,-rpath=./lib']
+    link_args: ['-Wl,-rpath=./lib'],
+    c_args: ['-DCG_CLIENT']
 )

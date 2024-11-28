@@ -31,6 +31,10 @@
 #define PLAYER_INPUT_DOWN  0x02
 #define PLAYER_INPUT_RIGHT 0x04
 #define PLAYER_INPUT_LEFT  0x08
+
+#define PLAYER_MOVE_INPUT  0x0F
+#define PLAYER_GUN_INPUT   0x10
+
 #define PLAYER_INPUT_SHOOT 0x10
 
 typedef struct cg_player cg_player_t;
@@ -44,6 +48,7 @@ typedef void (*cg_player_reload_callback_t)(cg_player_t* player, void* user_data
 typedef void (*cg_player_damaged_callback_t)(cg_player_t* target_player, 
 											 cg_player_t* attacker_player, void* user_data);
 typedef void (*cg_player_free_callback_t)(cg_player_t* player);
+typedef void (*cg_bullet_free_callback_t)(cg_bullet_t* bullet);
 
 enum cg_gun_id
 {
@@ -80,18 +85,24 @@ typedef struct cg_player
 	u8		input;
 	bool	dirty;
 
-	struct {
+#ifdef CG_CLIENT
 		vec2f_t server_pos;
 		bool	interpolate;
-	};
+#endif
+
 	cg_player_stats_t stats;
 	void*	user_data;
 	bool	shoot;
 	cg_player_free_callback_t on_player_free;
+
+#ifdef CG_SERVER
+	f64 last_input;
+#endif
 } cg_player_t;
 
 typedef struct cg_bullet
 {
+	u32				id;
 	u32				owner;
 	cg_rect_t		r;
 	vec2f_t			dir;
@@ -102,9 +113,7 @@ typedef struct cg_bullet
 	void*			data;
 	bool			collided;
 	vec2f_t			contact_point;
-
-	struct cg_bullet* next;
-	struct cg_bullet* prev;
+	u32				target_id;
 } cg_bullet_t;
 
 typedef struct cg_gun_spec
@@ -128,6 +137,7 @@ typedef struct cg_gun
 	f32 charge_time;
 	i32 ammo;
 	f32 reload_time;
+	bool dirty;
 	cg_player_t* owner;
 
 	/**	`shoot`
@@ -145,38 +155,48 @@ typedef struct cg_gun
 typedef struct coregame 
 {
 	ght_t players;
-	struct {
-		cg_bullet_t* head;
-		cg_bullet_t* tail;
-	} bullets;
-	cg_rect_t world_border;
+	ght_t bullets;
 	cg_runtime_map_t* map;
 
 	array_t gun_specs;
 	hr_time_t last_time;
 	f64 delta;
 	void* user_data;
+
+#ifdef CG_SERVER
 	cg_sbsm_t* sbsm;
 	bool rewinding;
+#endif
 
-	cg_bullet_create_callback_t on_bullet_create;
-	void (*bullet_free_callback)(cg_bullet_t* bullet, void* data);
+	cg_bullet_create_callback_t  on_bullet_create;
 	cg_player_free_callback_t    player_free_callback;	
 	cg_player_reload_callback_t  player_reload;
 	cg_player_changed_callback_t player_changed;
+	cg_player_changed_callback_t player_gun_changed;
 	cg_player_damaged_callback_t player_damaged;
+	cg_bullet_free_callback_t	 on_bullet_free;
 
+#ifdef CG_CLIENT
 	f32 interp_factor;
 	f32 new_interp_factor;
 	f32 interp_threshold_dist;
+
+	f64 server_time;
+#endif
+
 	f32 time_scale;
 	u32 player_id_seq;
+	u32 bullet_id_seq;
 
-	bool client;
 	bool pause;
 } coregame_t;
 
-void coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map, f32 tick_per_sec);
+void coregame_init(coregame_t* coregame, cg_runtime_map_t* map);
+
+#ifdef CG_SERVER
+	void coregame_server_init(coregame_t* coregame, cg_runtime_map_t* map, f32 tick_per_sec);
+#endif
+
 void coregame_update(coregame_t* coregame);
 void coregame_cleanup(coregame_t* coregame);
 
@@ -184,9 +204,13 @@ cg_player_t* coregame_add_player(coregame_t* coregame, const char* name);
 void coregame_add_player_from(coregame_t* coregame, cg_player_t* player);
 void coregame_free_player(coregame_t* coregame, cg_player_t* player);
 void coregame_set_player_input(cg_player_t* player, u8 input);
-void coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp);
+
+#ifdef CG_SERVER
+	void coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp);
+#endif
+
 u8	 coregame_get_player_input(const cg_player_t* player);
-void coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet);
+void coregame_free_bullet(coregame_t* cg, cg_bullet_t* bullet);
 
 f32  coregame_dist(const vec2f_t* a, const vec2f_t* b);
 
@@ -197,5 +221,6 @@ bool coregame_player_change_gun_force(coregame_t* cg, cg_player_t *player, enum 
 bool coregame_player_change_gun(coregame_t* cg, cg_player_t* player, enum cg_gun_id id);
 void coregame_player_reload(coregame_t* cg, cg_player_t* player);
 void coregame_update_player(coregame_t* coregame, cg_player_t* player);
+cg_bullet_t* cg_add_bullet(coregame_t* cg, cg_gun_t* gun);
 
 #endif // _CORE_GAME_H_

@@ -156,7 +156,8 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 			game_handle_num_keys(game, ev);
 			break;
 		case WA_KEY_R:
-			coregame_player_reload(&game->cg, game->player->core);
+			if (ev->pressed)
+				coregame_player_reload(&game->cg, game->player->core);
 			break;
 		default:
 			break;
@@ -245,6 +246,9 @@ game_update_logic(client_game_t* game)
 	if (player == NULL)
 		return;
 
+	game->server_time = (sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset_ms) - ((game->net->udp.latency + game->net->udp.jitter) / 2);
+	if (game->pings > 0)
+		game->cg.server_time = game->server_time;
 	coregame_update(&game->cg);
 	progress_bar_update(&game->health_bar);
 	player_update_guncharge(game->player, &game->guncharge_bar);
@@ -262,7 +266,7 @@ game_update_logic(client_game_t* game)
 		game->ignore_server_pos = true;
 
 		net_udp_player_input_t* input_out = mmframes_alloc(&game->app->mmf, sizeof(net_udp_player_input_t));
-		input_out->timestamp = (sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset) - ((game->net->udp.latency + game->net->udp.jitter) / 2);
+		input_out->timestamp = game->server_time;
 		input_out->flags = player->input;
 		// printf("%u\tSending Input: ", game->net->udp.buf.seqc_sent + 1);
 		// if (input_out->flags & PLAYER_INPUT_LEFT)
@@ -384,6 +388,9 @@ game_on_player_reload(cg_player_t* player, client_game_t* game)
 	if (player->id != game->player->core->id)
 		return;
 
+	static u32 count = 0;
+	printf("player_reload: %u\n", count++);
+
 	ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_RELOAD, 0, NULL);
 }
 
@@ -397,12 +404,7 @@ game_init(waapp_t* app)
 	app->game = game;
 	game->nk_ctx = app->nk_ctx;
 
-	f64 server_time = game->net->udp.time_offset;
-
-	coregame_init(&game->cg, true, app->map_from_server, app->net.udp.tickrate);
-	game->cg.sbsm->time = server_time;
-	game->cg.sbsm->present->timestamp = server_time;
-	game->cg.sbsm->base->timestamp = server_time;
+	coregame_init(&game->cg, app->map_from_server);
 
 	game_init_add_gun_specs(app, game);
 	game->cg.user_data = game;

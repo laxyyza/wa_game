@@ -15,10 +15,11 @@ sbsm_create(u32 size, f64 interval_ms)
 	for (u32 i = 0; i < size; i++)
 	{
 		cg_game_snapshot_t* ss = sbsm->snapshots + i;
-		ght_init(&ss->deltas, 10, free);
+		ght_init(&ss->player_states, 10, free);
+		ght_init(&ss->bullet_states, 10, free);
 	}
 
-	sbsm_add_ss(sbsm);
+	sbsm_add_ss(NULL, sbsm);
 
 	return sbsm;
 }
@@ -43,29 +44,85 @@ sbsm_lookup(cg_sbsm_t* sbsm, f64 timestamp_ms)
 }
 
 void
+sbsm_copy_player(cg_player_snapshot_t* pss, const cg_player_t* player)
+{
+	pss->player_id = player->id;
+	pss->pos = player->pos;
+	pss->input = player->input;
+	pss->ammo = player->gun->ammo;
+	pss->bullet_timer = player->gun->bullet_timer;
+	pss->charge_timer = player->gun->charge_time;
+	pss->reload_timer = player->gun->reload_time;
+}
+
+void
 sbsm_commit_player(cg_game_snapshot_t* ss, cg_player_t* player)
 {
 	cg_player_snapshot_t* pss;
 
 	if (player->dirty == false)
 	{
-		ght_del(&ss->deltas, player->id);
+		ght_del(&ss->player_states, player->id);
 		return;
 	}
 
-	pss = ght_get(&ss->deltas, player->id);
+	pss = ght_get(&ss->player_states, player->id);
 
 	if (pss == NULL)
 	{
 		pss = calloc(1, sizeof(cg_player_snapshot_t));
-		pss->player_id = player->id;
-		ght_insert(&ss->deltas, pss->player_id, pss);
+		ght_insert(&ss->player_states, pss->player_id, pss);
 	}
-	
-	pss->pos = player->pos;
-	pss->input = player->input;
+
+	sbsm_copy_player(pss, player);
 	pss->dirty = false;
+
 	player->dirty = false;
+}
+
+void 
+sbsm_commit_bullet(cg_game_snapshot_t* ss, cg_bullet_t* bullet)
+{
+	cg_bullet_snapshot_t* bss;
+
+	bss = ght_get(&ss->bullet_states, bullet->id);
+
+	if (bss == NULL)
+	{
+		bss = malloc(sizeof(cg_bullet_snapshot_t));
+		bss->bullet_id = bullet->id;
+		ght_insert(&ss->bullet_states, bss->bullet_id, bss);
+	}
+	bss->pos = bullet->r.pos;
+	bss->collided = bullet->collided;
+}
+
+static void
+sbsm_rewind_player(coregame_t* cg, cg_game_snapshot_t* ss, cg_player_t* player)
+{
+	cg_player_snapshot_t* pss = ght_get(&ss->player_states, player->id);
+
+	if (pss)
+	{
+		if (pss->dirty)
+		{
+			if (pss->dirty_movement)
+				coregame_set_player_input(player, pss->input);
+			pss->dirty = false;
+		}
+
+		if (pss->dirty_fire)
+			coregame_gun_update(cg, player->gun);
+		if (pss->dirty_movement)
+		{
+			player->velocity.x = player->dir.x * PLAYER_SPEED;
+			player->velocity.y = player->dir.y * PLAYER_SPEED;
+
+			coregame_update_player(cg, player);
+		}
+	}
+
+	sbsm_commit_player(ss, player);
 }
 
 static void 
@@ -79,29 +136,13 @@ sbsm_rewind(coregame_t* cg, cg_game_snapshot_t* ss)
 
 	while (ss->timestamp <= sbsm->present->timestamp)
 	{
-		// printf("Rewinding %f ms (%u)\n", ss->timestamp, ss->seq);
-
-		GHT_FOREACH(cg_player_t* player, players, {
-			cg_player_snapshot_t* pss = ght_get(&ss->deltas, player->id);
-
-			if (pss && pss->dirty)
-			{
-				// printf("PSS:%u at ss:%u dirty.\n",
-				// 		pss->player_id, ss->seq);
-				coregame_set_player_input(player, pss->input);
-				pss->dirty = false;
-			}
-
-			player->velocity.x = player->dir.x * PLAYER_SPEED;
-			player->velocity.y = player->dir.y * PLAYER_SPEED;
-
-			coregame_update_player(cg, player);
-
-			sbsm_commit_player(ss, player);
-		});
-
 		if (ss == sbsm->present)
 			break;
+
+		GHT_FOREACH(cg_player_t* player, players, 
+		{
+			sbsm_rewind_player(cg, ss, player);
+		});
 
 		index++;
 		if (index >= sbsm->size)
@@ -110,6 +151,26 @@ sbsm_rewind(coregame_t* cg, cg_game_snapshot_t* ss)
 	}
 
 	cg->rewinding = false;
+}
+
+static inline void
+sbsm_rollback_player(coregame_t* cg, cg_player_snapshot_t* pss, ght_t* player_states)
+{
+	cg_player_t* player = NULL;
+
+	player = ght_get(&cg->players, pss->player_id);
+	if (player)
+	{
+		player->pos = pss->pos;
+		player->gun->ammo = pss->ammo;
+		player->gun->bullet_timer = pss->bullet_timer;
+		player->gun->charge_time = pss->charge_timer;
+		player->gun->reload_time = pss->reload_timer;
+		coregame_set_player_input(player, pss->input);
+		pss->dirty = false;
+	}
+	else
+		ght_del(player_states, pss->player_id);
 }
 
 void 
@@ -121,28 +182,31 @@ sbsm_rollback(coregame_t* cg)
 	sbsm->oldest_change = NULL;
 
 	cg->delta = sbsm->interval_ms / 1000.0;
+	ght_t* player_states = &ss->player_states;
 
-	// printf("Rollback to %f ms (seq: %u)\n", ss->timestamp, ss->seq);
+	GHT_FOREACH(cg_player_snapshot_t* pss, player_states, 
+	{
+		sbsm_rollback_player(cg, pss, player_states);
+	});
 
-	ght_t* deltas = &ss->deltas;
-	GHT_FOREACH(cg_player_snapshot_t* pss, deltas, {
-		cg_player_t* player = ght_get(&cg->players, pss->player_id);
-		if (player)
+	ght_t* bullet_states = &ss->bullet_states;
+	GHT_FOREACH(cg_bullet_snapshot_t* bss, bullet_states, 
+	{
+		cg_bullet_t* bullet = ght_get(&cg->bullets, bss->bullet_id);
+		if (bullet)
 		{
-			// printf("Player pos (%f/%f) -> (%f/%f)\n",
-			// 	player->pos.x, player->pos.y,
-			// 	pss->pos.x, pss->pos.y);
-			player->pos = pss->pos;
-			coregame_set_player_input(player, pss->input);
-			pss->dirty = false;
+			bullet->r.pos = bss->pos;
+			bullet->collided = bss->collided;
 		}
+		else
+			ght_del(bullet_states, bss->bullet_id);
 	});
 
 	sbsm_rewind(cg, ss);
 }
 
 void
-sbsm_add_ss(cg_sbsm_t* sbsm)
+sbsm_add_ss(coregame_t* cg, cg_sbsm_t* sbsm)
 {
 	sbsm->present_idx++;
 	if (sbsm->present_idx >= sbsm->size)
@@ -157,16 +221,37 @@ sbsm_add_ss(cg_sbsm_t* sbsm)
 			sbsm->base_idx = 0;
 		sbsm->base = sbsm->snapshots + sbsm->base_idx;
 
-		ght_t* old_base_delta = &current_base_ss->deltas;
-		ght_t* new_base_delta = &sbsm->base->deltas;
+		ght_t* old_player_states = &current_base_ss->player_states;
+		ght_t* new_player_states = &sbsm->base->player_states;
 
-		GHT_FOREACH(cg_player_snapshot_t* pss, old_base_delta, {
-			cg_player_snapshot_t* new_pss = ght_get(new_base_delta, pss->player_id);
+		ght_t* old_base_bullet_states = &current_base_ss->bullet_states;
+		ght_t* new_base_bullet_states = &sbsm->base->bullet_states;
+
+		GHT_FOREACH(cg_player_snapshot_t* pss, old_player_states, 
+		{
+			cg_player_snapshot_t* new_pss = ght_get(new_player_states, pss->player_id);
 			if (new_pss == NULL)
 			{
 				cg_player_snapshot_t* pss_copy = malloc(sizeof(cg_player_snapshot_t));
 				memcpy(pss_copy, pss, sizeof(cg_player_snapshot_t));
-				ght_insert(new_base_delta, pss_copy->player_id, pss_copy);
+				ght_insert(new_player_states, pss_copy->player_id, pss_copy);
+			}
+		});
+
+		/* Here is where bullets are deallcated at the end */
+		GHT_FOREACH(cg_bullet_snapshot_t* old_base_bss, old_base_bullet_states, 
+		{
+			cg_bullet_t* bullet = ght_get(&cg->bullets, old_base_bss->bullet_id);
+			if (bullet)
+			{
+				if (bullet->collided)
+					coregame_free_bullet(cg, bullet);
+				else if (ght_get(new_base_bullet_states, old_base_bss->bullet_id) == NULL)
+				{
+					cg_bullet_snapshot_t* bss_copy = malloc(sizeof(cg_bullet_snapshot_t));
+					memcpy(bss_copy, old_base_bss, sizeof(cg_bullet_snapshot_t));
+					ght_insert(new_base_bullet_states, bss_copy->bullet_id, bss_copy);
+				}
 			}
 		});
 	}
@@ -174,7 +259,8 @@ sbsm_add_ss(cg_sbsm_t* sbsm)
 	sbsm->time += sbsm->interval_ms;
 	sbsm->present->timestamp = sbsm->time;
 	sbsm->present->seq = sbsm->seq++;
-	ght_clear(&sbsm->present->deltas);
+	ght_clear(&sbsm->present->player_states);
+	ght_clear(&sbsm->present->bullet_states);
 }
 
 void
@@ -199,9 +285,9 @@ sbsm_print(const cg_sbsm_t* sbsm)
 			ss->dirty = false;
 		}
 		printf("\ttime: %f\n", ss->timestamp);
-		ght_t* deltas = &ss->deltas;
+		ght_t* player_states = &ss->player_states;
 		
-		GHT_FOREACH(cg_player_snapshot_t* pss, deltas, {
+		GHT_FOREACH(cg_player_snapshot_t* pss, player_states, {
 			printf("\tp%u: pos: (%f/%f), input: ",
 				pss->player_id, pss->pos.x, pss->pos.y);
 
@@ -213,7 +299,9 @@ sbsm_print(const cg_sbsm_t* sbsm)
 				printf("UP ");
 			if (pss->input & PLAYER_INPUT_DOWN)
 				printf("DOWN ");
-			printf("(%u)\n", pss->input);
+			printf("(%u), ", pss->input);
+
+			printf("ammo: %d\n", pss->ammo);
 		});
 		printf("\n");
 

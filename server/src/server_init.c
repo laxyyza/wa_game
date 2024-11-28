@@ -277,11 +277,13 @@ server_init_coregame(server_t* server)
 		return -1;
 	}
 
-	coregame_init(&server->game, false, map, server->tickrate);
+	coregame_server_init(&server->game, map, server->tickrate);
 	server->game.user_data = server;
-	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
+	server->game.player_changed = (cg_player_changed_callback_t)server_on_player_changed;
 	server->game.player_damaged = (cg_player_damaged_callback_t)on_player_damaged;
 	server->game.player_reload = (cg_player_reload_callback_t)server_on_player_reload;
+	server->game.on_bullet_create = (cg_bullet_create_callback_t)server_on_bullet_create;
+	server->game.player_gun_changed = (cg_player_changed_callback_t)server_on_player_gun_changed;
 
 	array_init(&server->spawn_points, sizeof(cg_runtime_cell_t**), 10);
 	cg_runtime_cell_t* cell;
@@ -297,6 +299,8 @@ server_init_coregame(server_t* server)
 	}
 
 	server_init_coregame_gun_specs(server);
+
+	array_init(&server->bullet_create_events, sizeof(u32), 20);
 
 	return 0;
 }
