@@ -948,12 +948,11 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 	{
 		gun->reload_time += cg->delta;
 
-		gun->dirty = true;
-
 		if (gun->reload_time >= gun->spec->reload_time)
 		{
 			gun->ammo = gun->spec->max_ammo;
 			gun->reload_time = 0;
+			gun->dirty = true;
 		}
 		else
 			return;
@@ -968,8 +967,6 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 		}
 		else
 			gun->bullet_timer += cg->delta;
-
-		gun->dirty = true;
 	}
 	else
 	{
@@ -980,16 +977,11 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 		}
 		else
 		{
-			const f32 bullet_timer = gun->bullet_timer;
-
 			if (gun->spec->autocharge)
 				gun->bullet_timer += cg->delta;
 			else
 				gun->bullet_timer -= cg->delta;
 			gun->bullet_timer = clampf(gun->bullet_timer, 0, gun->spec->bullet_spawn_interval);
-
-			if (bullet_timer != gun->bullet_timer)
-				gun->dirty = true;
 		}
 		return;
 	}
