@@ -488,7 +488,7 @@ server_run(server_t* server)
 {
 	if (server->running)
 	{
-		printf("Server is up & running!\n\t");
+		printf("Server v%s (%s) is up & running!\n\t", VERSION, BUILD_TYPE);
 		printf("Tick rate: %.1f     (%fms interval).\n\t",
 				server->tickrate, server->interval * 1000.0);
 		printf("TCP port:  %u\n\t", server->port);
