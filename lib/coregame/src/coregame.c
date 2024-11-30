@@ -383,7 +383,7 @@ void
 coregame_server_init(coregame_t* cg, cg_runtime_map_t* map, f32 tick_per_sec)
 {
 	coregame_init(cg, map);
-	cg->sbsm = sbsm_create(tick_per_sec, 1000.0 / tick_per_sec);
+	cg->sbsm = sbsm_create(tick_per_sec / 4, 1000.0 / tick_per_sec);
 }
 #endif
 
@@ -494,23 +494,6 @@ cg_player_handle_collision(coregame_t* cg, cg_player_t* player)
 void 
 coregame_update_player(coregame_t* coregame, cg_player_t* player)
 {
-#ifdef CG_SERVER
-	printf("Player %u, shooting: %s, rewiding: %s, ammo: %d, reload_time: %f, bullet_time: %f, charge: %f\n", player->id,
-		(player->shoot) ? "true" : "false",
-		(coregame->rewinding) ? "true" : "false",
-		player->gun->ammo,
-		player->gun->reload_time,
-		player->gun->bullet_timer,
-		player->gun->charge_time);
-#else
-	printf("Player %u, shooting: %s, ammo: %d, reload_time: %f, bullet_time: %f, charge: %f\n",
-			player->id, 
-			(player->shoot) ? "true" : "false",
-			player->gun->ammo,
-			player->gun->reload_time,
-			player->gun->bullet_timer,
-			player->gun->charge_time);
-#endif
 	if (player->velocity.x || player->velocity.y)
 	{
 		player->velocity.x *= coregame->delta;
@@ -871,11 +854,11 @@ void
 coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp)
 {
 	cg_game_snapshot_t* ss = sbsm_lookup(cg->sbsm, timestamp);
-	if (ss->timestamp < player->last_input)
-		return;
-	else
-		player->last_input = ss->timestamp;
-
+	// if (ss->timestamp < player->last_input)
+	// 	return;
+	// else
+	// 	player->last_input = ss->timestamp;
+	//
 	ss->dirty = true;
 	cg_player_snapshot_t* ps = ght_get(&ss->player_states, player->id);
 	if (ps == NULL)
