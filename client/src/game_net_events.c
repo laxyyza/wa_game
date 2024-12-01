@@ -10,7 +10,7 @@ game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 
 	cg_player_t* cg_player = calloc(1, sizeof(cg_player_t));
 	cg_player->id = new_player->id;
-	cg_player->pos = new_player->pos;
+	cg_player->server_pos = cg_player->pos = new_player->pos;
 	cg_player->size = new_player->size;
 	cg_player->dir = new_player->dir;
 	cg_player->cursor = new_player->cursor;
