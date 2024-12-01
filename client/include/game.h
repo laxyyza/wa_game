@@ -49,6 +49,7 @@ typedef struct client_game
 	bool game_debug;
 	bool game_netdebug;
 	bool ignore_server_pos;
+	bool ignore_auto_interp;
 	f64 last_chatmsg;
 	array_t chat_msgs;
 	bro_t* laser_bro;

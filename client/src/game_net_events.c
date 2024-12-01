@@ -98,11 +98,10 @@ game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		// else
 		// 	player->ignore_count = 0;
 
+		player->server_pos = server_pos;
+
 		if (dist > app->game->cg.interp_threshold_dist)
-		{
 			player->interpolate = true;
-			player->server_pos = server_pos;
-		}
 		else
 			player->pos = server_pos;
 		

@@ -326,7 +326,19 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 
 		snprintf(label, UI_LABEL_SIZE, "Interpolate Factor: %f", game->cg.interp_factor);
 		nk_label(ctx, label, NK_TEXT_LEFT);
-		nk_slider_float(ctx, 0.0001, &game->cg.interp_factor, 1.0, 0.001);
+
+		nk_bool ignore_auto_interp = !game->ignore_auto_interp;
+		if (nk_checkbox_label(ctx, "Custom Interpolate", &ignore_auto_interp))
+		{
+			game->ignore_auto_interp = !ignore_auto_interp;
+		}
+
+		if (game->ignore_auto_interp)
+		{
+			snprintf(label, UI_LABEL_SIZE, "Target Interpolate Factor: %f", game->cg.new_interp_factor);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+			nk_slider_float(ctx, 0.00001, &game->cg.new_interp_factor, 0.1, 0.00001);
+		}
 
 		snprintf(label, UI_LABEL_SIZE, "Interp Threshold Dist: %f", game->cg.interp_threshold_dist);
 		nk_label(ctx, label, NK_TEXT_LEFT);

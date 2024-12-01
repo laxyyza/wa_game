@@ -469,6 +469,8 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	ssp_segbuf_set_rtt(&net->udp.buf, player_ping->ms);
 
 	ssp_segbuf_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
+	if (app->game->ignore_auto_interp)
+		return;
 
 	rtt_ms += net->udp.jitter;
 
