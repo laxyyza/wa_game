@@ -43,6 +43,8 @@ game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		game->guncharge_bar.fill.color = player->guncharge.fill.color;
 
 		game_update_ui_bars_pos(game);
+
+		game->cg.local_player = cg_player;
 	}
 
 	coregame_add_player_from(&app->game->cg, cg_player);

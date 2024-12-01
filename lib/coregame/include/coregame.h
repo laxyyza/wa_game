@@ -11,7 +11,8 @@
 #include "sbsm.h"
 
 #define INTERPOLATE_FACTOR			0.01
-#define INTERPOLATE_THRESHOLD_DIST	0.001
+#define INTERPOLATE_THRESHOLD_DIST	10.0
+#define INTERPOLATE_THRESHOLD_DIST_LOW	1.0
 
 #define GUN_BPS 20.0
 #define BULLET_SPEED  7000
@@ -166,8 +167,13 @@ typedef struct coregame
 	cg_player_changed_callback_t player_changed;
 	cg_player_damaged_callback_t player_damaged;
 
-	f32 interp_factor;
-	f32 new_interp_factor;
+	f32 local_interp_factor;
+	f32 target_local_interp_factor;
+	f32 remote_interp_factor;
+	f32 target_remote_interp_factor;
+
+	cg_player_t* local_player;
+
 	f32 interp_threshold_dist;
 	f32 time_scale;
 	u32 player_id_seq;

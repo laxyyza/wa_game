@@ -474,14 +474,30 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 
 	rtt_ms += net->udp.jitter;
 
-	if (rtt_ms >= RTT_HIGH)
-		app->game->cg.new_interp_factor = INTERP_HIGH;
-	else if (rtt_ms >= RTT_MID)
-		app->game->cg.new_interp_factor = INTERP_MID;
-	else if (rtt_ms >= RTT_MIDL)
-		app->game->cg.new_interp_factor = INTERP_MIDL;
-	else
-		app->game->cg.new_interp_factor = INTERP_LOW;
+	if (rtt_ms > RTT_HIGH) // 140ms+
+	{
+		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_HIGH;
+		app->game->cg.target_local_interp_factor = LOCAL_INTERP_HIGH;
+		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
+	}
+	else if (rtt_ms > RTT_MID) // 70ms+
+	{
+		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_MID;
+		app->game->cg.target_local_interp_factor = LOCAL_INTERP_MID;
+		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
+	}
+	else if (rtt_ms > RTT_MIDL) // 20ms+
+	{
+		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_MIDL;
+		app->game->cg.target_local_interp_factor = LOCAL_INTERP_MIDL;
+		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
+	}
+	else	// < 20ms (0-20ms)
+	{
+		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_LOW;
+		app->game->cg.target_local_interp_factor = LOCAL_INTERP_LOW;
+		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST_LOW;
+	}
 }
 
 static bool

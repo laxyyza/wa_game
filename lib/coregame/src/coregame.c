@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "cutils.h"
 
+#define BLEND_RATE 0.01
+
 #ifdef _WIN32
 #define isnanf(x) _isnanf(x)
 #endif // _WIN32
@@ -369,7 +371,11 @@ coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map, f32 tick
 	);
 	coregame_get_delta_time(coregame);
 
-	coregame->new_interp_factor = coregame->interp_factor = INTERPOLATE_FACTOR;
+	coregame->local_interp_factor = INTERPOLATE_FACTOR;
+	coregame->target_local_interp_factor = INTERPOLATE_FACTOR;
+	coregame->remote_interp_factor = INTERPOLATE_FACTOR;
+	coregame->target_remote_interp_factor = INTERPOLATE_FACTOR;
+
 	coregame->interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
 	coregame->client = client;
 
@@ -529,13 +535,13 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 }
 
 static void 
-coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
+coregame_interpolate_player(coregame_t* cg, cg_player_t* player)
 {
 	vec2f_t* client_pos = &player->pos;
 	const vec2f_t* server_pos = &player->server_pos;
-	f32 dist = coregame_dist(client_pos, server_pos);
+	const f32 dist = coregame_dist(client_pos, server_pos);
 
-	if (dist < coregame->interp_threshold_dist)
+	if (dist < cg->interp_threshold_dist)
 	{
 		player->pos = player->server_pos;
 		player->interpolate = false;
@@ -543,15 +549,15 @@ coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
 	}
 
 	vec2f_t new_pos;
-	const f32 interp = coregame->interp_factor;
+	const f32 interp = (player == cg->local_player) ? cg->local_interp_factor : cg->remote_interp_factor;
 	cg_blend_pos(&new_pos, client_pos, server_pos, interp);
 
 	player->velocity.x = new_pos.x - client_pos->x;
 	player->velocity.y = new_pos.y - client_pos->y;
 
 	cg_player_remove_self_from_cells(player);
-	cg_player_get_cells(coregame->map, player);
-	cg_player_handle_collision(coregame, player);
+	cg_player_get_cells(cg->map, player);
+	cg_player_handle_collision(cg, player);
 
 	client_pos->x += player->velocity.x;
 	client_pos->y += player->velocity.y;
@@ -564,11 +570,10 @@ coregame_update_players(coregame_t* cg)
 {
 	const ght_t* players = &cg->players;
 
-	if (cg->new_interp_factor != cg->interp_factor)
-	{
-		f32 blend_rate = 0.01;
-		cg->interp_factor = cg->interp_factor * (1 - blend_rate) + cg->new_interp_factor * blend_rate;
-	}
+	if (cg->target_local_interp_factor != cg->local_interp_factor)
+		cg->local_interp_factor = cg->local_interp_factor * (1 - BLEND_RATE) + cg->target_local_interp_factor * BLEND_RATE;
+	if (cg->target_remote_interp_factor != cg->remote_interp_factor)
+		cg->remote_interp_factor = cg->remote_interp_factor * (1 - BLEND_RATE) + cg->target_remote_interp_factor * BLEND_RATE;
 
 	GHT_FOREACH(cg_player_t* player, players, 
 	{
