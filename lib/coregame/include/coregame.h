@@ -90,6 +90,7 @@ typedef struct cg_player
 #ifdef CG_CLIENT
 	vec2f_t server_pos;
 	bool	interpolate;
+	bool	bad_local_pos;
 #endif
 
 	cg_player_stats_t stats;

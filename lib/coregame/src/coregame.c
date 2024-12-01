@@ -408,12 +408,12 @@ cg_blend_pos(vec2f_t* dst, const vec2f_t* a, const vec2f_t* b, f32 factor)
 	dst->y = a->y * (1 - factor) + b->y * factor;
 }
 
-// static inline void
-// cg_interpolate_pos(vec2f_t* a, const vec2f_t* b, f32 factor)
-// {
-// 	a->x = a->x + (b->x - a->x) * factor;
-// 	a->y = a->y + (b->y - a->y) * factor;
-// }
+static inline void
+cg_interpolate_pos(vec2f_t* a, const vec2f_t* b, f32 factor)
+{
+	a->x = a->x + (b->x - a->x) * factor;
+	a->y = a->y + (b->y - a->y) * factor;
+}
 
 static void
 cg_resolve_player_collision(cg_player_t* player, 
@@ -551,27 +551,44 @@ coregame_interpolate_player(coregame_t* cg, cg_player_t* player)
 	const vec2f_t* server_pos = &player->server_pos;
 	const f32 dist = coregame_dist(client_pos, server_pos);
 
-	if (dist < cg->interp_threshold_dist)
+	if (dist > player->size.x * 4)
+	{
+		player->bad_local_pos = true;
+	}
+	else if (dist < cg->interp_threshold_dist)
 	{
 		player->pos = player->server_pos;
 		player->interpolate = false;
+		player->bad_local_pos = false;
 		return;
 	}
 
 	vec2f_t new_pos;
-	const f32 interp = (player == cg->local_player) ? cg->local_interp_factor : cg->remote_interp_factor;
-	cg_blend_pos(&new_pos, client_pos, server_pos, interp);
+	if (player->bad_local_pos)
+	{
+		cg_player_remove_self_from_cells(player);
+		cg_player_get_cells(cg->map, player);
+		cg_interpolate_pos(client_pos, server_pos, 0.1);
+	}
+	else
+	{
+		const f32 interp = (player == cg->local_player) ? cg->local_interp_factor : cg->remote_interp_factor;
+		cg_blend_pos(&new_pos, client_pos, server_pos, interp);
 
-	player->velocity.x = new_pos.x - client_pos->x;
-	player->velocity.y = new_pos.y - client_pos->y;
+		player->velocity.x = new_pos.x - client_pos->x;
+		player->velocity.y = new_pos.y - client_pos->y;
 
-	cg_player_remove_self_from_cells(player);
-	cg_player_get_cells(cg->map, player);
-	cg_player_handle_collision(cg, player);
+		cg_player_remove_self_from_cells(player);
+		cg_player_get_cells(cg->map, player);
+		cg_player_handle_collision(cg, player);
 
-	client_pos->x += player->velocity.x;
-	client_pos->y += player->velocity.y;
+		client_pos->x += player->velocity.x;
+		client_pos->y += player->velocity.y;
 
+		const f32 new_dist = coregame_dist(client_pos, server_pos);
+		if (new_dist >= dist)
+			player->bad_local_pos = true;
+	}
 	cg_player_add_into_cells(player);
 }
 #endif // CG_CLIENT
