@@ -455,7 +455,7 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 
 	hr_time_t current_time;
 	nano_gettime(&current_time);
-	const f64 current_time_ms = sec_to_ms(nano_time_s(&current_time));
+	const f64 current_time_ms = nano_time_ns(&current_time) / 1e6;
 
 	f64 rtt_ms = current_time_ms - pong->t_client_ms;
 	const f64 one_way_latency = rtt_ms / 2;
@@ -875,7 +875,7 @@ client_net_ping_server(waapp_t* app)
 	ssp_packet_t* packet;
 
 	nano_gettime(&current_time);
-	f64 time_ms = sec_to_ms(nano_time_s(&current_time));
+	f64 time_ms = nano_time_ns(&current_time) / 1e6;
 
 	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &time_ms, sizeof(f64));
 	if (packet)
