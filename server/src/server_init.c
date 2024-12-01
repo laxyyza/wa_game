@@ -277,7 +277,7 @@ server_init_coregame(server_t* server)
 		return -1;
 	}
 
-	coregame_init(&server->game, false, map, server->tickrate);
+	coregame_server_init(&server->game, map, server->tickrate);
 	server->game.user_data = server;
 	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 	server->game.player_damaged = (cg_player_damaged_callback_t)on_player_damaged;

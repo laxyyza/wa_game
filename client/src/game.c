@@ -397,12 +397,7 @@ game_init(waapp_t* app)
 	app->game = game;
 	game->nk_ctx = app->nk_ctx;
 
-	f64 server_time = game->net->udp.time_offset;
-
-	coregame_init(&game->cg, true, app->map_from_server, app->net.udp.tickrate);
-	game->cg.sbsm->time = server_time;
-	game->cg.sbsm->present->timestamp = server_time;
-	game->cg.sbsm->base->timestamp = server_time;
+	coregame_init(&game->cg, app->map_from_server);
 
 	game_init_add_gun_specs(app, game);
 	game->cg.user_data = game;

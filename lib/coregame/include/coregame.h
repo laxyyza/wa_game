@@ -8,7 +8,10 @@
 #include "cg_map.h"
 #include "mmframes.h"
 #include "nano_timer.h"
+
+#ifdef CG_SERVER
 #include "sbsm.h"
+#endif
 
 #define INTERPOLATE_FACTOR			0.01
 #define INTERPOLATE_THRESHOLD_DIST	10.0
@@ -79,12 +82,16 @@ typedef struct cg_player
 	char	username[PLAYER_NAME_MAX];
 	array_t cells;
 	u8		input;
-	bool	dirty;
 
-	struct {
-		vec2f_t server_pos;
-		bool	interpolate;
-	};
+#ifdef CG_SERVER
+	bool	dirty;
+#endif
+
+#ifdef CG_CLIENT
+	vec2f_t server_pos;
+	bool	interpolate;
+#endif
+
 	cg_player_stats_t stats;
 	void*	user_data;
 	bool	shoot;
@@ -157,8 +164,6 @@ typedef struct coregame
 	hr_time_t last_time;
 	f64 delta;
 	void* user_data;
-	cg_sbsm_t* sbsm;
-	bool rewinding;
 
 	cg_bullet_create_callback_t on_bullet_create;
 	void (*bullet_free_callback)(cg_bullet_t* bullet, void* data);
@@ -167,22 +172,30 @@ typedef struct coregame
 	cg_player_changed_callback_t player_changed;
 	cg_player_damaged_callback_t player_damaged;
 
+#ifdef CG_SERVER
+	cg_sbsm_t* sbsm;
+	bool rewinding;
+#endif // CG_SERVER
+
+#ifdef CG_CLIENT
 	f32 local_interp_factor;
 	f32 target_local_interp_factor;
 	f32 remote_interp_factor;
 	f32 target_remote_interp_factor;
 
-	cg_player_t* local_player;
-
 	f32 interp_threshold_dist;
+
+	cg_player_t* local_player;
+#endif // CG_CLIENT
+
 	f32 time_scale;
 	u32 player_id_seq;
 
-	bool client;
 	bool pause;
 } coregame_t;
 
-void coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map, f32 tick_per_sec);
+void coregame_init(coregame_t* coregame, cg_runtime_map_t* map);
+void coregame_server_init(coregame_t* cg, cg_runtime_map_t* map, f32 tick_per_sec);
 void coregame_update(coregame_t* coregame);
 void coregame_cleanup(coregame_t* coregame);
 
@@ -190,7 +203,11 @@ cg_player_t* coregame_add_player(coregame_t* coregame, const char* name);
 void coregame_add_player_from(coregame_t* coregame, cg_player_t* player);
 void coregame_free_player(coregame_t* coregame, cg_player_t* player);
 void coregame_set_player_input(cg_player_t* player, u8 input);
-void coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp);
+
+#ifdef CG_SERVER
+	void coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp);
+#endif 
+
 u8	 coregame_get_player_input(const cg_player_t* player);
 void coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet);
 

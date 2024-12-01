@@ -360,7 +360,7 @@ cg_do_free_player(cg_player_t* player)
 }
 
 void 
-coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map, f32 tick_per_sec)
+coregame_init(coregame_t* coregame, cg_runtime_map_t* map)
 {
 	ght_init(&coregame->players, 10, (ght_free_t)cg_do_free_player);
 	coregame->time_scale = 1.0;
@@ -371,24 +371,29 @@ coregame_init(coregame_t* coregame, bool client, cg_runtime_map_t* map, f32 tick
 	);
 	coregame_get_delta_time(coregame);
 
+#ifdef CG_CLIENT
 	coregame->local_interp_factor = INTERPOLATE_FACTOR;
 	coregame->target_local_interp_factor = INTERPOLATE_FACTOR;
 	coregame->remote_interp_factor = INTERPOLATE_FACTOR;
 	coregame->target_remote_interp_factor = INTERPOLATE_FACTOR;
-
 	coregame->interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
-	coregame->client = client;
+#endif // CG_CLIENT
 
-	// coregame->map = cg_map_new(100, 100, 100);
 	if (map)
 		coregame->map = map;
-	// else
-	// 	coregame->map = cg_map_load(MAP_PATH "/test.cgmap");
 	
 	array_init(&coregame->gun_specs, sizeof(cg_gun_spec_t), 4);
-
-	coregame->sbsm = sbsm_create(tick_per_sec / 4, 1000.0 / tick_per_sec);
 }
+
+#ifdef CG_SERVER
+void 
+coregame_server_init(coregame_t* cg, cg_runtime_map_t* map, f32 tick_per_sec)
+{
+	coregame_init(cg, map);
+
+	cg->sbsm = sbsm_create(tick_per_sec / 4, 1000.0 / tick_per_sec);
+}
+#endif // CG_SERVER
 
 f32 
 coregame_dist(const vec2f_t* a, const vec2f_t* b)
@@ -497,9 +502,11 @@ cg_player_handle_collision(coregame_t* cg, cg_player_t* player)
 void 
 coregame_update_player(coregame_t* coregame, cg_player_t* player)
 {
+#ifdef CG_SERVER
 	if (coregame->rewinding)
 		if (player->gun)
 			coregame_gun_update(coregame, player->gun);
+#endif // CG_SERVER
 
 	if (player->velocity.x || player->velocity.y)
 	{
@@ -521,8 +528,10 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 	if (player->prev_dir.x != player->dir.x || player->prev_dir.y != player->dir.y ||
 		player->prev_pos.x != player->pos.x || player->prev_pos.y != player->pos.y)
 	{
+	#ifdef CG_SERVER
 		player->dirty = true;
 		coregame->sbsm->dirty = true;
+	#endif // CG_SERVER
 
 		if (coregame->player_changed)
 			coregame->player_changed(player, coregame->user_data);
@@ -534,6 +543,7 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 	// 	coregame->player_changed(player, coregame->user_data);
 }
 
+#ifdef CG_CLIENT
 static void 
 coregame_interpolate_player(coregame_t* cg, cg_player_t* player)
 {
@@ -564,16 +574,19 @@ coregame_interpolate_player(coregame_t* cg, cg_player_t* player)
 
 	cg_player_add_into_cells(player);
 }
+#endif // CG_CLIENT
 
 static void 
 coregame_update_players(coregame_t* cg)
 {
 	const ght_t* players = &cg->players;
 
+#ifdef CG_CLIENT
 	if (cg->target_local_interp_factor != cg->local_interp_factor)
 		cg->local_interp_factor = cg->local_interp_factor * (1 - BLEND_RATE) + cg->target_local_interp_factor * BLEND_RATE;
 	if (cg->target_remote_interp_factor != cg->remote_interp_factor)
 		cg->remote_interp_factor = cg->remote_interp_factor * (1 - BLEND_RATE) + cg->target_remote_interp_factor * BLEND_RATE;
+#endif // CG_CLIENT
 
 	GHT_FOREACH(cg_player_t* player, players, 
 	{
@@ -584,9 +597,14 @@ coregame_update_players(coregame_t* cg)
 		player->velocity.y = player->dir.y * PLAYER_SPEED;
 
 		coregame_update_player(cg, player);
+	#ifdef CG_CLIENT
 		if (player->interpolate)
 			 coregame_interpolate_player(cg, player);
+	#endif // CG_CLIENT
+	
+	#ifdef CG_SERVER
 		sbsm_commit_player(cg->sbsm->present, player);
+	#endif // CG_SERVER
 	});
 }
 
@@ -736,10 +754,12 @@ coregame_update(coregame_t* cg)
 	if (cg->pause)
 		return;
 
+#ifdef CG_SERVER
 	if (cg->sbsm->oldest_change)
 		sbsm_rollback(cg);
 
 	sbsm_add_ss(cg->sbsm);
+#endif // CG_SERVER
 
 	coregame_update_players(cg);
 	coregame_update_bullets(cg);
@@ -803,11 +823,13 @@ coregame_add_player_from(coregame_t* cg, cg_player_t* player)
 void 
 coregame_free_player(coregame_t* cg, cg_player_t* player)
 {
+#ifdef CG_SERVER
 	for (u32 i = 0; i < cg->sbsm->size; i++)
 	{
 		cg_game_snapshot_t* ss = cg->sbsm->snapshots + i;
 		ght_del(&ss->deltas, player->id);
 	}
+#endif // CG_SERVER
 
 	ght_del(&cg->players, player->id);
 }
@@ -847,6 +869,7 @@ coregame_set_player_input(cg_player_t* player, u8 input)
 	player->input = input;
 }
 
+#ifdef CG_SERVER
 void 
 coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp)
 {
@@ -879,6 +902,7 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 		cg->sbsm->oldest_change = ss;
 	}
 }
+#endif // CG_SERVER
 
 u8
 coregame_get_player_input(const cg_player_t* player)
