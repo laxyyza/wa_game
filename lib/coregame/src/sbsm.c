@@ -62,10 +62,44 @@ sbsm_commit_player(cg_game_snapshot_t* ss, cg_player_t* player)
 		ght_insert(&ss->player_states, pss->player_id, pss);
 	}
 	
-	pss->pos = player->pos;
-	pss->input = player->input;
+	sbsm_player_to_snapshot(pss, player);
 	pss->dirty = false;
 	player->dirty = false;
+}
+
+void 
+sbsm_player_to_snapshot(cg_player_snapshot_t* pss, const cg_player_t* player)
+{
+	pss->pos = player->pos;
+	pss->input = player->input;
+	pss->shooting = player->shoot;
+
+	if (player->gun == NULL)
+		return;
+
+	pss->gun_id = player->gun->spec->id;
+	pss->ammo = player->gun->ammo;
+	pss->bullet_timer = player->gun->bullet_timer;
+	pss->charge_timer = player->gun->charge_time;
+	pss->reload_timer = player->gun->reload_time;
+}
+
+void
+sbsm_snapshot_to_player(coregame_t* cg, cg_player_t* player, const cg_player_snapshot_t* pss)
+{
+	player->pos = pss->pos;
+	player->input = pss->input;
+	player->shoot = pss->shooting;
+
+	if (pss->gun_id != player->gun->spec->id)
+		coregame_player_change_gun_force(cg, player, player->gun->spec->id);
+
+	if (player->gun->ammo != pss->ammo)
+		player->gun_dirty = true;
+	player->gun->ammo = pss->ammo;
+	player->gun->bullet_timer = pss->bullet_timer;
+	player->gun->charge_time = pss->charge_timer;
+	player->gun->reload_time = pss->reload_timer;
 }
 
 static void 
@@ -132,7 +166,7 @@ sbsm_rollback(coregame_t* cg)
 			// printf("Player pos (%f/%f) -> (%f/%f)\n",
 			// 	player->pos.x, player->pos.y,
 			// 	pss->pos.x, pss->pos.y);
-			player->pos = pss->pos;
+			sbsm_snapshot_to_player(cg, player, pss);
 			coregame_set_player_input(player, pss->input);
 			pss->dirty = false;
 		}

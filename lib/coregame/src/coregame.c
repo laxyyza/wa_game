@@ -502,11 +502,13 @@ cg_player_handle_collision(coregame_t* cg, cg_player_t* player)
 void 
 coregame_update_player(coregame_t* coregame, cg_player_t* player)
 {
+	if (player->gun)
+		coregame_gun_update(coregame, player->gun);
+
 #ifdef CG_SERVER
-	if (coregame->rewinding)
-		if (player->gun)
-			coregame_gun_update(coregame, player->gun);
-#endif // CG_SERVER
+	printf("Player %u, ammo: %d, rewinding: %d, shooting: %d, dirty: %d\n", 
+		player->id, player->gun->ammo, coregame->rewinding, player->shoot, player->gun_dirty);
+#endif
 
 	if (player->velocity.x || player->velocity.y)
 	{
@@ -539,8 +541,6 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 		player->prev_pos = player->pos;
 		player->prev_dir = player->dir;
 	}
-	// else if (coregame->client == false)
-	// 	coregame->player_changed(player, coregame->user_data);
 }
 
 #ifdef CG_CLIENT
@@ -607,9 +607,6 @@ coregame_update_players(coregame_t* cg)
 
 	GHT_FOREACH(cg_player_t* player, players, 
 	{
-		if (player->gun)
-			coregame_gun_update(cg, player->gun);
-
 		player->velocity.x = player->dir.x * PLAYER_SPEED;
 		player->velocity.y = player->dir.y * PLAYER_SPEED;
 
@@ -620,6 +617,12 @@ coregame_update_players(coregame_t* cg)
 	#endif // CG_CLIENT
 	
 	#ifdef CG_SERVER
+		if (player->gun_dirty)
+		{
+			 cg->player_gun_changed(player, cg->user_data);
+			 player->gun_dirty = false;
+		}
+
 		sbsm_commit_player(cg->sbsm->present, player);
 	#endif // CG_SERVER
 	});
@@ -902,7 +905,7 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 	{
 		ps = calloc(1, sizeof(cg_player_snapshot_t));
 		ps->player_id = player->id;
-		ps->pos = player->pos;
+		sbsm_player_to_snapshot(ps, player);
 
 		/* TODO: Find the oldest changes */
 		// ps->prev = NULL;
@@ -966,6 +969,10 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 	{
 		gun->reload_time += cg->delta;
 
+	#ifdef CG_SERVER
+		gun->owner->dirty = true;
+	#endif
+
 		if (gun->reload_time >= gun->spec->reload_time)
 		{
 			gun->ammo = gun->spec->max_ammo;
@@ -984,9 +991,16 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 		}
 		else
 			gun->bullet_timer += cg->delta;
+	
+	#ifdef CG_SERVER
+		gun->owner->dirty = true;
+	#endif
 	}
 	else
 	{
+	#ifdef CG_SERVER
+		const f32 bullet_timer = gun->bullet_timer;
+	#endif // CG_SERVER
 		if (gun->spec->initial_charge_time)
 		{
 			gun->charge_time = clampf(gun->charge_time - (cg->delta * 2), 0, gun->spec->initial_charge_time);
@@ -1000,8 +1014,16 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 				gun->bullet_timer -= cg->delta;
 			gun->bullet_timer = clampf(gun->bullet_timer, 0, gun->spec->bullet_spawn_interval);
 		}
+	#ifdef CG_SERVER
+		if (bullet_timer != gun->bullet_timer)
+			gun->owner->dirty = true;
+	#endif	// CG_SERVER
 		return;
 	}
+
+#ifdef CG_SERVER
+	const i32 start_ammo = gun->ammo;
+#endif // CG_SERVER
 
 	while (gun->bullet_timer >= gun->spec->bullet_spawn_interval && gun->ammo > 0)
 	{
@@ -1009,6 +1031,11 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 		gun->bullet_timer -= gun->spec->bullet_spawn_interval;
 		gun->ammo--;
 	}
+
+#ifdef CG_SERVER
+	if (start_ammo != gun->ammo)
+		gun->owner->dirty = gun->owner->gun_dirty = true;
+#endif // CG_SERVER
 
 	if (gun->ammo <= 0 && cg->player_reload)
 		cg->player_reload(gun->owner, cg->user_data);

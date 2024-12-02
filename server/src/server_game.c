@@ -86,6 +86,26 @@ on_player_changed(cg_player_t* player, server_t* server)
 }
 
 void
+server_on_player_gun_changed(cg_player_t* player, server_t* server)
+{
+	ght_t* clients = &server->clients;
+	net_udp_player_gun_state_t* gun_state_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_gun_state_t));
+	const cg_gun_t* gun = player->gun;
+
+	gun_state_out->player_id = player->id;
+	gun_state_out->gun_id = gun->spec->id;
+	gun_state_out->ammo = gun->ammo;
+	gun_state_out->bullet_timer = gun->bullet_timer;
+	gun_state_out->charge_timer = gun->charge_time;
+	gun_state_out->reload_timer = gun->reload_time;
+
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_GUN_STATE, sizeof(net_udp_player_gun_state_t), gun_state_out);
+	});
+}
+
+void
 on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, server_t* server)
 {
 	ght_t* clients = &server->clients;

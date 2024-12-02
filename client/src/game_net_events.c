@@ -283,3 +283,24 @@ game_player_reload(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 	if (player)
 		coregame_player_reload(&app->game->cg, player);
 }
+
+void 
+game_player_gun_state(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	coregame_t* cg = &app->game->cg;
+	const net_udp_player_gun_state_t* gun_state = (const void*)segment->data;
+	cg_player_t* player = ght_get(&cg->players, gun_state->player_id);
+
+	if (player)
+	{
+		if (player->gun->spec->id != gun_state->gun_id)
+			coregame_player_change_gun_force(cg, player, gun_state->gun_id);
+
+		printf("gun_state: %d\n", gun_state->ammo);
+
+		player->gun->ammo = gun_state->ammo;
+		player->gun->bullet_timer = gun_state->bullet_timer;
+		player->gun->reload_time = gun_state->reload_timer;
+		player->gun->charge_time = gun_state->charge_timer;
+	}
+}

@@ -616,6 +616,7 @@ client_net_init(waapp_t* app)
 	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segment_callback_t)game_player_gun_id;
 	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segment_callback_t)game_player_input;
 	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segment_callback_t)game_player_reload;
+	callbacks[NET_UDP_PLAYER_GUN_STATE] = (ssp_segment_callback_t)game_player_gun_state;
 
 	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_ctx.user_data = app;

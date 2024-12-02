@@ -19,6 +19,14 @@ typedef struct
 	u32		player_id;
 	vec2f_t pos;
 	u8		input;
+	bool	shooting;
+
+	i32 ammo;
+	f32 bullet_timer;
+	f32 charge_timer;
+	f32 reload_timer;
+	u32 gun_id;
+
 	bool	dirty;
 } cg_player_snapshot_t;
 
@@ -55,5 +63,7 @@ void sbsm_rollback(coregame_t* cg);
 void sbsm_add_ss(cg_sbsm_t* sbsm);
 void sbsm_print(const cg_sbsm_t* sbsm);
 void sbsm_commit_player(cg_game_snapshot_t* ss, cg_player_t* player);
+void sbsm_player_to_snapshot(cg_player_snapshot_t* pss, const cg_player_t* player);
+void sbsm_snapshot_to_player(coregame_t* cg, cg_player_t* player, const cg_player_snapshot_t* pss);
 
 #endif // _SBSM_H_

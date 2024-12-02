@@ -85,6 +85,7 @@ typedef struct cg_player
 
 #ifdef CG_SERVER
 	bool	dirty;
+	bool	gun_dirty;
 	f64		last_input_timestamp;
 #endif
 
@@ -172,6 +173,7 @@ typedef struct coregame
 	cg_player_free_callback_t    player_free_callback;	
 	cg_player_reload_callback_t  player_reload;
 	cg_player_changed_callback_t player_changed;
+	cg_player_changed_callback_t player_gun_changed;
 	cg_player_damaged_callback_t player_damaged;
 
 #ifdef CG_SERVER
