@@ -85,6 +85,7 @@ typedef struct cg_player
 
 #ifdef CG_SERVER
 	bool	dirty;
+	f64		last_input_timestamp;
 #endif
 
 #ifdef CG_CLIENT

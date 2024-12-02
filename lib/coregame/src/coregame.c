@@ -891,12 +891,11 @@ void
 coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp)
 {
 	cg_game_snapshot_t* ss = sbsm_lookup(cg->sbsm, timestamp);
+	if (player->last_input_timestamp > ss->timestamp)
+		return;
+	else
+		player->last_input_timestamp = ss->timestamp;
 
-	// if (ss == cg->sbsm->present)
-	// {
-	// 	coregame_set_player_input(player, input);
-	// 	return;
-	// }
 	ss->dirty = true;
 	cg_player_snapshot_t* ps = ght_get(&ss->deltas, player->id);
 	if (ps == NULL)
