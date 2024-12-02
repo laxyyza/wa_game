@@ -1,7 +1,6 @@
 #ifndef _WAAPP_STATE_H_
 #define _WAAPP_STATE_H_
 
-#include <stdbool.h>
 #include "wa.h"
 
 typedef struct waapp waapp_t;

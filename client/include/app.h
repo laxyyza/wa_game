@@ -2,7 +2,6 @@
 #define _WAAPP_H_
 
 #include <wa.h>
-#include <stdbool.h>
 #include "renderer.h"
 #include "vec.h"
 #include "util.h"
