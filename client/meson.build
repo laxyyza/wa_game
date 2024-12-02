@@ -62,5 +62,5 @@ executable('wa_game', src,
         libcutils,
     ],
     link_args: ['-Wl,-rpath=./lib'],
-    c_args: ['-DCG_CLIENT']
+    c_args: coregame_client_args
 )

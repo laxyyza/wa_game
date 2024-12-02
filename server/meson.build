@@ -23,5 +23,5 @@ executable('server', server_src,
         libcoregame_server,
         libcutils,
     ],
-    c_args: ['-DCG_SERVER']
+    c_args: coregame_server_args
 )
