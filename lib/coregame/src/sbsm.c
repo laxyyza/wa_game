@@ -15,7 +15,7 @@ sbsm_create(u32 size, f64 interval_ms)
 	for (u32 i = 0; i < size; i++)
 	{
 		cg_game_snapshot_t* ss = sbsm->snapshots + i;
-		ght_init(&ss->deltas, 10, free);
+		ght_init(&ss->player_states, 10, free);
 	}
 
 	sbsm_add_ss(sbsm);
@@ -49,17 +49,17 @@ sbsm_commit_player(cg_game_snapshot_t* ss, cg_player_t* player)
 
 	if (player->dirty == false)
 	{
-		ght_del(&ss->deltas, player->id);
+		ght_del(&ss->player_states, player->id);
 		return;
 	}
 
-	pss = ght_get(&ss->deltas, player->id);
+	pss = ght_get(&ss->player_states, player->id);
 
 	if (pss == NULL)
 	{
 		pss = calloc(1, sizeof(cg_player_snapshot_t));
 		pss->player_id = player->id;
-		ght_insert(&ss->deltas, pss->player_id, pss);
+		ght_insert(&ss->player_states, pss->player_id, pss);
 	}
 	
 	pss->pos = player->pos;
@@ -82,7 +82,7 @@ sbsm_rewind(coregame_t* cg, cg_game_snapshot_t* ss)
 		// printf("Rewinding %f ms (%u)\n", ss->timestamp, ss->seq);
 
 		GHT_FOREACH(cg_player_t* player, players, {
-			cg_player_snapshot_t* pss = ght_get(&ss->deltas, player->id);
+			cg_player_snapshot_t* pss = ght_get(&ss->player_states, player->id);
 
 			if (pss && pss->dirty)
 			{
@@ -124,8 +124,8 @@ sbsm_rollback(coregame_t* cg)
 
 	// printf("Rollback to %f ms (seq: %u)\n", ss->timestamp, ss->seq);
 
-	ght_t* deltas = &ss->deltas;
-	GHT_FOREACH(cg_player_snapshot_t* pss, deltas, {
+	ght_t* player_states = &ss->player_states;
+	GHT_FOREACH(cg_player_snapshot_t* pss, player_states, {
 		cg_player_t* player = ght_get(&cg->players, pss->player_id);
 		if (player)
 		{
@@ -157,8 +157,8 @@ sbsm_add_ss(cg_sbsm_t* sbsm)
 			sbsm->base_idx = 0;
 		sbsm->base = sbsm->snapshots + sbsm->base_idx;
 
-		ght_t* old_base_delta = &current_base_ss->deltas;
-		ght_t* new_base_delta = &sbsm->base->deltas;
+		ght_t* old_base_delta = &current_base_ss->player_states;
+		ght_t* new_base_delta = &sbsm->base->player_states;
 
 		GHT_FOREACH(cg_player_snapshot_t* pss, old_base_delta, {
 			cg_player_snapshot_t* new_pss = ght_get(new_base_delta, pss->player_id);
@@ -174,7 +174,7 @@ sbsm_add_ss(cg_sbsm_t* sbsm)
 	sbsm->time += sbsm->interval_ms;
 	sbsm->present->timestamp = sbsm->time;
 	sbsm->present->seq = sbsm->seq++;
-	ght_clear(&sbsm->present->deltas);
+	ght_clear(&sbsm->present->player_states);
 }
 
 void
@@ -199,9 +199,9 @@ sbsm_print(const cg_sbsm_t* sbsm)
 			ss->dirty = false;
 		}
 		printf("\ttime: %f\n", ss->timestamp);
-		ght_t* deltas = &ss->deltas;
+		ght_t* player_states = &ss->player_states;
 		
-		GHT_FOREACH(cg_player_snapshot_t* pss, deltas, {
+		GHT_FOREACH(cg_player_snapshot_t* pss, player_states, {
 			printf("\tp%u: pos: (%f/%f), input: ",
 				pss->player_id, pss->pos.x, pss->pos.y);
 

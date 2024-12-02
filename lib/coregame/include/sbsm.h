@@ -26,7 +26,7 @@ typedef struct cg_game_snapshot
 {
 	f64 timestamp;
 	u32 seq;
-	ght_t deltas;
+	ght_t player_states;
 	bool dirty;
 } cg_game_snapshot_t;
 

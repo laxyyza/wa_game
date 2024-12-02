@@ -844,7 +844,7 @@ coregame_free_player(coregame_t* cg, cg_player_t* player)
 	for (u32 i = 0; i < cg->sbsm->size; i++)
 	{
 		cg_game_snapshot_t* ss = cg->sbsm->snapshots + i;
-		ght_del(&ss->deltas, player->id);
+		ght_del(&ss->player_states, player->id);
 	}
 #endif // CG_SERVER
 
@@ -897,7 +897,7 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 		player->last_input_timestamp = ss->timestamp;
 
 	ss->dirty = true;
-	cg_player_snapshot_t* ps = ght_get(&ss->deltas, player->id);
+	cg_player_snapshot_t* ps = ght_get(&ss->player_states, player->id);
 	if (ps == NULL)
 	{
 		ps = calloc(1, sizeof(cg_player_snapshot_t));
@@ -907,7 +907,7 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 		/* TODO: Find the oldest changes */
 		// ps->prev = NULL;
 
-		ght_insert(&ss->deltas, player->id, ps);
+		ght_insert(&ss->player_states, player->id, ps);
 	}
 
 	ps->input = input;
