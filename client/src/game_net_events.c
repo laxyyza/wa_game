@@ -296,8 +296,6 @@ game_player_gun_state(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _
 		if (player->gun->spec->id != gun_state->gun_id)
 			coregame_player_change_gun_force(cg, player, gun_state->gun_id);
 
-		printf("gun_state: %d\n", gun_state->ammo);
-
 		player->gun->ammo = gun_state->ammo;
 		player->gun->bullet_timer = gun_state->bullet_timer;
 		player->gun->reload_time = gun_state->reload_timer;

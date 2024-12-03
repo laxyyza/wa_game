@@ -507,11 +507,6 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 	if (player->gun)
 		coregame_gun_update(coregame, player->gun);
 
-#ifdef CG_SERVER
-	printf("Player %u, ammo: %d, rewinding: %d, shooting: %d, dirty: %d\n", 
-		player->id, player->gun->ammo, coregame->rewinding, player->shoot, player->gun_dirty);
-#endif
-
 	if (player->velocity.x || player->velocity.y)
 	{
 		player->velocity.x *= coregame->delta;
