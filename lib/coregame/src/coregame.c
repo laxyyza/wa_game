@@ -731,6 +731,42 @@ cg_bullet_collision_test(coregame_t* cg, cg_bullet_t* bullet, vec2f_t* next_pos)
 	return false;
 }
 
+void
+coregame_update_bullet(coregame_t* cg, cg_bullet_t* bullet)
+{
+	if (bullet->collided)
+	{
+	#ifdef CG_CLIENT
+		coregame_free_bullet(cg, bullet);
+	#endif // CG_CLIENT
+	}
+	else
+	{
+		vec2f_t next_pos = vec2f(
+			bullet->r.pos.x + bullet->velocity.x * cg->delta,
+			bullet->r.pos.y + bullet->velocity.y * cg->delta
+		);
+		array_clear(&bullet->cells, false);
+		cg_get_cells_2points(cg->map, &bullet->cells, &bullet->r.pos, &next_pos);
+		if (cg_bullet_collision_test(cg, bullet, &next_pos))
+		{
+			bullet->collided = true;
+		}
+		bullet->r.pos = next_pos;
+
+		if (bullet->r.pos.x < 0 || bullet->r.pos.y < 0 ||
+			bullet->r.pos.x > cg->map->w * cg->map->grid_size ||
+			bullet->r.pos.y > cg->map->h * cg->map->grid_size)
+		{
+			coregame_free_bullet(cg, bullet);
+		}
+
+	#ifdef CG_SERVER
+		sbsm_commit_bullet(cg->sbsm->present, bullet);
+	#endif // CG_SERVER
+	}
+}
+
 static void
 coregame_update_bullets(coregame_t* cg)
 {
@@ -738,29 +774,7 @@ coregame_update_bullets(coregame_t* cg)
 
 	GHT_FOREACH(cg_bullet_t* bullet, bullets, 
 	{
-		if (bullet->collided)
-			coregame_free_bullet(cg, bullet);
-		else
-		{
-			vec2f_t next_pos = vec2f(
-				bullet->r.pos.x + bullet->velocity.x * cg->delta,
-				bullet->r.pos.y + bullet->velocity.y * cg->delta
-			);
-			array_clear(&bullet->cells, false);
-			cg_get_cells_2points(cg->map, &bullet->cells, &bullet->r.pos, &next_pos);
-			if (cg_bullet_collision_test(cg, bullet, &next_pos))
-			{
-				bullet->collided = true;
-			}
-			bullet->r.pos = next_pos;
-
-			if (bullet->r.pos.x < 0 || bullet->r.pos.y < 0 ||
-				bullet->r.pos.x > cg->map->w * cg->map->grid_size ||
-				bullet->r.pos.y > cg->map->h * cg->map->grid_size)
-			{
-				coregame_free_bullet(cg, bullet);
-			}
-		}
+		coregame_update_bullet(cg, bullet);
 	});
 }
 
@@ -775,7 +789,7 @@ coregame_update(coregame_t* cg)
 	if (cg->sbsm->oldest_change)
 		sbsm_rollback(cg);
 
-	sbsm_add_ss(cg->sbsm);
+	sbsm_rotate(cg, cg->sbsm);
 #endif // CG_SERVER
 
 	coregame_update_players(cg);

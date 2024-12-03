@@ -223,5 +223,6 @@ bool coregame_player_change_gun_force(coregame_t* cg, cg_player_t *player, enum 
 bool coregame_player_change_gun(coregame_t* cg, cg_player_t* player, enum cg_gun_id id);
 void coregame_player_reload(coregame_t* cg, cg_player_t* player);
 void coregame_update_player(coregame_t* coregame, cg_player_t* player);
+void coregame_update_bullet(coregame_t* cg, cg_bullet_t* bullet);
 
 #endif // _CORE_GAME_H_

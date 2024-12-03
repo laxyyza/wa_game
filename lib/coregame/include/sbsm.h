@@ -13,6 +13,7 @@
 typedef struct cg_game_snapshot cg_game_snapshot_t;
 typedef struct coregame coregame_t;
 typedef struct cg_player cg_player_t;
+typedef struct cg_bullet cg_bullet_t;
 
 typedef struct 
 {
@@ -33,9 +34,8 @@ typedef struct
 typedef struct 
 {
 	u32 bullet_id;
-	u32 owner_id;
 	vec2f_t pos;
-	vec2f_t dir;
+	bool collided;
 } cg_bullet_snapshot_t;
 
 typedef struct cg_game_snapshot
@@ -69,10 +69,12 @@ typedef struct
 cg_sbsm_t* sbsm_create(u32 count, f64 interval_ms);
 cg_game_snapshot_t* sbsm_lookup(cg_sbsm_t* sbsm, f64 timestamp_ms);
 void sbsm_rollback(coregame_t* cg);
-void sbsm_add_ss(cg_sbsm_t* sbsm);
+void sbsm_rotate(coregame_t* cg, cg_sbsm_t* sbsm);
 void sbsm_print(const cg_sbsm_t* sbsm);
 void sbsm_commit_player(cg_game_snapshot_t* ss, cg_player_t* player);
+void sbsm_commit_bullet(cg_game_snapshot_t* ss, cg_bullet_t* bullet);
 void sbsm_player_to_snapshot(cg_player_snapshot_t* pss, const cg_player_t* player);
 void sbsm_snapshot_to_player(coregame_t* cg, cg_player_t* player, const cg_player_snapshot_t* pss);
+void sbsm_snapshot_to_bullet(cg_bullet_t* bullet, const cg_bullet_snapshot_t* bss);
 
 #endif // _SBSM_H_
