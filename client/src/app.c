@@ -311,7 +311,10 @@ waapp_run(waapp_t* app)
 	wa_state_t* state = wa_window_get_state(app->window);
 
 	if (app->headless)
+	{
 		waapp_set_max_fps(app, 30.0);
+		app->fps_limit = true;
+	}
 	else
 		waapp_set_max_fps(app, 144.0);
 
