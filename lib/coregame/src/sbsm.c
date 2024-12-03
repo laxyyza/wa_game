@@ -125,26 +125,32 @@ sbsm_snapshot_to_bullet(cg_bullet_t* bullet, const cg_bullet_snapshot_t* bss)
 }
 
 static inline void
+sbsm_rewind_player(coregame_t* cg, cg_game_snapshot_t* gss, cg_player_t* player)
+{
+	cg_player_snapshot_t* pss = ght_get(&gss->player_states, player->id);
+
+	if (pss && pss->dirty)
+	{
+		coregame_set_player_input(player, pss->input);
+		pss->dirty = false;
+	}
+
+	player->velocity.x = player->dir.x * PLAYER_SPEED;
+	player->velocity.y = player->dir.y * PLAYER_SPEED;
+
+	coregame_update_player(cg, player);
+
+	sbsm_commit_player(gss, player);
+}
+
+static inline void
 sbsm_rewind_players(coregame_t* cg, cg_game_snapshot_t* gss)
 {
 	ght_t* players = &cg->players;
 
 	GHT_FOREACH(cg_player_t* player, players, 
 	{
-		cg_player_snapshot_t* pss = ght_get(&gss->player_states, player->id);
-
-		if (pss && pss->dirty)
-		{
-			coregame_set_player_input(player, pss->input);
-			pss->dirty = false;
-		}
-
-		player->velocity.x = player->dir.x * PLAYER_SPEED;
-		player->velocity.y = player->dir.y * PLAYER_SPEED;
-
-		coregame_update_player(cg, player);
-
-		sbsm_commit_player(gss, player);
+		sbsm_rewind_player(cg, gss, player);
 	});
 }
 
