@@ -317,5 +317,8 @@ game_username_change(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		game_add_chatmsg(app->game, NULL, chatmsg);
 
 		strncpy(player->username, change->username, PLAYER_NAME_MAX);
+
+		if (player == app->game->player->core)
+			srand(time(NULL) * ssp_checksum32(app->game->player->core->username, PLAYER_NAME_MAX));
 	}
 }

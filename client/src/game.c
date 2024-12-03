@@ -481,8 +481,6 @@ game_init(waapp_t* app)
 	game->bot_interval = 1.0;
 	game->bot = app->bot;
 
-	srand(time(NULL));
-
 	return game;
 }
 
