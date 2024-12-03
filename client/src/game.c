@@ -472,6 +472,7 @@ game_init(waapp_t* app)
 	nk_window_show(game->app->nk_ctx, state->window.title, game->show_stats);
 
 	game->bot_interval = 1.0;
+	game->bot = app->bot;
 
 	srand(time(NULL));
 

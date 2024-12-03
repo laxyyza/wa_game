@@ -162,7 +162,8 @@ waapp_print_help(const char* path)
 		"	-d, --disable-debug\tDisable OpenGL Debug.\n"\
 		"	--ssp-debug\t\tPrint IN SSP Packets.\n"\
 		"	-f, --fullscreen\tOpen in fullscreen.\n"\
-		"	-h, --help\tShow this message.\n\n",
+		"	-b, --bot\t\tSet client as bot mode.\n"\
+		"	-h, --help\t\tShow this message.\n\n",
 		path
 	);
 }
@@ -176,11 +177,12 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 		{"disable-debug",	no_argument, 0, 'd'},
 		{"ssp-debug",		no_argument, 0, 's'},
 		{"fullscreen",		no_argument, 0, 'f'},
+		{"bot",				no_argument, 0, 'b'},
 		{"help",			no_argument, 0, 'h'},
 		{0, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "dfh", long_options, NULL)) != -1)
+	while ((opt = getopt_long(argc, argv, "dfhb", long_options, NULL)) != -1)
 	{
 		switch (opt)
 		{
@@ -195,6 +197,9 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 				return -1;
 			case 's':
 				app->net.def.ssp_ctx.debug = true;
+				break;
+			case 'b':
+				app->bot = true;
 				break;
 			default:
 				return -1;

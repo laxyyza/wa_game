@@ -74,6 +74,7 @@ typedef struct waapp
 	const char* save_username;
 
 	array_t* tmp_gun_specs;
+	bool bot;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, char* const* argv);
