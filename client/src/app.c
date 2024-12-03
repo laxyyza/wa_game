@@ -164,7 +164,8 @@ waapp_print_help(const char* path)
 		"	-f, --fullscreen\tOpen in fullscreen.\n"\
 		"	-b, --bot\t\tSet client as bot mode.\n"\
 		"	-c, --connect=ADDRESS\tConnect to server address[:port]\n"\
-		"	-h, --help\t\tShow this message.\n\n",
+		"	-H, --headless\t\tHeadless mode.\n"\
+		"	-h, --help\t\tShow this message.\n\n",\
 		path
 	);
 }
@@ -180,11 +181,12 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 		{"fullscreen",		no_argument, 0, 'f'},
 		{"bot",				no_argument, 0, 'b'},
 		{"connect",			required_argument, 0, 'c'},
+		{"headless",		no_argument, 0, 'H'},
 		{"help",			no_argument, 0, 'h'},
 		{0, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "dfhbc:", long_options, NULL)) != -1)
+	while ((opt = getopt_long(argc, argv, "dfhHbc:", long_options, NULL)) != -1)
 	{
 		switch (opt)
 		{
@@ -205,6 +207,9 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 				break;
 			case 'c':
 				app->do_connect = optarg;	
+				break;
+			case 'H':
+				app->headless = true;
 				break;
 			default:
 				return -1;
@@ -228,26 +233,36 @@ waapp_init(waapp_t* app, i32 argc, char* const* argv)
     i32 w = 1280;
     i32 h = 720;
     bool fullscreen = false;
-    wa_state_t* state;
+    wa_state_t init_state;
+	wa_state_t* state;
 
 	if (waapp_argv(app, argc, argv, &fullscreen) == -1)
 		return -1;
 
 	nlog_set_name("");
 
-    if (argc >= 2 && strcmp(argv[1], "fullscreen") == 0)
+	if (argc >= 2 && strcmp(argv[1], "fullscreen") == 0)
         fullscreen = true;
 
-    if ((app->window = wa_window_create(title, w, h, fullscreen)) == NULL)
-	{
-        return -1;
-	}
+	wa_state_set_default(&init_state);
+	init_state.window.title = title;
+	init_state.window.state = (fullscreen) ? WA_STATE_FULLSCREEN : 0;
+	init_state.window.w = w;
+	init_state.window.h = h;
+	init_state.window.wayland.app_id = app_id;
+    init_state.user_data = app;
+	init_state.headless = app->headless;
+	if (init_state.headless)
+		init_state.window.vsync = false;
+	app->ren.headless = app->headless;
 
-    state = wa_window_get_state(app->window);
-    state->window.wayland.app_id = app_id;
-    state->user_data = app;
+	if ((app->window = wa_window_create_from_state(&init_state)) == NULL)
+        return -1;
+
+	state = wa_window_get_state(app->window);
     state->callbacks.update = (void (*)(wa_window_t* window, void* data)) waapp_state_update;
-    state->callbacks.event = waapp_event;
+	if (app->headless == false)
+		state->callbacks.event = waapp_event;
     state->callbacks.close = waapp_close;
 
     app->bg_color = rgba(0x000000FF);
@@ -265,10 +280,13 @@ waapp_init(waapp_t* app, i32 argc, char* const* argv)
 
 	app->keybind.cam_move = WA_MOUSE_RIGHT;
 
-	app->grass_tex = texture_load("res/grass.png", TEXTURE_NEAREST);
-	app->grass_tex->name = "Grass";
-	app->block_tex = texture_load("res/block.png", TEXTURE_NEAREST);
-	app->block_tex->name = "Block";
+	if (app->headless == false)
+	{
+		app->grass_tex = texture_load("res/grass.png", TEXTURE_NEAREST);
+		app->grass_tex->name = "Grass";
+		app->block_tex = texture_load("res/block.png", TEXTURE_NEAREST);
+		app->block_tex->name = "Block";
+	}
 
 	app->min_zoom = 0.4;
 	app->max_zoom = 4.0;
@@ -292,8 +310,10 @@ waapp_run(waapp_t* app)
 {
 	wa_state_t* state = wa_window_get_state(app->window);
 
-	wa_window_vsync(app->window, true);
-	waapp_set_max_fps(app, 144.0);
+	if (app->headless)
+		waapp_set_max_fps(app, 30.0);
+	else
+		waapp_set_max_fps(app, 144.0);
 
 	while (wa_window_running(app->window))
 	{

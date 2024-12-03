@@ -75,6 +75,7 @@ typedef struct waapp
 
 	array_t* tmp_gun_specs;
 	bool bot;
+	bool headless;
 	const char* do_connect;
 } waapp_t;
 

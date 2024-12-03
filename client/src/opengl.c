@@ -119,6 +119,9 @@ print_gl_version(void)
 bool
 waapp_opengl_init(waapp_t* app)
 {
+	if (app->headless)
+		return true;
+
     gladLoadGL();
     waapp_enable_debug(app);
     print_gl_version();

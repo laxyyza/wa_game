@@ -43,6 +43,9 @@ main_menu_init(waapp_t* app)
 	waapp_main_menu_t* mm = calloc(1, sizeof(waapp_main_menu_t));
 	mm_load_last(mm);
 
+	if (app->headless)
+		return mm;
+
 	const i32 layout[] = {
 		VERTLAYOUT_F32, 4, // position,
 		VERTLAYOUT_END
@@ -71,6 +74,15 @@ main_menu_init(waapp_t* app)
 void 
 main_menu_enter(waapp_t* app, waapp_main_menu_t* mm)
 {
+	if (app->do_connect)
+	{
+		const char* ret = client_net_async_connect(app, app->do_connect);
+		strncpy(mm->state, ret, MM_STATE_STRING_MAX - 1);
+	}
+
+	if (app->headless)
+		return;
+
 	ren_bind_bro(&app->ren, mm->bg_bro);
 	app->cam.x = 0;
 	app->cam.y = 0;
@@ -81,12 +93,6 @@ main_menu_enter(waapp_t* app, waapp_main_menu_t* mm)
 
 	shader_bind(&mm->bg_bro->shader);
 	shader_uniform_vec2f(&mm->bg_bro->shader, "res", &app->ren.viewport);
-
-	if (app->do_connect)
-	{
-		const char* ret = client_net_async_connect(app, app->do_connect);
-		strncpy(mm->state, ret, MM_STATE_STRING_MAX - 1);
-	}
 }
 
 static void 
@@ -169,6 +175,9 @@ mm_ui_update(waapp_t* app, waapp_main_menu_t* mm)
 void 
 main_menu_update(waapp_t* app, waapp_main_menu_t* mm)
 {
+	if (app->headless)
+		return;
+
 	mm_bg_update(app, mm);
 	mm_ui_update(app, mm);
 }

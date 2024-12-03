@@ -298,6 +298,9 @@ game_draw(client_game_t* game)
 	ren_t* ren = game->ren;
 	waapp_t* app = game->app;
 
+	if (app->headless)
+		return;
+
 	ren_bind_bro(ren, ren->default_bro);
 
 	game_move_cam(app);

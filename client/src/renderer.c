@@ -685,8 +685,10 @@ ren_draw_line(ren_t* ren, const vec2f_t* a, const vec2f_t* b, u32 color32)
 }
 
 void 
-ren_clear(UNUSED ren_t* ren, const vec4f_t* c)
+ren_clear(ren_t* ren, const vec4f_t* c)
 {
+	if (ren->headless)
+		return;
     glClearColor(c->x, c->y, c->z, c->w);
     glClear(GL_COLOR_BUFFER_BIT);
 }

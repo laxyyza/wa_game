@@ -388,6 +388,46 @@ game_on_player_reload(cg_player_t* player, client_game_t* game)
 	ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_RELOAD, 0, NULL);
 }
 
+static inline void
+game_head_init(waapp_t* app, client_game_t* game)
+{
+	game->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
+	game->tank_bottom_tex->name = "Tank Bottom";
+	game_load_gun_textures(game);
+
+	const i32 layout[] = {
+		VERTLAYOUT_F32, 2, // vertex position
+		VERTLAYOUT_F32, 2, // position a
+		VERTLAYOUT_F32, 2, // position b
+		VERTLAYOUT_F32, 1, // laser thickness
+		VERTLAYOUT_END
+	};
+	const bro_param_t param = {
+		.draw_mode = DRAW_TRIANGLES,
+		.max_vb_count = 4096,
+		.vert_path = "client/src/shaders/laser_vert.glsl",
+		.frag_path = "client/src/shaders/laser_frag.glsl",
+		.shader = NULL,
+		.vertlayout = layout,
+		.vertex_size = sizeof(laser_vertex_t),
+		.draw_misc = ren_laser_draw_misc,
+		.draw_line = NULL, 
+		.draw_rect = NULL
+	};
+	game->laser_bro = ren_new_bro(game->ren, &param);
+
+	game_set_laser_thickness(game);
+
+	shader_t* shader = &game->laser_bro->shader;
+	shader_bind(shader);
+	shader_uniform1f(shader, "scale", game->ren->scale.x);
+
+	game->show_stats = true;
+	game->game_netdebug = true;
+	wa_state_t* state = wa_window_get_state(app->window);
+	nk_window_show(game->app->nk_ctx, state->window.title, game->show_stats);
+}
+
 void* 
 game_init(waapp_t* app)
 {
@@ -406,10 +446,8 @@ game_init(waapp_t* app)
 	game->cg.on_bullet_create = (cg_bullet_create_callback_t)game_on_bullet_create;
 	game->cg.player_reload = (cg_player_reload_callback_t)game_on_player_reload;
 
-	game->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
-	game->tank_bottom_tex->name = "Tank Bottom";
-
-	game_load_gun_textures(game);
+	if (app->headless == false)
+		game_head_init(app, game);
 
 	game->lock_cam = true;
 
@@ -433,43 +471,12 @@ game_init(waapp_t* app)
 
 	array_init(&game->chat_msgs, sizeof(chatmsg_t), 10);
 
-	const i32 layout[] = {
-		VERTLAYOUT_F32, 2, // vertex position
-		VERTLAYOUT_F32, 2, // position a
-		VERTLAYOUT_F32, 2, // position b
-		VERTLAYOUT_F32, 1, // laser thickness
-		VERTLAYOUT_END
-	};
-	const bro_param_t param = {
-		.draw_mode = DRAW_TRIANGLES,
-		.max_vb_count = 4096,
-		.vert_path = "client/src/shaders/laser_vert.glsl",
-		.frag_path = "client/src/shaders/laser_frag.glsl",
-		.shader = NULL,
-		.vertlayout = layout,
-		.vertex_size = sizeof(laser_vertex_t),
-		.draw_misc = ren_laser_draw_misc,
-		.draw_line = NULL, 
-		.draw_rect = NULL
-	};
-	game->laser_bro = ren_new_bro(game->ren, &param);
 
 	game->small_laser.thickness = 25.0;
 	game->small_laser.len = 60.0;
 
 	game->big_laser.thickness = 400.0;
 	game->big_laser.len = 250.0;
-
-	game_set_laser_thickness(game);
-
-	shader_t* shader = &game->laser_bro->shader;
-	shader_bind(shader);
-	shader_uniform1f(shader, "scale", game->ren->scale.x);
-
-	game->show_stats = true;
-	game->game_netdebug = true;
-	wa_state_t* state = wa_window_get_state(app->window);
-	nk_window_show(game->app->nk_ctx, state->window.title, game->show_stats);
 
 	game->bot_interval = 1.0;
 	game->bot = app->bot;

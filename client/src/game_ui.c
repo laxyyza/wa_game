@@ -638,7 +638,7 @@ game_ui_ammo_window(client_game_t* game, struct nk_context* ctx)
 void 
 game_ui_update(client_game_t* game)
 {
-	if (game->player == NULL)
+	if (game->player == NULL || game->app->headless)
 		return;
 
 	struct nk_context* ctx = game->nk_ctx;
