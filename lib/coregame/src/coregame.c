@@ -887,6 +887,9 @@ void
 coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp)
 {
 	cg_game_snapshot_t* ss = sbsm_lookup(cg->sbsm, timestamp);
+	printf("%f = ss: %f, present: %f, diff: %f\n", 
+		timestamp, ss->timestamp, cg->sbsm->present->timestamp, cg->sbsm->present->timestamp - ss->timestamp);
+
 	if (player->last_input_timestamp > ss->timestamp)
 		return;
 	else

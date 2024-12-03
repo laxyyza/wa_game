@@ -19,6 +19,7 @@ typedef struct
 {
 	u32		player_id;
 	vec2f_t pos;
+	vec2f_t velocity;
 	u8		input;
 	bool	shooting;
 

@@ -27,7 +27,7 @@ sbsm_create(u32 size, f64 interval_ms)
 static inline u32
 sbsm_index(const cg_sbsm_t* sbsm, f64 timestamp_ms)
 {
-	return (u32)floor(timestamp_ms / sbsm->interval_ms) % sbsm->size;
+	return (u32)ceil(timestamp_ms / sbsm->interval_ms) % sbsm->size;
 }
 
 cg_game_snapshot_t* 
@@ -86,6 +86,7 @@ void
 sbsm_player_to_snapshot(cg_player_snapshot_t* pss, const cg_player_t* player)
 {
 	pss->pos = player->pos;
+	pss->velocity = player->velocity;
 	pss->input = player->input;
 	pss->shooting = player->shoot;
 
@@ -103,6 +104,8 @@ void
 sbsm_snapshot_to_player(coregame_t* cg, cg_player_t* player, const cg_player_snapshot_t* pss)
 {
 	player->pos = pss->pos;
+	player->pos.x -= pss->velocity.x;
+	player->pos.y -= pss->velocity.y;
 	player->input = pss->input;
 	player->shoot = pss->shooting;
 
