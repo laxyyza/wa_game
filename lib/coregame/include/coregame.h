@@ -103,7 +103,8 @@ typedef struct cg_player
 
 typedef struct cg_bullet
 {
-	u32				owner;
+	u32				id;
+	u32				owner_id;
 	cg_rect_t		r;
 	vec2f_t			dir;
 	vec2f_t			velocity;
@@ -156,10 +157,7 @@ typedef struct cg_gun
 typedef struct coregame 
 {
 	ght_t players;
-	struct {
-		cg_bullet_t* head;
-		cg_bullet_t* tail;
-	} bullets;
+	ght_t bullets;
 	cg_rect_t world_border;
 	cg_runtime_map_t* map;
 
@@ -176,6 +174,12 @@ typedef struct coregame
 	cg_player_changed_callback_t player_gun_changed;
 	cg_player_damaged_callback_t player_damaged;
 
+	f32 time_scale;
+	u32 player_id_seq;
+	u32 bullet_id_seq;
+
+	bool pause;
+
 #ifdef CG_SERVER
 	cg_sbsm_t* sbsm;
 	bool rewinding;
@@ -191,11 +195,6 @@ typedef struct coregame
 
 	cg_player_t* local_player;
 #endif // CG_CLIENT
-
-	f32 time_scale;
-	u32 player_id_seq;
-
-	bool pause;
 } coregame_t;
 
 void coregame_init(coregame_t* coregame, cg_runtime_map_t* map);

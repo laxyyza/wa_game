@@ -302,7 +302,8 @@ cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
 	cg_bullet_t* bullet = calloc(1, sizeof(cg_bullet_t));
 	const cg_player_t* player = gun->owner;
 
-	bullet->owner = player->id;
+	bullet->id = ++cg->bullet_id_seq;
+	bullet->owner_id = player->id;
 	bullet->r.pos = player->pos;
 	bullet->r.size = vec2f(10, 10);
 	bullet->r.pos.x += (player->size.x / 2) + (player->dir.x * PLAYER_SPEED * cg->delta);
@@ -315,16 +316,7 @@ cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
 	bullet->dir.y = player->cursor.y - bullet->r.pos.y;
 	vec2f_norm(&bullet->dir);
 
-	if (cg->bullets.tail == NULL)
-	{
-		cg->bullets.tail = cg->bullets.head = bullet;
-	}
-	else
-	{
-		cg->bullets.tail->next = bullet;
-		bullet->prev = cg->bullets.tail;
-		cg->bullets.tail = bullet;
-	}
+	ght_insert(&cg->bullets, bullet->id, bullet);
 
 	if (cg->on_bullet_create)
 		cg->on_bullet_create(bullet, cg->user_data);
@@ -359,10 +351,18 @@ cg_do_free_player(cg_player_t* player)
 	free(player);
 }
 
+static void
+cg_do_free_bullet(cg_bullet_t* bullet)
+{
+	array_del(&bullet->cells);
+	free(bullet);
+}
+
 void 
 coregame_init(coregame_t* coregame, cg_runtime_map_t* map)
 {
 	ght_init(&coregame->players, 10, (ght_free_t)cg_do_free_player);
+	ght_init(&coregame->bullets, 100, (ght_free_t)cg_do_free_bullet);
 	coregame->time_scale = 1.0;
 
 	coregame->world_border = cg_rect(
@@ -674,7 +674,7 @@ cg_bullet_empty_cell_collision_test(coregame_t* cg,
 	for (u32 i = 0; i < data->contents.count; i++)
 	{
 		cg_player_t* target_player = ((cg_player_t**)data->contents.buf)[i];
-		if (target_player->id == bullet->owner)
+		if (target_player->id == bullet->owner_id)
 			continue;
 
 		const cg_rect_t target = {
@@ -690,7 +690,7 @@ cg_bullet_empty_cell_collision_test(coregame_t* cg,
 			cg_player_t* attacker_player;
 			if (cg->player_damaged)
 			{
-				attacker_player = ght_get(&cg->players, bullet->owner);
+				attacker_player = ght_get(&cg->players, bullet->owner_id);
 				if (attacker_player == NULL)
 					return true;
 
@@ -734,13 +734,10 @@ cg_bullet_collision_test(coregame_t* cg, cg_bullet_t* bullet, vec2f_t* next_pos)
 static void
 coregame_update_bullets(coregame_t* cg)
 {
-	cg_bullet_t* bullet = cg->bullets.head;
-	cg_bullet_t* bullet_next;
+	ght_t* bullets = &cg->bullets;
 
-	while (bullet)
+	GHT_FOREACH(cg_bullet_t* bullet, bullets, 
 	{
-		bullet_next = bullet->next;
-
 		if (bullet->collided)
 			coregame_free_bullet(cg, bullet);
 		else
@@ -764,9 +761,7 @@ coregame_update_bullets(coregame_t* cg)
 				coregame_free_bullet(cg, bullet);
 			}
 		}
-
-		bullet = bullet_next;
-	}
+	});
 }
 
 void 
@@ -793,26 +788,12 @@ coregame_update(coregame_t* cg)
 	// }
 }
 
-static void
-cg_free_bullets(coregame_t* cg)
-{
-	cg_bullet_t* bullet = cg->bullets.head;
-	cg_bullet_t* bullet_next;
-
-	while (bullet)
-	{
-		bullet_next = bullet->next;
-		coregame_free_bullet(cg, bullet);
-		bullet = bullet_next;
-	}
-}
-
 void 
 coregame_cleanup(coregame_t* cg)
 {
 	ght_destroy(&cg->players);
+	ght_destroy(&cg->bullets);
 	cg_runtime_map_free(cg->map);
-	cg_free_bullets(cg);
 	array_del(&cg->gun_specs);
 }
 
@@ -951,17 +932,7 @@ coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet)
 	if (coregame->bullet_free_callback)
 		coregame->bullet_free_callback(bullet, coregame->user_data);
 
-	if (bullet->prev)
-		bullet->prev->next = bullet->next;
-	if (bullet->next)
-		bullet->next->prev = bullet->prev;
-	if (bullet == coregame->bullets.head)
-		coregame->bullets.head = bullet->next;
-	if (bullet == coregame->bullets.tail)
-		coregame->bullets.tail = bullet->next;
-	array_del(&bullet->cells);
-
-	free(bullet);
+	ght_del(&coregame->bullets, bullet->id);
 }
 
 void
