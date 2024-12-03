@@ -460,6 +460,7 @@ server_poll(server_t* server)
 			nano_gettime(&current_time);
 			elapsed_time_ns = nano_time_diff_ns(&server->timer.end_time, &current_time);
 			timeout_time_ns -= elapsed_time_ns;
+			memcpy(&server->timer.end_time, &current_time, sizeof(hr_time_t));
 			if (timeout_time_ns > 0)
 				ns_to_timespec(&timeout, timeout_time_ns);
 			else
