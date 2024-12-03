@@ -77,6 +77,8 @@ typedef struct waapp
 	bool bot;
 	bool headless;
 	const char* do_connect;
+
+	f32 bot_interval;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, char* const* argv);

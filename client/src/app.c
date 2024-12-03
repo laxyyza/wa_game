@@ -165,6 +165,7 @@ waapp_print_help(const char* path)
 		"	-b, --bot\t\tSet client as bot mode.\n"\
 		"	-c, --connect=ADDRESS\tConnect to server address[:port]\n"\
 		"	-H, --headless\t\tHeadless mode.\n"\
+		"	--bot-interval=SECONDS\tBot interval for input change.\n"\
 		"	-h, --help\t\tShow this message.\n\n",\
 		path
 	);
@@ -182,6 +183,7 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 		{"bot",				no_argument, 0, 'b'},
 		{"connect",			required_argument, 0, 'c'},
 		{"headless",		no_argument, 0, 'H'},
+		{"bot-interval",	required_argument, 0, 'I'},
 		{"help",			no_argument, 0, 'h'},
 		{0, 0, 0, 0}
 	};
@@ -211,6 +213,9 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 			case 'H':
 				app->headless = true;
 				break;
+			case 'I':
+				app->bot_interval = atof(optarg);
+				break;
 			default:
 				return -1;
 		}
@@ -235,6 +240,7 @@ waapp_init(waapp_t* app, i32 argc, char* const* argv)
     bool fullscreen = false;
     wa_state_t init_state;
 	wa_state_t* state;
+	app->bot_interval = 1.0;
 
 	if (waapp_argv(app, argc, argv, &fullscreen) == -1)
 		return -1;

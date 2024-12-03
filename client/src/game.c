@@ -478,7 +478,6 @@ game_init(waapp_t* app)
 	game->big_laser.thickness = 400.0;
 	game->big_laser.len = 250.0;
 
-	game->bot_interval = 1.0;
 	game->bot = app->bot;
 
 	return game;
@@ -490,7 +489,7 @@ game_set_bot_movement(client_game_t* game)
 	const f64 current_time = game->app->timer.start_time_s;
 	const f64 time_elapsed = current_time - game->last_bot_time;
 
-	if (time_elapsed > game->bot_interval)
+	if (time_elapsed > game->app->bot_interval)
 	{
 		u8 random_byte = rand();
 
