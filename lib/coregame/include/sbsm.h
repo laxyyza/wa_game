@@ -29,6 +29,7 @@ typedef struct
 	u32 gun_id;
 
 	bool	dirty;
+	bool	dirty_move;
 } cg_player_snapshot_t;
 
 typedef struct 

@@ -908,6 +908,7 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 	else if (ps->input == input)
 		return;
 
+	ps->dirty_move = ((ps->input & PLAYER_MOVE_INPUT) != (input & PLAYER_MOVE_INPUT));
 	ps->input = input;
 	ps->dirty = true;
 

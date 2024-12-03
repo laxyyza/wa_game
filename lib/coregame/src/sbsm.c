@@ -138,7 +138,7 @@ sbsm_rewind_player(coregame_t* cg, cg_game_snapshot_t* gss, cg_player_t* player)
 
 	if (pss)
 	{
-		if (pss->dirty)
+		if (pss->dirty_move)
 		{
 			coregame_set_player_input(player, pss->input);
 			pss->dirty = false;
@@ -211,9 +211,11 @@ sbsm_rollback_player(coregame_t* cg, cg_player_snapshot_t* pss)
 	if (player)
 	{
 		sbsm_snapshot_to_player(cg, player, pss);
-		coregame_set_player_input(player, pss->input);
-		if (pss->dirty)
+		if (pss->dirty_move)
+		{
+			coregame_set_player_input(player, pss->input);
 			player->dirty_history = true;
+		}
 		pss->dirty = false;
 	}
 }
