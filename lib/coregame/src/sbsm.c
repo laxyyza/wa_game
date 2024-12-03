@@ -16,6 +16,7 @@ sbsm_create(u32 size, f64 interval_ms)
 	{
 		cg_game_snapshot_t* ss = sbsm->snapshots + i;
 		ght_init(&ss->player_states, 10, free);
+		ght_init(&ss->bullet_states, 100, free);
 	}
 
 	sbsm_add_ss(sbsm);

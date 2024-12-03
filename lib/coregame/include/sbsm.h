@@ -30,11 +30,20 @@ typedef struct
 	bool	dirty;
 } cg_player_snapshot_t;
 
+typedef struct 
+{
+	u32 bullet_id;
+	u32 owner_id;
+	vec2f_t pos;
+	vec2f_t dir;
+} cg_bullet_snapshot_t;
+
 typedef struct cg_game_snapshot
 {
 	f64 timestamp;
 	u32 seq;
 	ght_t player_states;
+	ght_t bullet_states;
 	bool dirty;
 } cg_game_snapshot_t;
 
