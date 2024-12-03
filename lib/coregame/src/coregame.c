@@ -905,12 +905,13 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 
 		ght_insert(&ss->player_states, player->id, ps);
 	}
-	else if (ps->input == input)
+	else if (ps->input == input || ps->dirty_count >= 1)
 		return;
 
 	ps->dirty_move = ((ps->input & PLAYER_MOVE_INPUT) != (input & PLAYER_MOVE_INPUT));
 	ps->input = input;
 	ps->dirty = true;
+	ps->dirty_count++;
 
 	if (cg->sbsm->oldest_change == NULL || ss->timestamp < cg->sbsm->oldest_change->timestamp)
 	{

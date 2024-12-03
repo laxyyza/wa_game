@@ -28,6 +28,7 @@ typedef struct
 	f32 reload_timer;
 	u32 gun_id;
 
+	u32		dirty_count;
 	bool	dirty;
 	bool	dirty_move;
 } cg_player_snapshot_t;
