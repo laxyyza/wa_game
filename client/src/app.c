@@ -163,6 +163,7 @@ waapp_print_help(const char* path)
 		"	--ssp-debug\t\tPrint IN SSP Packets.\n"\
 		"	-f, --fullscreen\tOpen in fullscreen.\n"\
 		"	-b, --bot\t\tSet client as bot mode.\n"\
+		"	-c, --connect=ADDRESS\tConnect to server address[:port]\n"\
 		"	-h, --help\t\tShow this message.\n\n",
 		path
 	);
@@ -178,11 +179,12 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 		{"ssp-debug",		no_argument, 0, 's'},
 		{"fullscreen",		no_argument, 0, 'f'},
 		{"bot",				no_argument, 0, 'b'},
+		{"connect",			required_argument, 0, 'c'},
 		{"help",			no_argument, 0, 'h'},
 		{0, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "dfhb", long_options, NULL)) != -1)
+	while ((opt = getopt_long(argc, argv, "dfhbc:", long_options, NULL)) != -1)
 	{
 		switch (opt)
 		{
@@ -200,6 +202,9 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 				break;
 			case 'b':
 				app->bot = true;
+				break;
+			case 'c':
+				app->do_connect = optarg;	
 				break;
 			default:
 				return -1;

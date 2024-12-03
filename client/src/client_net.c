@@ -151,8 +151,14 @@ client_net_on_connect(waapp_t* app)
 	net_tcp_connect_t connect;
 	memset(&connect, 9, sizeof(net_tcp_connect_t));
 	strncpy(connect.username, username, PLAYER_NAME_MAX);
+	net_tcp_bot_mode_t bot_mode;
 
 	ssp_segbuf_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
+	if (app->bot)
+	{
+		bot_mode.is_bot = app->bot;
+		ssp_segbuf_add(&net->tcp.buf, NET_TCP_BOT_MODE, sizeof(net_tcp_bot_mode_t), &bot_mode);
+	}
 	ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
 
 	client_net_udp_init(app);
@@ -546,6 +552,8 @@ client_net_async_connect(waapp_t* app, const char* addr)
 		else
 		{
 			error("async_connect: '%s' (%d)\n", client_net_errstr(err), err);
+			if (app->do_connect)
+				wa_window_stop(app->window);
 			return "Connect FAILED.";
 		}
 	}
@@ -672,6 +680,8 @@ handle_event(waapp_t* app, fdevent_t* fdev, u32 events)
 			fdev->err(app, fdev, err);
 		else
 			fdev->close(app, fdev);
+		if (app->do_connect)
+			wa_window_stop(app->window);
 		return;
 	}
 	if (events & EPOLLHUP)

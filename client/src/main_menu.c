@@ -81,6 +81,12 @@ main_menu_enter(waapp_t* app, waapp_main_menu_t* mm)
 
 	shader_bind(&mm->bg_bro->shader);
 	shader_uniform_vec2f(&mm->bg_bro->shader, "res", &app->ren.viewport);
+
+	if (app->do_connect)
+	{
+		const char* ret = client_net_async_connect(app, app->do_connect);
+		strncpy(mm->state, ret, MM_STATE_STRING_MAX - 1);
+	}
 }
 
 static void 
