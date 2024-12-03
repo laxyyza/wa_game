@@ -34,6 +34,7 @@ enum segtypes
 	NET_UDP_PLAYER_INPUT,
 	NET_UDP_PLAYER_RELOAD,
 	NET_UDP_PLAYER_GUN_STATE,
+	NET_UDP_MOVE_BOT,
 
 	NET_UDP_PING,
 	NET_UDP_PONG,
@@ -167,6 +168,11 @@ typedef struct
 	f32 charge_timer;
 	f32 reload_timer;
 } net_udp_player_gun_state_t;
+
+typedef struct 
+{
+	vec2f_t pos;
+} net_udp_move_bot_t;
 
 typedef struct 
 {

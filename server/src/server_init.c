@@ -218,6 +218,7 @@ server_init_netdef(server_t* server)
 	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segment_callback_t)player_input;
 	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segment_callback_t)player_reload;
 	callbacks[NET_TCP_BOT_MODE] = (ssp_segment_callback_t)bot_mode;
+	callbacks[NET_UDP_MOVE_BOT] = (ssp_segment_callback_t)move_bot;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_ctx.user_data = server;

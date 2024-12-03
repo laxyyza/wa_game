@@ -85,6 +85,15 @@ game_handle_num_keys(client_game_t* game, const wa_event_key_t* ev)
 }
 
 static void
+game_move_bots(client_game_t* game)
+{
+	net_udp_move_bot_t* move_bot = mmframes_alloc(&game->app->mmf, sizeof(net_udp_move_bot_t));
+	move_bot->pos = game->player->core->cursor;
+
+	ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_MOVE_BOT, sizeof(net_udp_move_bot_t), move_bot);
+}
+
+static void
 game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* ev)
 {
     wa_state_t* state = wa_window_get_state(window);
@@ -158,6 +167,10 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 		case WA_KEY_R:
 			if (ev->pressed)
 				coregame_player_reload(&game->cg, game->player->core);
+			break;
+		case WA_KEY_B:
+			if (ev->pressed && state->key_map[WA_KEY_LCTRL])
+				game_move_bots(game);
 			break;
 		default:
 			break;

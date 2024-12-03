@@ -364,3 +364,28 @@ bot_mode(const ssp_segment_t* segment, server_t* server, client_t* source_client
 		}
 	});
 }
+
+void 
+move_bot(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	if (source_client->bot)
+		return;
+
+	const net_udp_move_bot_t* move_bot = (const void*)segment->data;
+
+	ght_t* clients = &server->clients;
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		if (client->player && client->bot)
+		{
+			client->player->pos = move_bot->pos;
+
+			net_udp_player_move_t* move_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
+			move_out->player_id = client->player->id;
+			move_out->pos = client->player->pos;
+			move_out->absolute = true;
+
+			server_add_data_all_udp_clients_i(server, NET_UDP_PLAYER_MOVE, move_out, sizeof(net_udp_player_move_t), 0);
+		}
+	});
+}
