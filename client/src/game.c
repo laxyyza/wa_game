@@ -156,7 +156,8 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 			game_handle_num_keys(game, ev);
 			break;
 		case WA_KEY_R:
-			coregame_player_reload(&game->cg, game->player->core);
+			if (ev->pressed)
+				coregame_player_reload(&game->cg, game->player->core);
 			break;
 		default:
 			break;

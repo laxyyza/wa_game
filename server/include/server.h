@@ -85,4 +85,7 @@ void server_handle_new_connection(server_t* server, UNUSED event_t* event);
 void event_signalfd_close(server_t* server, UNUSED event_t* ev);
 vec2f_t server_next_spawn(server_t* server);
 
+void server_add_data_all_udp_clients(server_t* server, u8 type, const void* data, u16 size, u32 ignore_player_id);
+void server_add_data_all_udp_clients_i(server_t* server, u8 type, const void* data, u16 size, u32 ignore_player_id);
+
 #endif // _SERVER_H_

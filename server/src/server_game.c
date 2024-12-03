@@ -3,17 +3,12 @@
 void
 server_on_player_reload(cg_player_t* player, server_t* server)
 {
-	ght_t* clients = &server->clients;
 	client_t* source_client = player->user_data;
 
 	net_udp_player_reload_t* reload_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_reload_t));
 	reload_out->player_id = source_client->player->id;
 
-	GHT_FOREACH(client_t* client, clients, 
-	{
-		if (client->player)
-			ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_RELOAD, sizeof(net_udp_player_reload_t), reload_out);
-	});
+	server_add_data_all_udp_clients_i(server, NET_UDP_PLAYER_RELOAD, reload_out, sizeof(net_udp_player_reload_t), player->id);
 }
 
 static net_tcp_new_player_t*

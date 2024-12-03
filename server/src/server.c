@@ -3,6 +3,32 @@
 
 #define RECV_BUFFER_SIZE 4096
 
+void
+server_add_data_all_udp_clients(server_t* server, u8 type, const void* data, u16 size, 
+								u32 ignore_player_id)
+{
+	ght_t* clients = &server->clients;
+
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		if (client->player && client->player->id != ignore_player_id)
+			ssp_segbuf_add(&client->udp_buf, type, size, data);
+	});
+}
+
+void
+server_add_data_all_udp_clients_i(server_t* server, u8 type, const void* data, u16 size, 
+								u32 ignore_player_id)
+{
+	ght_t* clients = &server->clients;
+
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		if (client->player && client->player->id != ignore_player_id)
+			ssp_segbuf_add_i(&client->udp_buf, type, size, data);
+	});
+}
+
 vec2f_t 
 server_next_spawn(server_t* server)
 {
