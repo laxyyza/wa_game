@@ -93,12 +93,6 @@ client_net_lasterr()
 #endif
 }
 
-static inline const char*
-last_errstr()
-{
-	return client_net_errstr(client_net_lasterr());
-}
-
 static void 
 client_net_fd_blocking(sock_t fd, bool block)
 {

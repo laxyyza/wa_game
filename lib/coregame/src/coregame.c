@@ -401,6 +401,7 @@ coregame_dist(const vec2f_t* a, const vec2f_t* b)
 	return sqrtf(powf(b->x - a->x, 2) + powf(b->y - a->y, 2));
 }
 
+#ifdef CG_CLIENT
 static inline void
 cg_blend_pos(vec2f_t* dst, const vec2f_t* a, const vec2f_t* b, f32 factor)
 {
@@ -414,6 +415,7 @@ cg_interpolate_pos(vec2f_t* a, const vec2f_t* b, f32 factor)
 	a->x = a->x + (b->x - a->x) * factor;
 	a->y = a->y + (b->y - a->y) * factor;
 }
+#endif
 
 static void
 cg_resolve_player_collision(cg_player_t* player, 
