@@ -21,6 +21,8 @@ enum segtypes
 	NET_TCP_WANT_SERVER_STATS,
 	NET_TCP_CHAT_MSG,
 	NET_TCP_GUN_SPEC,
+	NET_TCP_BOT_MODE,
+	NET_TCP_USERNAME_CHANGE,
 
 	NET_UDP_PLAYER_MOVE,
 	NET_UDP_PLAYER_CURSOR,
@@ -82,6 +84,17 @@ typedef struct
 {
 	bool opt_in;
 } net_tcp_want_server_stats_t;
+
+typedef struct 
+{
+	bool is_bot;
+} net_tcp_bot_mode_t;
+
+typedef struct 
+{
+	u32 player_id;
+	char username[PLAYER_NAME_MAX];
+} net_tcp_username_change_t;
 
 typedef struct 
 {

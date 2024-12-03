@@ -327,3 +327,40 @@ player_reload(UNUSED const ssp_segment_t* segment, server_t* server, client_t* s
 
 	server_on_player_reload(source_client->player, server);
 }
+
+void 
+bot_mode(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	const net_tcp_bot_mode_t* mode = (const void*)segment->data;
+	if (mode->is_bot == source_client->bot)
+		return;
+
+	source_client->bot = mode->is_bot;
+
+	if (mode->is_bot)
+	{
+		source_client->og_username = strndup(source_client->player->username, PLAYER_NAME_MAX);
+
+		snprintf(source_client->player->username, PLAYER_NAME_MAX, "Bot_%s_%u", source_client->og_username, source_client->player->id);
+	}
+	else
+	{
+		strncpy(source_client->player->username, source_client->og_username, PLAYER_NAME_MAX);
+		free(source_client->og_username);
+		source_client->og_username = NULL;
+	}
+
+	net_tcp_username_change_t username_out = {0};
+	username_out.player_id = source_client->player->id;
+	strncpy(username_out.username, source_client->player->username, PLAYER_NAME_MAX);
+
+	ght_t* clients = &server->clients;
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		if (client->player)
+		{
+			ssp_segbuf_add(&client->tcp_buf, NET_TCP_USERNAME_CHANGE, sizeof(net_tcp_username_change_t), &username_out);
+			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+		}
+	});
+}

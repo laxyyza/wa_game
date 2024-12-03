@@ -17,5 +17,6 @@ void chat_msg(const ssp_segment_t* segment, server_t* server, client_t* source_c
 void player_gun_id(const ssp_segment_t* segment, server_t* server, client_t* source_client);
 void player_input(const ssp_segment_t* segment, server_t* server, client_t* source_client);
 void player_reload(const ssp_segment_t* segment, server_t* server, client_t* source_client);
+void bot_mode(const ssp_segment_t* segment, server_t* server, client_t* source_client);
 
 #endif // _SERVER_GAME_H_

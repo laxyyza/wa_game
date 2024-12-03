@@ -188,6 +188,15 @@ game_ui_server_stats(client_game_t* game, struct nk_context* ctx)
 }
 
 static void
+game_send_bot_mode(client_game_t* game)
+{
+	net_tcp_bot_mode_t mode = {.is_bot = game->bot};
+
+	ssp_segbuf_add(&game->net->tcp.buf, NET_TCP_BOT_MODE, sizeof(net_tcp_bot_mode_t), &mode);
+	ssp_tcp_send_segbuf(&game->net->tcp.sock, &game->net->tcp.buf);
+}
+
+static void
 game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 {
     wa_state_t* state = wa_window_get_state(game->app->window);
@@ -377,6 +386,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 		if (nk_checkbox_label(ctx, "Bot Mode", &bot))
 		{
 			game->bot = !bot;
+			game_send_bot_mode(game);
 		}
 
 		if (game->bot)

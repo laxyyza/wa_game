@@ -133,6 +133,8 @@ server_close_client(server_t* server, client_t* client)
 
 	ssp_segbuf_destroy(&client->udp_buf);
 	ssp_segbuf_destroy(&client->tcp_buf);
+	if (client->og_username)
+		free(client->og_username);
 	ght_del(&server->clients, client->session_id);
 
 	if (player_id)

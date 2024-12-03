@@ -14,8 +14,10 @@ typedef struct
 	ssp_segbuf_t	tcp_buf;
 	ssp_segbuf_t	udp_buf;
 	udp_addr_t		udp;
+	char*			og_username;
 	bool			udp_connected;
 	bool			want_stats;
+	bool			bot;
 	f64				last_packet_time;
 } client_t;
 

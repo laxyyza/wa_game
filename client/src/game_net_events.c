@@ -302,3 +302,20 @@ game_player_gun_state(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _
 		player->gun->charge_time = gun_state->charge_timer;
 	}
 }
+
+void 
+game_username_change(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	const net_tcp_username_change_t* change = (const void*)segment->data;
+	cg_player_t* player = ght_get(&app->game->cg.players, change->player_id);
+
+	if (player)
+	{
+		char chatmsg[UI_LABEL_SIZE];
+		snprintf(chatmsg, UI_LABEL_SIZE, "Player '%s' renamed to '%s'", player->username, change->username);
+
+		game_add_chatmsg(app->game, NULL, chatmsg);
+
+		strncpy(player->username, change->username, PLAYER_NAME_MAX);
+	}
+}
