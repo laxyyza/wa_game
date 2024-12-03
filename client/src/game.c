@@ -471,13 +471,36 @@ game_init(waapp_t* app)
 	wa_state_t* state = wa_window_get_state(app->window);
 	nk_window_show(game->app->nk_ctx, state->window.title, game->show_stats);
 
+	game->bot_interval = 1.0;
+
+	srand(time(NULL));
+
 	return game;
+}
+
+static inline void
+game_set_bot_movement(client_game_t* game)
+{
+	const f64 current_time = game->app->timer.start_time_s;
+	const f64 time_elapsed = current_time - game->last_bot_time;
+
+	if (time_elapsed > game->bot_interval)
+	{
+		u8 random_byte = rand();
+
+		game->player->input = random_byte & PLAYER_MOVE_INPUT;
+
+		game->last_bot_time = current_time;
+	}
 }
 
 void 
 game_update(waapp_t* app, client_game_t* game)
 {
 	nano_start_time(&app->timer);
+
+	if (game->bot)
+		game_set_bot_movement(game);
 
 	game_ui_update(game);
 	game_update_logic(game);

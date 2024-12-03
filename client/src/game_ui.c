@@ -373,6 +373,19 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			game->game_netdebug = !game_netdebug;
 		}
 
+		nk_bool bot = !game->bot;
+		if (nk_checkbox_label(ctx, "Bot Mode", &bot))
+		{
+			game->bot = !bot;
+		}
+
+		if (game->bot)
+		{
+			snprintf(label, UI_LABEL_SIZE, "Bot interval: %.2fs", game->bot_interval);
+			nk_label(ctx, label, NK_TEXT_LEFT);
+			nk_slider_float(ctx, 0.1, &game->bot_interval, 5.0, 0.1);
+		}
+
 		snprintf(label, UI_LABEL_SIZE, "Draw calls: %u", game->ren->draw_calls);
 		nk_label(ctx, label, NK_TEXT_LEFT);
 		game->ren->draw_calls = 0;

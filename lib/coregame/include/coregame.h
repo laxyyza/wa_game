@@ -35,6 +35,10 @@
 #define PLAYER_INPUT_DOWN  0x02
 #define PLAYER_INPUT_RIGHT 0x04
 #define PLAYER_INPUT_LEFT  0x08
+
+#define PLAYER_MOVE_INPUT  0x0F
+#define PLAYER_GUN_INPUT   0x10
+
 #define PLAYER_INPUT_SHOOT 0x10
 
 typedef struct cg_player cg_player_t;

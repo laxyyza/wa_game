@@ -67,6 +67,9 @@ typedef struct client_game
 	char ui_label[UI_LABEL_SIZE];
 
 	bool show_stats;
+	bool bot;
+	f64  last_bot_time;
+	f32	 bot_interval;
 } client_game_t;
 
 void* game_init(waapp_t* app);
