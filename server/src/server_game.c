@@ -397,7 +397,7 @@ bot_mode(const ssp_segment_t* segment, server_t* server, client_t* source_client
 	}
 	else
 	{
-		strncpy(source_client->player->username, source_client->og_username, PLAYER_NAME_MAX);
+		strncpy(source_client->player->username, source_client->og_username, PLAYER_NAME_MAX - 1);
 		free(source_client->og_username);
 		source_client->og_username = NULL;
 	}
