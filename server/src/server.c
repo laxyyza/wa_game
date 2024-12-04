@@ -304,6 +304,50 @@ event_signalfd_close(server_t* server, UNUSED event_t* ev)
 	signalfd_close(server);
 }
 
+static inline void
+server_flush_udp_client(server_t* server, client_t* client)
+{
+	if (client->udp_connected == false)
+		return;
+
+	if (server->send_stats && client->want_stats)
+	{
+		server->stats.udp_pps_out++;
+		server->stats.udp_pps_out_bytes += ssp_segbuf_serialized_size(&client->udp_buf, NULL) + sizeof(server_stats_t);
+		if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
+			server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
+
+		ssp_segbuf_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
+	}
+
+	ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
+	if (packet)
+	{
+		packet->timestamp = server->current_time;
+
+		if (!(server->send_stats && client->want_stats))
+		{
+			server->stats.udp_pps_out++;
+			server->stats.udp_pps_out_bytes += packet->size;
+		}
+
+		client_send(server, client, packet);
+	}
+
+	while ((packet = ssp_segbuf_get_resend_packet(&client->udp_buf, server->current_time)))
+	{
+		if (!(server->send_stats && client->want_stats))
+		{
+			server->stats.udp_pps_out++;
+			server->stats.udp_pps_out_bytes += packet->size;
+		}
+
+		client_send(server, client, packet);
+	}
+
+	ssp_parse_sliding_window(&server->netdef.ssp_ctx, &client->udp_buf, client);
+}
+
 static void 
 server_flush_udp_clients(server_t* server)
 {
@@ -311,63 +355,7 @@ server_flush_udp_clients(server_t* server)
 
 	GHT_FOREACH(client_t* client, clients, 
 	{
-		if (client->udp_connected)
-		{
-			if (server->send_stats && client->want_stats)
-			{
-				server->stats.udp_pps_out++;
-				server->stats.udp_pps_out_bytes += ssp_segbuf_serialized_size(&client->udp_buf, NULL) + sizeof(server_stats_t);
-				if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
-					server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
-
-				ssp_segbuf_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
-			}
-
-			// cg_sbsm_t* sbsm = server->game.sbsm;
-			// u32 index = sbsm->base_idx;
-			//
-			// for (u32 iii = 0; iii < sbsm->size; iii++)
-			// {
-			// 	cg_game_snapshot_t* ss = sbsm->snapshots + index;
-			// 	cg_player_snapshot_t* pss = ght_get(&ss->deltas, client->player->id);
-			// 	if (pss)
-			// 	{
-			// 		ssp_segbuf_add(&client->udp_buf, NET_UDP_TEST, sizeof(cg_player_snapshot_t), pss);
-			// 	}
-			//
-			// 	index++;
-			// 	if (index >= sbsm->size)
-			// 		index = 0;
-			// }
-			
-			ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
-
-			if (packet)
-			{
-				packet->timestamp = server->current_time;
-
-				if (!(server->send_stats && client->want_stats))
-				{
-					server->stats.udp_pps_out++;
-					server->stats.udp_pps_out_bytes += packet->size;
-				}
-
-				client_send(server, client, packet);
-			}
-
-			while ((packet = ssp_segbuf_get_resend_packet(&client->udp_buf, server->current_time)))
-			{
-				if (!(server->send_stats && client->want_stats))
-				{
-					server->stats.udp_pps_out++;
-					server->stats.udp_pps_out_bytes += packet->size;
-				}
-
-				client_send(server, client, packet);
-			}
-
-			ssp_parse_sliding_window(&server->netdef.ssp_ctx, &client->udp_buf, client);
-		}
+		server_flush_udp_client(server, client);
 	});
 
 	if (server->send_stats)
