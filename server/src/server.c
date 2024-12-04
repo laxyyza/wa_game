@@ -2,6 +2,7 @@
 #include "server_game.h"
 
 #define RECV_BUFFER_SIZE 4096
+#define RECV_CONTROL_SIZE 1024
 
 void
 server_add_data_all_udp_clients(server_t* server, u8 type, const void* data, u16 size, 
@@ -167,18 +168,41 @@ set_udp_info(udp_addr_t* info)
 void 
 server_read_udp_packet(server_t* server, event_t* event)
 {
-	void* buf = calloc(1, RECV_BUFFER_SIZE);
+	void* buf = calloc(1, RECV_BUFFER_SIZE + RECV_CONTROL_SIZE);
 	i64 bytes_read;
 	i32 ret;
 	udp_addr_t info = {
-		.addr_len = sizeof(struct sockaddr_in)
+		.addr_len = sizeof(struct sockaddr_in),
 	};
 
-	if ((bytes_read = recvfrom(event->fd, buf, RECV_BUFFER_SIZE, 0, &info.addr, &info.addr_len)) == -1)
+	struct iovec iov = {
+		.iov_base = buf,
+		.iov_len = RECV_BUFFER_SIZE
+	};
+	struct msghdr msg = {
+		.msg_name = &info.addr,
+		.msg_namelen = info.addr_len,
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = buf + RECV_CONTROL_SIZE,
+		.msg_controllen = RECV_CONTROL_SIZE
+	};
+
+	if ((bytes_read = recvmsg(event->fd, &msg, 0)) == -1)
 	{
 		perror("recvfrom");
 		free(buf);
 		return;
+	}
+
+	struct cmsghdr* cmsg;
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; cmsg = CMSG_NXTHDR(&msg, cmsg))
+	{
+		if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMPNS)
+		{
+			const struct timespec* timespec = (const void*)CMSG_DATA(cmsg);
+			server->netdef.ssp_ctx.last_packet_timestamp = (timespec->tv_nsec / 1e9) + timespec->tv_sec;
+		}
 	}
 
 	set_udp_info(&info);

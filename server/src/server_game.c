@@ -214,6 +214,8 @@ udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client
 		.t_client_ms = in_ping->t_client_ms,
 	};
 
+	printf("Ping timestamp: %f\n", server->netdef.ssp_ctx.last_packet_timestamp);
+
 	out_ping.t_server_ms = server->game.sbsm->present->timestamp;
 
 	// insta send to client. No buffering. 
