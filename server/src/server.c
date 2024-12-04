@@ -310,7 +310,7 @@ event_signalfd_close(server_t* server, UNUSED event_t* ev)
 }
 
 static inline void 
-server_add_packet(server_t* server, const ssp_packet_t* packet, client_t* client)
+server_buffer_packet(server_t* server, const ssp_packet_t* packet, client_t* client)
 {
 	struct iovec* iov = array_add_into(&server->tx_iov);
 	iov->iov_base = packet->buf;
@@ -330,7 +330,7 @@ server_add_packet(server_t* server, const ssp_packet_t* packet, client_t* client
 }
 
 static inline void
-server_flush_udp_client(server_t* server, client_t* client)
+server_prepare_udp_client(server_t* server, client_t* client)
 {
 	if (client->udp_connected == false)
 		return;
@@ -363,7 +363,7 @@ server_flush_udp_client(server_t* server, client_t* client)
 			server->stats.udp_pps_out_bytes += packet->size;
 		}
 
-		server_add_packet(server, packet, client);
+		server_buffer_packet(server, packet, client);
 	}
 
 	while ((packet = ssp_segbuf_get_resend_packet(&client->udp_buf, server->current_time)))
@@ -374,7 +374,7 @@ server_flush_udp_client(server_t* server, client_t* client)
 			server->stats.udp_pps_out_bytes += packet->size;
 		}
 
-		server_add_packet(server, packet, client);
+		server_buffer_packet(server, packet, client);
 	}
 
 	ssp_parse_sliding_window(&server->netdef.ssp_ctx, &client->udp_buf, client);
@@ -410,12 +410,9 @@ server_flush_udp_clients(server_t* server)
 {
 	ght_t* clients = &server->clients;
 
-	nano_timer_t timer;
-
-	nano_start_time(&timer);
 	GHT_FOREACH(client_t* client, clients, 
 	{
-		server_flush_udp_client(server, client);
+		server_prepare_udp_client(server, client);
 	});
 
 	server_sendmmsg(server);
