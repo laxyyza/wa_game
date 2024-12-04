@@ -872,20 +872,27 @@ client_udp_send(waapp_t* app, ssp_packet_t* packet)
 }
 
 static void
+client_net_ping_timestamp(f64* dst, UNUSED void* src, UNUSED u16 size)
+{
+	hr_time_t current_time;
+	nano_gettime(&current_time);
+	*dst = nano_time_ns(&current_time) / 1e6;
+}
+
+static void
 client_net_ping_server(waapp_t* app)
 {
 	if (app->net.udp.port == 0)
 		return;
 
-	hr_time_t current_time;
-	ssp_packet_t* packet;
-
-	nano_gettime(&current_time);
-	f64 time_ms = nano_time_ns(&current_time) / 1e6;
-
-	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &time_ms, sizeof(f64));
-	if (packet)
-		client_udp_send(app, packet);
+	ssp_segbuf_hook_add(&app->net.udp.buf, NET_UDP_PING, sizeof(f64), NULL, (ssp_serialize_hook_t)client_net_ping_timestamp);
+	
+	// nano_gettime(&current_time);
+	// f64 time_ms = nano_time_ns(&current_time) / 1e6;
+	//
+	// packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &time_ms, sizeof(f64));
+	// if (packet)
+	// 	client_udp_send(app, packet);
 }
 
 void 
