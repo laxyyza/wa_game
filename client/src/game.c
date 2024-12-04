@@ -252,6 +252,16 @@ on_player_free(cg_player_t* player)
 	free(player->user_data);
 }
 
+static void
+game_serialize_player_input(net_udp_player_input_t* out_input, client_game_t* game, UNUSED u16 size)
+{
+	nano_gettime(&game->app->timer.start_time);
+	game->app->timer.start_time_s = nano_time_s(&game->app->timer.start_time);
+	out_input->timestamp = (sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset) - ((game->net->udp.latency + game->net->udp.jitter) / 2);
+	out_input->timestamp += sec_to_ms(game->net->udp.interval);
+	out_input->flags = game->player->input;
+}
+
 static void 
 game_update_logic(client_game_t* game)
 {
@@ -271,25 +281,11 @@ game_update_logic(client_game_t* game)
 	}
 	if (game->player->input != game->prev_input)
 	{
-		// coregame_set_player_input_t(&game->cg, player->core, player->input, game->cg.sbsm->present->timestamp);
 		coregame_set_player_input(player->core, player->input);
 		game->ignore_server_pos = true;
 
-		net_udp_player_input_t* input_out = mmframes_alloc(&game->app->mmf, sizeof(net_udp_player_input_t));
-		input_out->timestamp = (sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset) - ((game->net->udp.latency + game->net->udp.jitter) / 2);
-		input_out->flags = player->input;
-		// printf("%u\tSending Input: ", game->net->udp.buf.seqc_sent + 1);
-		// if (input_out->flags & PLAYER_INPUT_LEFT)
-		// 	printf("LEFT ");
-		// if (input_out->flags & PLAYER_INPUT_RIGHT)
-		// 	printf("RIGHT ");
-		// if (input_out->flags & PLAYER_INPUT_UP)
-		// 	printf("UP ");
-		// if (input_out->flags & PLAYER_INPUT_DOWN)
-		// 	printf("DOWN ");
-		// printf("(%u)\n", input_out->flags);
-
-		ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
+		ssp_segbuf_hook_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), game, 
+						(ssp_serialize_hook_t)game_serialize_player_input);
 		game->prev_input = player->input;
 	}
 
