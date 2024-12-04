@@ -138,7 +138,7 @@ typedef struct
 
 typedef struct 
 {
-	f64 t_client_ms;
+	f64 t_client_s;
 	f64 t_server_ms;
 } net_udp_pingpong_t;
 

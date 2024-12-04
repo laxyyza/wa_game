@@ -319,7 +319,7 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 	if ((bytes_read = recv(fdev->fd, buf, BUFFER_SIZE, 0)) == -1)
 		perror("tcp_recv");
 	else
-		ssp_parse_buf(&app->net.def.ssp_ctx, &app->net.tcp.buf, buf, bytes_read, NULL);
+		ssp_parse_buf(&app->net.def.ssp_ctx, &app->net.tcp.buf, buf, bytes_read, NULL, 0);
 	free(buf);
 }
 
@@ -366,7 +366,7 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 	net->udp.in.count++;
 	net->def.ssp_ctx.current_time = app->timer.start_time_s;
 
-	if ((ret = ssp_parse_buf(&net->def.ssp_ctx, &net->udp.buf, buf, bytes_read, &addr)) == SSP_FAILED)
+	if ((ret = ssp_parse_buf(&net->def.ssp_ctx, &net->udp.buf, buf, bytes_read, &addr, net->def.ssp_ctx.current_time)) == SSP_FAILED)
 		errorf("Invalid UDP Packet!\n");
 
 	if (ret != SSP_BUFFERED)
@@ -456,8 +456,9 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	hr_time_t current_time;
 	nano_gettime(&current_time);
 	const f64 current_time_ms = nano_time_ns(&current_time) / 1e6;
+	f64 t_client_ms = pong->t_client_s * 1000.0;
 
-	f64 rtt_ms = current_time_ms - pong->t_client_ms;
+	f64 rtt_ms = current_time_ms - t_client_ms;
 	const f64 one_way_latency = rtt_ms / 2;
 	net->udp.time_offset = pong->t_server_ms + one_way_latency - current_time_ms;
 
@@ -876,7 +877,7 @@ client_net_ping_timestamp(f64* dst, UNUSED void* src, UNUSED u16 size)
 {
 	hr_time_t current_time;
 	nano_gettime(&current_time);
-	*dst = nano_time_ns(&current_time) / 1e6;
+	*dst = nano_time_s(&current_time);
 }
 
 static void
@@ -886,13 +887,6 @@ client_net_ping_server(waapp_t* app)
 		return;
 
 	ssp_segbuf_hook_add(&app->net.udp.buf, NET_UDP_PING, sizeof(f64), NULL, (ssp_serialize_hook_t)client_net_ping_timestamp);
-	
-	// nano_gettime(&current_time);
-	// f64 time_ms = nano_time_ns(&current_time) / 1e6;
-	//
-	// packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &time_ms, sizeof(f64));
-	// if (packet)
-	// 	client_udp_send(app, packet);
 }
 
 void 

@@ -1,5 +1,12 @@
 #include "server_game.h"
 
+typedef struct 
+{
+	f64 t_client_s;
+	f64 t_server_ms;
+	f64 recv_s;
+} server_pong_t;
+
 void
 server_on_player_reload(cg_player_t* player, server_t* server)
 {
@@ -206,21 +213,29 @@ player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_c
 	});
 }
 
+static void
+udp_ping_set_client_time(net_udp_pingpong_t* dst, const server_pong_t* src, UNUSED u16 size)
+{
+	hr_time_t current_time;
+	nano_gettime(&current_time);
+	f64 time_elapsed = nano_time_s(&current_time) - src->recv_s;
+
+	dst->t_client_s = src->t_client_s + time_elapsed;
+	dst->t_server_ms = src->t_server_ms;
+}
+
 void 
 udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client)
 {
 	const net_udp_pingpong_t* in_ping = (const net_udp_pingpong_t*)segment->data;
-	net_udp_pingpong_t out_ping = {
-		.t_client_ms = in_ping->t_client_ms,
-	};
+	server_pong_t* out_pong = mmframes_alloc(&server->mmf, sizeof(server_pong_t));
 
-	printf("Ping timestamp: %f\n", server->netdef.ssp_ctx.last_packet_timestamp);
+	out_pong->t_client_s = in_ping->t_client_s;
+	out_pong->t_server_ms = server->game.sbsm->present->timestamp;
+	out_pong->recv_s = segment->packet->timestamp;
 
-	out_ping.t_server_ms = server->game.sbsm->present->timestamp;
-
-	// insta send to client. No buffering. 
-	ssp_packet_t* packet = ssp_insta_packet(&source_client->udp_buf, NET_UDP_PONG, &out_ping, sizeof(net_udp_pingpong_t));
-	client_send(server, source_client, packet);
+	ssp_segbuf_hook_add(&source_client->udp_buf, NET_UDP_PONG, sizeof(net_udp_pingpong_t), out_pong, 
+					 (ssp_serialize_hook_t)udp_ping_set_client_time);
 }
 
 void 

@@ -36,10 +36,6 @@ server_init_udp(server_t* server)
 		return -1;
 	}
 
-	i32 enabled = 1;
-	if (setsockopt(server->udp_fd, SOL_SOCKET, SO_TIMESTAMPNS, &enabled, sizeof(i32)) == -1)
-		perror("setsockopt SO_TIMESTAMPNS");
-
 	return 0;
 }
 
