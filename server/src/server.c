@@ -145,6 +145,9 @@ static void
 event_close_client(server_t* server, event_t* event)
 {
 	server_close_client(server, event->data);
+
+	server->stats.tcp_connections = server->clients.count;
+	server->stats.players = server->game.players.count;
 }
 
 void
@@ -155,6 +158,8 @@ server_handle_new_connection(server_t* server, UNUSED event_t* event)
 		return;
 
 	server_add_event(server, client->tcp_sock.sockfd, client, read_client, event_close_client);
+	server->stats.tcp_connections = server->clients.count;
+	server->stats.players = server->game.players.count;
 }
 
 static void
@@ -316,6 +321,13 @@ server_flush_udp_client(server_t* server, client_t* client)
 		server->stats.udp_pps_out_bytes += ssp_segbuf_serialized_size(&client->udp_buf, NULL) + sizeof(server_stats_t);
 		if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
 			server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
+
+		server->stats.tx.rto = client->udp_buf.rto;
+		server->stats.tx.total_packets = client->udp_buf.out_total_packets;
+
+		server->stats.rx.lost = client->udp_buf.sliding_window.lost_packets;
+		server->stats.rx.dropped = client->udp_buf.in_dropped_packets;
+		server->stats.rx.total_packets = client->udp_buf.in_total_packets;
 
 		ssp_segbuf_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
 	}

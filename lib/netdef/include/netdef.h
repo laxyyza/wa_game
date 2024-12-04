@@ -217,6 +217,20 @@ typedef struct
 	i64 tick_time;
 	i64 tick_time_avg;
 	i64 tick_time_highest;
+
+	struct {
+		u32 dropped;
+		u32 lost;
+		u32 total_packets;
+	} rx;
+
+	struct {
+		u32 rto;
+		u32 total_packets;
+	} tx;
+
+	u32 tcp_connections;
+	u32 players;
 } server_stats_t, udp_server_stats_t;
 
 void netdef_init(netdef_t* netdef, coregame_t* coregame, 

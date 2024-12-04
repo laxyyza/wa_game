@@ -133,6 +133,30 @@ format_ns(char* buf, u64 max, i64 ns)
 		snprintf(buf, max, "%zu ns", ns);
 }
 
+static inline void
+game_ui_format_pps(char* str, u32 size, u32 pps, u32 pps_bytes)
+{
+	u32 bits = pps_bytes * 8;
+	if (bits < 1000)
+		snprintf(str, size, "%u (%u B/s)", pps, pps_bytes);
+	else if (bits < 1e6)
+		snprintf(str, size, "%u (%u Kb/s)", pps, bits / 1000);
+	else
+		snprintf(str, size, "%u (%.2f Mbps)", pps, bits / 1e6);
+}
+
+static inline void
+game_ui_format_bytes(char* str, u32 size, u32 bytes)
+{
+	u32 bits = bytes * 8;
+	if (bits < 1000)
+		snprintf(str, size, "%u B/s", bytes);
+	else if (bits < 1e6)
+		snprintf(str, size, "%u Kb/s", bits / 1000);
+	else
+		snprintf(str, size, "%.2f Mbps", bits / 1e6);
+}
+
 static void
 game_ui_server_stats(client_game_t* game, struct nk_context* ctx)
 {
@@ -140,7 +164,7 @@ game_ui_server_stats(client_game_t* game, struct nk_context* ctx)
 	nk_flags col0 = NK_TEXT_CENTERED;
 	nk_flags col1 = NK_TEXT_CENTERED;
 
-	nk_layout_row_dynamic(ctx, 300, 1);
+	nk_layout_row_dynamic(ctx, 600, 1);
 	if (nk_group_begin(ctx, "Server Stats", NK_WINDOW_TITLE | NK_WINDOW_BORDER | NK_WINDOW_NO_INPUT))
 	{
 		const server_stats_t* stats = &game->net->server_stats;
@@ -158,28 +182,68 @@ game_ui_server_stats(client_game_t* game, struct nk_context* ctx)
 		format_ns(label, UI_LABEL_SIZE, stats->tick_time_highest);
 		nk_label(ctx, label, col1);
 
-		nk_label(ctx, "UDP PPS in:", col0);
-		snprintf(label, UI_LABEL_SIZE, "%u", stats->udp_pps_in);
+		nk_label(ctx, "TCP connections:", col0);
+		snprintf(label, UI_LABEL_SIZE, "%u", stats->tcp_connections);
 		nk_label(ctx, label, col1);
 
-		nk_label(ctx, "UDP PPS in:", col0);
-		snprintf(label, UI_LABEL_SIZE, "%u bytes", stats->udp_pps_in_bytes);
+		nk_label(ctx, "Player count:", col0);
+		snprintf(label, UI_LABEL_SIZE, "%u", stats->players);
 		nk_label(ctx, label, col1);
 
-		nk_label(ctx, "UDP PPS in (high):", col0);
-		snprintf(label, UI_LABEL_SIZE, "%u bytes", stats->udp_pps_in_bytes_highest);
+		nk_layout_row_dynamic(ctx, 20, 1);
+		nk_label(ctx, "", col0);
+		nk_label(ctx, "SERVER RX", NK_TEXT_CENTERED);
+		nk_layout_row_dynamic(ctx, 20, 2);
+
+		nk_label(ctx, "PPS:", col0);
+		game_ui_format_pps(label, UI_LABEL_SIZE, stats->udp_pps_in, stats->udp_pps_in_bytes);
 		nk_label(ctx, label, col1);
 
-		nk_label(ctx, "UDP PPS out:", col0);
-		snprintf(label, UI_LABEL_SIZE, "%u", stats->udp_pps_out);
+		nk_label(ctx, "PPS (high):", col0);
+		game_ui_format_bytes(label, UI_LABEL_SIZE, stats->udp_pps_in_bytes_highest);
 		nk_label(ctx, label, col1);
 
-		nk_label(ctx, "UDP PPS out:", col0);
-		snprintf(label, UI_LABEL_SIZE, "%u bytes", stats->udp_pps_out_bytes);
+		nk_layout_row_dynamic(ctx, 20, 1);
+		nk_label(ctx, "SERVER TX", NK_TEXT_CENTERED);
+		nk_layout_row_dynamic(ctx, 20, 2);
+
+		nk_label(ctx, "PPS:", col0);
+		game_ui_format_pps(label, UI_LABEL_SIZE, stats->udp_pps_out, stats->udp_pps_out_bytes);
 		nk_label(ctx, label, col1);
 
-		nk_label(ctx, "UDP PPS out (high):", col0);
-		snprintf(label, UI_LABEL_SIZE, "%u bytes", stats->udp_pps_out_bytes_highest);
+		nk_label(ctx, "PPS (high):", col0);
+		game_ui_format_bytes(label, UI_LABEL_SIZE, stats->udp_pps_out_bytes_highest);
+		nk_label(ctx, label, col1);
+
+		nk_layout_row_dynamic(ctx, 20, 1);
+		nk_label(ctx, "", col0);
+		nk_label(ctx, "CLIENT TRAFFIC (server-side)", col0);
+
+		nk_label(ctx, "CLIENT RX:", col0);
+		nk_layout_row_dynamic(ctx, 20, 2);
+
+		nk_label(ctx, "DROPPED:", col0);
+		snprintf(label, UI_LABEL_SIZE, "%u", stats->rx.dropped);
+		nk_label(ctx, label, col1);
+
+		nk_label(ctx, "LOST:", col0);
+		snprintf(label, UI_LABEL_SIZE, "%u", stats->rx.lost);
+		nk_label(ctx, label, col1);
+
+		nk_label(ctx, "TOTAL:", col0);
+		snprintf(label, UI_LABEL_SIZE, "%u", stats->rx.total_packets);
+		nk_label(ctx, label, col1);
+
+		nk_layout_row_dynamic(ctx, 20, 1);
+		nk_label(ctx, "CLIENT TX:", col0);
+		nk_layout_row_dynamic(ctx, 20, 2);
+
+		nk_label(ctx, "RTO:", col0);
+		snprintf(label, UI_LABEL_SIZE, "%u", stats->tx.rto);
+		nk_label(ctx, label, col1);
+
+		nk_label(ctx, "TOTAL:", col0);
+		snprintf(label, UI_LABEL_SIZE, "%u", stats->tx.total_packets);
 		nk_label(ctx, label, col1);
 
 		nk_group_end(ctx);
@@ -276,8 +340,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			nk_layout_row_dynamic(ctx, 20, 2);
 
 			nk_label(ctx, "PPS", NK_TEXT_CENTERED);
-			snprintf(label, UI_LABEL_SIZE, "%u (%zu bytes)", 
-					game->net->udp.in.last_count, game->net->udp.in.last_bytes);
+			game_ui_format_pps(label, UI_LABEL_SIZE, game->net->udp.in.last_count, game->net->udp.in.last_bytes);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_label(ctx, "TOTAL:", NK_TEXT_CENTERED);
@@ -310,8 +373,7 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			nk_layout_row_dynamic(ctx, 20, 2);
 
 			nk_label(ctx, "PPS:", NK_TEXT_CENTERED);
-			snprintf(label, UI_LABEL_SIZE, "%u (%zu bytes)", 
-					game->net->udp.out.last_count, game->net->udp.out.last_bytes);
+			game_ui_format_pps(label, UI_LABEL_SIZE, game->net->udp.out.last_count, game->net->udp.out.last_bytes);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_label(ctx, "TOTAL:", NK_TEXT_CENTERED);

@@ -193,6 +193,9 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 		ssp_segbuf_add(&client->tcp_buf, NET_TCP_GUN_SPEC, sizeof(cg_gun_spec_t), gun_specs + i);
 
 	broadcast_new_player(server, client);
+
+	server->stats.tcp_connections = server->clients.count;
+	server->stats.players = server->game.players.count;
 }
 
 void 
