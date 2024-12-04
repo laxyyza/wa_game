@@ -35,6 +35,7 @@ enum segtypes
 	NET_UDP_PLAYER_RELOAD,
 	NET_UDP_PLAYER_GUN_STATE,
 	NET_UDP_MOVE_BOT,
+	NET_UDP_BULLET,
 
 	NET_UDP_PING,
 	NET_UDP_PONG,
@@ -173,6 +174,14 @@ typedef struct
 {
 	vec2f_t pos;
 } net_udp_move_bot_t;
+
+typedef struct 
+{
+	u32 owner_id;
+	vec2f_t pos;
+	vec2f_t dir;
+	u8		gun_id;
+} net_udp_bullet_t;
 
 typedef struct 
 {

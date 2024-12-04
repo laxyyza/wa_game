@@ -297,9 +297,13 @@ game_player_gun_state(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _
 			coregame_player_change_gun_force(cg, player, gun_state->gun_id);
 
 		player->gun->ammo = gun_state->ammo;
-		player->gun->bullet_timer = gun_state->bullet_timer;
 		player->gun->reload_time = gun_state->reload_timer;
-		player->gun->charge_time = gun_state->charge_timer;
+
+		if (player->shoot == false)
+		{
+			player->gun->bullet_timer = gun_state->bullet_timer;
+			player->gun->charge_time = gun_state->charge_timer;
+		}
 	}
 }
 
@@ -321,4 +325,22 @@ game_username_change(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		if (player == app->game->player->core)
 			srand(time(NULL) * ssp_checksum32(app->game->player->core->username, PLAYER_NAME_MAX));
 	}
+}
+
+void 
+game_rewind_bullet(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	client_game_t* game = app->game;
+	const net_udp_bullet_t* bullet_in = (const void*)segment->data;
+
+	cg_player_t* player = ght_get(&game->cg.players, bullet_in->owner_id);
+	if (player == NULL)
+		return;
+
+	cg_bullet_t* new_bullet = cg_add_bullet(&game->cg, player->gun);
+	new_bullet->r.pos = bullet_in->pos;
+	new_bullet->dir = bullet_in->dir;
+
+	new_bullet->velocity.x = new_bullet->dir.x * player->gun->spec->bullet_speed;
+	new_bullet->velocity.y = new_bullet->dir.y * player->gun->spec->bullet_speed;
 }

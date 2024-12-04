@@ -107,6 +107,38 @@ server_on_player_gun_changed(cg_player_t* player, server_t* server)
 	});
 }
 
+static void 
+serialize_bullet(net_udp_bullet_t* out_bullet, cg_bullet_t* bullet, UNUSED u16 size)
+{
+	out_bullet->owner_id = bullet->owner_id;
+	out_bullet->pos = bullet->r.pos;
+	out_bullet->dir = bullet->dir;
+	out_bullet->gun_id = bullet->gun_id;
+}
+
+static inline void
+server_send_rewind_bullet(client_t* client, cg_bullet_t* bullet)
+{
+	if (client->player == NULL || client->player->id == bullet->owner_id)
+		return;
+
+	ssp_segbuf_hook_add_i(&client->udp_buf, NET_UDP_BULLET, sizeof(net_udp_bullet_t), bullet, 
+					   (ssp_serialize_hook_t)serialize_bullet);
+}
+
+void
+server_on_bullet_create(cg_bullet_t* bullet, server_t* server)
+{
+	if (server->game.rewinding == false)
+		return;
+
+	ght_t* clients = &server->clients;
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		server_send_rewind_bullet(client, bullet);
+	});
+}
+
 void
 on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, server_t* server)
 {

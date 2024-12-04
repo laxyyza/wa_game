@@ -296,7 +296,7 @@ coregame_get_delta_time(coregame_t* cg)
 	memcpy(&cg->last_time, &current_time, sizeof(hr_time_t));
 }
 
-static cg_bullet_t*
+cg_bullet_t*
 cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
 {
 	cg_bullet_t* bullet = calloc(1, sizeof(cg_bullet_t));
