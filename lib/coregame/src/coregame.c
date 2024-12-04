@@ -504,9 +504,6 @@ cg_player_handle_collision(coregame_t* cg, cg_player_t* player)
 void 
 coregame_update_player(coregame_t* coregame, cg_player_t* player)
 {
-	if (player->gun)
-		coregame_gun_update(coregame, player->gun);
-
 	if (player->velocity.x || player->velocity.y)
 	{
 		player->velocity.x *= coregame->delta;
@@ -606,6 +603,9 @@ coregame_update_players(coregame_t* cg)
 	{
 		player->velocity.x = player->dir.x * PLAYER_SPEED;
 		player->velocity.y = player->dir.y * PLAYER_SPEED;
+
+		if (player->gun)
+			coregame_gun_update(cg, player->gun);
 
 		coregame_update_player(cg, player);
 	#ifdef CG_CLIENT
@@ -910,6 +910,7 @@ coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 t
 		return;
 
 	ps->dirty_move = ((ps->input & PLAYER_MOVE_INPUT) != (input & PLAYER_MOVE_INPUT));
+	ps->dirty_gun = ((ps->input & PLAYER_GUN_INPUT) != (input & PLAYER_GUN_INPUT));
 	ps->input = input;
 	ps->dirty = true;
 	ps->dirty_count++;

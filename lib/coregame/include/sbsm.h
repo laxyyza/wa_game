@@ -32,6 +32,7 @@ typedef struct
 	u32		dirty_count;
 	bool	dirty;
 	bool	dirty_move;
+	bool	dirty_gun;
 } cg_player_snapshot_t;
 
 typedef struct 

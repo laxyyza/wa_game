@@ -139,16 +139,15 @@ sbsm_rewind_player(coregame_t* cg, cg_game_snapshot_t* gss, cg_player_t* player)
 		return;
 	}
 
-	if (pss)
+	if (pss && pss->dirty)
 	{
-		if (pss->dirty_move)
-		{
-			coregame_set_player_input(player, pss->input);
-			pss->dirty = false;
-			player->dirty_history = true;
-		}
+		coregame_set_player_input(player, pss->input);
+		player->dirty_history = true;
+		pss->dirty = false;
 	}
 
+	if (player->gun)
+		coregame_gun_update(cg, player->gun);
 
 	player->velocity.x = player->dir.x * PLAYER_SPEED;
 	player->velocity.y = player->dir.y * PLAYER_SPEED;
@@ -214,11 +213,9 @@ sbsm_rollback_player(coregame_t* cg, cg_player_snapshot_t* pss)
 	if (player)
 	{
 		sbsm_snapshot_to_player(cg, player, pss);
-		if (pss->dirty_move)
-		{
-			coregame_set_player_input(player, pss->input);
+		if (pss->dirty)
 			player->dirty_history = true;
-		}
+		coregame_set_player_input(player, pss->input);
 		pss->dirty = false;
 	}
 }
