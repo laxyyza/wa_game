@@ -258,7 +258,7 @@ server_init_coregame_gun_specs(server_t* server)
 		.bullet_speed = 9000,
 		.autocharge = false,
 		.initial_charge_time = 1.0,
-		.reload_time = 7,
+		.reload_time = 5,
 		.max_ammo = 1000
 	};
 
