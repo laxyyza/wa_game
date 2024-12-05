@@ -836,11 +836,7 @@ void
 coregame_free_player(coregame_t* cg, cg_player_t* player)
 {
 #ifdef CG_SERVER
-	for (u32 i = 0; i < cg->sbsm->size; i++)
-	{
-		cg_game_snapshot_t* ss = cg->sbsm->snapshots + i;
-		ght_del(&ss->player_states, player->id);
-	}
+	sbsm_delete_player(cg->sbsm, player);
 #endif // CG_SERVER
 
 	ght_del(&cg->players, player->id);

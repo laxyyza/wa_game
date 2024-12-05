@@ -80,5 +80,6 @@ void sbsm_commit_bullet(cg_game_snapshot_t* ss, cg_bullet_t* bullet);
 void sbsm_player_to_snapshot(cg_player_snapshot_t* pss, const cg_player_t* player);
 void sbsm_snapshot_to_player(coregame_t* cg, cg_player_t* player, const cg_player_snapshot_t* pss);
 void sbsm_snapshot_to_bullet(cg_bullet_t* bullet, const cg_bullet_snapshot_t* bss);
+void sbsm_delete_player(cg_sbsm_t* sbsm, cg_player_t* player);
 
 #endif // _SBSM_H_

@@ -153,6 +153,8 @@ on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, serv
 
 	if (target_player->health <= 0)
 	{
+		sbsm_delete_player(server->game.sbsm, target_player);
+
 		move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
 		move->player_id = target_player->id;
 		move->absolute = true;

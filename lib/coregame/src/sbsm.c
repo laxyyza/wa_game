@@ -127,6 +127,22 @@ sbsm_snapshot_to_bullet(cg_bullet_t* bullet, const cg_bullet_snapshot_t* bss)
 	bullet->collided = bss->collided;
 }
 
+void
+sbsm_delete_player(cg_sbsm_t* sbsm, cg_player_t* player)
+{
+	u32 index = sbsm_index(sbsm, sbsm->base->timestamp);
+
+	for (u32 i = 0; i < sbsm->size; i++)
+	{
+		cg_game_snapshot_t* gss = (cg_game_snapshot_t*)sbsm->snapshots + index;
+		ght_del(&gss->player_states, player->id);
+		
+		index++;
+		if (index >= sbsm->size)
+			index = 0;
+	}
+}
+
 static inline void
 sbsm_rewind_player(coregame_t* cg, cg_game_snapshot_t* gss, cg_player_t* player)
 {
