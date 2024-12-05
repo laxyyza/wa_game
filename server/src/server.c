@@ -222,20 +222,18 @@ server_read_udp_packet(server_t* server, event_t* event)
 }
 
 static void
-server_ask_client_reconnect(UNUSED server_t* server, UNUSED udp_addr_t* client)
+server_ask_client_reconnect(server_t* server, udp_addr_t* client)
 {
-	printf("TODO: Implement server_ask_client_reconnect()\n");
-	// ssp_packet_t* packet = ssp_insta_packet(&server->io, NET_UDP_DO_RECONNECT, NULL, 0);
-	// 
-	// if (sendto(server->udp_fd, packet->buf, packet->size, 0, 
-	// 		(struct sockaddr*)&client->addr, client->addr_len) == -1)
-	// {
-	// 	perror("server_ask_client_reconnect sendto");
-	// 	goto free_packet;
-	// }
+	ssp_io_push_ref(&server->io, NET_UDP_DO_RECONNECT, 0, NULL);
+	ssp_packet_t* packet = ssp_io_serialize(&server->io);
 
-// free_packet:
-// 	ssp_packet_free(packet);
+	if (sendto(server->udp_fd, packet->buf, packet->size, 0, 
+			(struct sockaddr*)&client->addr, client->addr_len) == -1)
+	{
+		perror("server_ask_client_reconnect sendto");
+	}
+
+	ssp_packet_free(packet);
 }
 
 bool 
