@@ -479,25 +479,21 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	{
 		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_HIGH;
 		app->game->cg.target_local_interp_factor = LOCAL_INTERP_HIGH;
-		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
 	}
 	else if (rtt_ms > RTT_MID) // 70ms+
 	{
 		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_MID;
 		app->game->cg.target_local_interp_factor = LOCAL_INTERP_MID;
-		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
 	}
 	else if (rtt_ms > RTT_MIDL) // 20ms+
 	{
 		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_MIDL;
 		app->game->cg.target_local_interp_factor = LOCAL_INTERP_MIDL;
-		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
 	}
 	else	// < 20ms (0-20ms)
 	{
 		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_LOW;
 		app->game->cg.target_local_interp_factor = LOCAL_INTERP_LOW;
-		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST_LOW;
 	}
 }
 
