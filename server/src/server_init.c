@@ -9,6 +9,8 @@ server_init_tcp(server_t* server)
 
 	ret = ssp_tcp_server(&server->tcp_sock, SSP_IPv4, server->port);
 
+	server->tcp_sock.send_flags = MSG_NOSIGNAL;
+
 	return ret;
 }
 
