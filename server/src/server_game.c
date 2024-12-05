@@ -47,17 +47,17 @@ broadcast_new_player(server_t* server, client_t* new_client)
 	GHT_FOREACH(client_t* client, clients, {
 		if (client->player)
 		{
-			ssp_segbuf_add(&client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), new_player);
+			ssp_io_push_ref(&client->tcp_io, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), new_player);
 			if (client != new_client)
 			{
 				const net_tcp_new_player_t* other_player = client_to_tcp_new_player(server, client);
-				ssp_segbuf_add(&new_client->tcp_buf, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), other_player);
+				ssp_io_push_ref(&new_client->tcp_io, NET_TCP_NEW_PLAYER, sizeof(net_tcp_new_player_t), other_player);
 
-				ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+				ssp_tcp_send_io(&client->tcp_sock, &client->tcp_io);
 			}
 		}
 	});
-	ssp_tcp_send_segbuf(&new_client->tcp_sock, &new_client->tcp_buf);
+	ssp_tcp_send_io(&new_client->tcp_sock, &new_client->tcp_io);
 }
 
 void 
@@ -67,8 +67,8 @@ broadcast_delete_player(server_t* server, u32 id)
 	net_tcp_delete_player_t del_player = {id};
 
 	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuf_add(&client->tcp_buf, NET_TCP_DELETE_PLAYER, sizeof(net_tcp_delete_player_t), &del_player);
-		ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+		ssp_io_push_ref(&client->tcp_io, NET_TCP_DELETE_PLAYER, sizeof(net_tcp_delete_player_t), &del_player);
+		ssp_tcp_send_io(&client->tcp_sock, &client->tcp_io);
 	});
 }
 
@@ -83,7 +83,7 @@ on_player_changed(cg_player_t* player, server_t* server)
 	move->absolute = false;
 
 	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
+		ssp_io_push_ref(&client->udp_io, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
 	});
 }
 
@@ -103,7 +103,7 @@ server_on_player_gun_changed(cg_player_t* player, server_t* server)
 
 	GHT_FOREACH(client_t* client, clients, 
 	{
-		ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_GUN_STATE, sizeof(net_udp_player_gun_state_t), gun_state_out);
+		ssp_io_push_ref_i(&client->udp_io, NET_UDP_PLAYER_GUN_STATE, sizeof(net_udp_player_gun_state_t), gun_state_out);
 	});
 }
 
@@ -122,8 +122,8 @@ server_send_rewind_bullet(client_t* client, cg_bullet_t* bullet)
 	if (client->player == NULL || client->player->id == bullet->owner_id)
 		return;
 
-	ssp_segbuf_hook_add_i(&client->udp_buf, NET_UDP_BULLET, sizeof(net_udp_bullet_t), bullet, 
-					   (ssp_serialize_hook_t)serialize_bullet);
+	ssp_io_push_hook_ref_i(&client->udp_io, NET_UDP_BULLET, sizeof(net_udp_bullet_t), bullet, 
+					   (ssp_copy_hook_t)serialize_bullet);
 }
 
 void
@@ -180,13 +180,13 @@ on_player_damaged(cg_player_t* target_player, cg_player_t* attacker_player, serv
 	}
 
 	GHT_FOREACH(client_t* client, clients, {
-		ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_HEALTH, sizeof(net_udp_player_health_t), health);
+		ssp_io_push_ref_i(&client->udp_io, NET_UDP_PLAYER_HEALTH, sizeof(net_udp_player_health_t), health);
 		if (move)
 		{
-			ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
-			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_DIED, sizeof(net_udp_player_died_t), player_died);
-			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), target_stats);
-			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), attacker_stats);
+			ssp_io_push_ref_i(&client->udp_io, NET_UDP_PLAYER_MOVE, sizeof(net_udp_player_move_t), move);
+			ssp_io_push_ref(&client->udp_io, NET_UDP_PLAYER_DIED, sizeof(net_udp_player_died_t), player_died);
+			ssp_io_push_ref(&client->udp_io, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), target_stats);
+			ssp_io_push_ref(&client->udp_io, NET_UDP_PLAYER_STATS, sizeof(net_udp_player_stats_t), attacker_stats);
 		}
 	});
 }
@@ -216,13 +216,13 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 	printf("Client '%s' (%s) got %u for session ID.\n", 
 			connect->username, client->tcp_sock.ipstr, session->session_id);
 
-	ssp_segbuf_add(&client->tcp_buf, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), session);
-	ssp_segbuf_add(&client->tcp_buf, NET_TCP_CG_MAP, server->disk_map_size, server->disk_map);
-	ssp_segbuf_add(&client->tcp_buf, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), udp_info);
+	ssp_io_push_ref(&client->tcp_io, NET_TCP_SESSION_ID, sizeof(net_tcp_sessionid_t), session);
+	ssp_io_push_ref(&client->tcp_io, NET_TCP_CG_MAP, server->disk_map_size, server->disk_map);
+	ssp_io_push_ref(&client->tcp_io, NET_TCP_UDP_INFO, sizeof(net_tcp_udp_info_t), udp_info);
 
 	const cg_gun_spec_t* gun_specs = (const cg_gun_spec_t*)server->game.gun_specs.buf;
 	for (u32 i = 0; i < server->game.gun_specs.count; i++)
-		ssp_segbuf_add(&client->tcp_buf, NET_TCP_GUN_SPEC, sizeof(cg_gun_spec_t), gun_specs + i);
+		ssp_io_push_ref(&client->tcp_io, NET_TCP_GUN_SPEC, sizeof(cg_gun_spec_t), gun_specs + i);
 
 	broadcast_new_player(server, client);
 
@@ -244,7 +244,7 @@ player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_c
 
 	GHT_FOREACH(client_t* client, clients, {
 		if (client != source_client)
-			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_CURSOR, sizeof(net_udp_player_cursor_t), new_cursor);
+			ssp_io_push_ref(&client->udp_io, NET_UDP_PLAYER_CURSOR, sizeof(net_udp_player_cursor_t), new_cursor);
 	});
 }
 
@@ -269,8 +269,8 @@ udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client
 	out_pong->t_server_ms = server->game.sbsm->present->timestamp;
 	out_pong->recv_s = segment->packet->timestamp;
 
-	ssp_segbuf_hook_add(&source_client->udp_buf, NET_UDP_PONG, sizeof(net_udp_pingpong_t), out_pong, 
-					 (ssp_serialize_hook_t)udp_ping_set_client_time);
+	ssp_io_push_hook_ref(&source_client->udp_io, NET_UDP_PONG, sizeof(net_udp_pingpong_t), out_pong, 
+					 (ssp_copy_hook_t)udp_ping_set_client_time);
 }
 
 void 
@@ -286,14 +286,14 @@ player_ping(const ssp_segment_t* segment, server_t* server, client_t* source_cli
 	net_udp_player_ping_t* client_ping = mmframes_alloc(&server->mmf, sizeof(net_udp_player_ping_t));
 	ght_t* clients = &server->clients;
 
-	ssp_segbuf_set_rtt(&source_client->udp_buf, og_client_ping->ms);
+	ssp_io_set_rtt(&source_client->udp_io, og_client_ping->ms);
 
 	client_ping->ms = og_client_ping->ms;
 	client_ping->player_id = source_client->player->id;
 
 	GHT_FOREACH(client_t* client, clients, {
 		if (client != source_client)
-			ssp_segbuf_add(&client->udp_buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), client_ping);
+			ssp_io_push_ref(&client->udp_io, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), client_ping);
 	});
 }
 
@@ -318,8 +318,8 @@ chat_msg(const ssp_segment_t* segment, server_t* server, client_t* source_client
 	GHT_FOREACH(client_t* client, clients, {
 		if (client->player)
 		{
-			ssp_segbuf_add(&client->tcp_buf, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), &new_msg);
-			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+			ssp_io_push_ref(&client->tcp_io, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), &new_msg);
+			ssp_tcp_send_io(&client->tcp_sock, &client->tcp_io);
 		}
 	});
 }
@@ -340,7 +340,7 @@ player_gun_id(const ssp_segment_t* segment, server_t* server, client_t* source_c
 
 		GHT_FOREACH(client_t* client, clients, {
 			if (client->player)
-				ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
+				ssp_io_push_ref_i(&client->udp_io, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
 		});
 	}
 	else
@@ -348,7 +348,7 @@ player_gun_id(const ssp_segment_t* segment, server_t* server, client_t* source_c
 		/* If changing gun failed, the the source client know */
 		udp_player_gun_id->gun_id = source_client->player->gun->spec->id;
 
-		ssp_segbuf_add_i(&source_client->udp_buf, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
+		ssp_io_push_ref_i(&source_client->udp_io, NET_UDP_PLAYER_GUN_ID, sizeof(net_udp_player_gun_id_t), udp_player_gun_id);
 	}
 }
 
@@ -368,7 +368,7 @@ player_input(const ssp_segment_t* segment, server_t* server, client_t* source_cl
 	GHT_FOREACH(client_t* client, clients, 
 	{
 		if (client->player && client != source_client)
-			ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
+			ssp_io_push_ref_i(&client->udp_io, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
 	});
 }
 
@@ -411,8 +411,8 @@ bot_mode(const ssp_segment_t* segment, server_t* server, client_t* source_client
 	{
 		if (client->player)
 		{
-			ssp_segbuf_add(&client->tcp_buf, NET_TCP_USERNAME_CHANGE, sizeof(net_tcp_username_change_t), &username_out);
-			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+			ssp_io_push_ref(&client->tcp_io, NET_TCP_USERNAME_CHANGE, sizeof(net_tcp_username_change_t), &username_out);
+			ssp_tcp_send_io(&client->tcp_sock, &client->tcp_io);
 		}
 	});
 }

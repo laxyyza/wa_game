@@ -12,7 +12,7 @@ server_add_data_all_udp_clients(server_t* server, u8 type, const void* data, u16
 	GHT_FOREACH(client_t* client, clients, 
 	{
 		if (client->player && client->player->id != ignore_player_id)
-			ssp_segbuf_add(&client->udp_buf, type, size, data);
+			ssp_io_push_ref(&client->udp_io, type, size, data);
 	});
 }
 
@@ -25,7 +25,7 @@ server_add_data_all_udp_clients_i(server_t* server, u8 type, const void* data, u
 	GHT_FOREACH(client_t* client, clients, 
 	{
 		if (client->player && client->player->id != ignore_player_id)
-			ssp_segbuf_add_i(&client->udp_buf, type, size, data);
+			ssp_io_push_ref_i(&client->udp_io, type, size, data);
 	});
 }
 
@@ -97,7 +97,15 @@ read_client(server_t* server, event_t* event)
 		server_close_event(server, event);
 	else
 	{
-		ret = ssp_parse_buf(&server->netdef.ssp_ctx, &client->tcp_buf, buf, bytes_read, client, server->current_time);
+		ssp_io_process_params_t params = {
+			.io = &client->tcp_io,
+			.buf = buf,
+			.size = bytes_read,
+			.peer_data = client,
+			.timestamp_s = server->current_time
+		};
+
+		ret = ssp_io_process(&params);
 		if (ret == SSP_FAILED)
 		{
 			printf("Client (%s) sent invalid packet. Closing client.\n",
@@ -117,8 +125,8 @@ server_close_client(server_t* server, client_t* client)
 
 	if (server->running == false && client->player)
 	{
-		ssp_segbuf_add(&client->tcp_buf, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
-		ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+		ssp_io_push_ref(&client->tcp_io, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
+		ssp_tcp_send_io(&client->tcp_sock, &client->tcp_io);
 	}
 
 	ssp_tcp_sock_close(&client->tcp_sock);
@@ -131,8 +139,8 @@ server_close_client(server_t* server, client_t* client)
 		coregame_free_player(&server->game, client->player);
 	}
 
-	ssp_segbuf_destroy(&client->udp_buf);
-	ssp_segbuf_destroy(&client->tcp_buf);
+	ssp_io_deinit(&client->udp_io);
+	ssp_io_deinit(&client->tcp_io);
 	if (client->og_username)
 		free(client->og_username);
 	ght_del(&server->clients, client->session_id);
@@ -196,7 +204,16 @@ server_read_udp_packet(server_t* server, event_t* event)
 	if ((server->stats.udp_pps_in_bytes += bytes_read) > server->stats.udp_pps_in_bytes_highest)
 		server->stats.udp_pps_in_bytes_highest = server->stats.udp_pps_in_bytes;
 
-	ret = ssp_parse_buf(&server->netdef.ssp_ctx, NULL, buf, bytes_read, &info, timestamp_s);
+	ssp_io_process_params_t params = {
+		.ctx = &server->netdef.ssp_ctx,
+		.io = NULL,
+		.buf = buf,
+		.size = bytes_read,
+		.peer_data = &info,
+		.timestamp_s = timestamp_s
+	};
+
+	ret = ssp_io_process(&params);
 	if (ret == SSP_FAILED)
 		printf("Invalid UDP packet (%zu bytes) from %s:%u.\n", bytes_read, info.ipaddr, info.port);
 
@@ -205,23 +222,24 @@ server_read_udp_packet(server_t* server, event_t* event)
 }
 
 static void
-server_ask_client_reconnect(server_t* server, udp_addr_t* client)
+server_ask_client_reconnect(UNUSED server_t* server, UNUSED udp_addr_t* client)
 {
-	ssp_packet_t* packet = ssp_insta_packet(&server->segbuf, NET_UDP_DO_RECONNECT, NULL, 0);
-	
-	if (sendto(server->udp_fd, packet->buf, packet->size, 0, 
-			(struct sockaddr*)&client->addr, client->addr_len) == -1)
-	{
-		perror("server_ask_client_reconnect sendto");
-		goto free_packet;
-	}
+	printf("TODO: Implement server_ask_client_reconnect()\n");
+	// ssp_packet_t* packet = ssp_insta_packet(&server->io, NET_UDP_DO_RECONNECT, NULL, 0);
+	// 
+	// if (sendto(server->udp_fd, packet->buf, packet->size, 0, 
+	// 		(struct sockaddr*)&client->addr, client->addr_len) == -1)
+	// {
+	// 	perror("server_ask_client_reconnect sendto");
+	// 	goto free_packet;
+	// }
 
-free_packet:
-	ssp_packet_free(packet);
+// free_packet:
+// 	ssp_packet_free(packet);
 }
 
 bool 
-server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_segbuf_t** segbuf)
+server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_io_t** io)
 {
 	client_t* client;
 
@@ -259,7 +277,7 @@ server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data,
 		client->udp_connected = true;
 	}
 	*new_source = client;
-	*segbuf = &client->udp_buf;
+	*io = &client->udp_io;
 	client->last_packet_time = server->timer.start_time_s;
 
 	return true;
@@ -340,21 +358,21 @@ server_prepare_udp_client(server_t* server, client_t* client)
 	if (server->send_stats && client->want_stats)
 	{
 		server->stats.udp_pps_out++;
-		server->stats.udp_pps_out_bytes += ssp_segbuf_serialized_size(&client->udp_buf, NULL) + sizeof(server_stats_t);
+		server->stats.udp_pps_out_bytes += ssp_io_ref_ring_size(&client->udp_io) + sizeof(server_stats_t);
 		if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
 			server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
 
-		server->stats.tx.rto = client->udp_buf.rto;
-		server->stats.tx.total_packets = client->udp_buf.out_total_packets;
+		server->stats.tx.rto = client->udp_io.tx.rto;
+		server->stats.tx.total_packets = client->udp_io.tx.total_packets;
 
-		server->stats.rx.lost = client->udp_buf.sliding_window.lost_packets;
-		server->stats.rx.dropped = client->udp_buf.in_dropped_packets;
-		server->stats.rx.total_packets = client->udp_buf.in_total_packets;
+		server->stats.rx.lost = client->udp_io.rx.window.lost_packets;
+		server->stats.rx.dropped = client->udp_io.rx.dropped_packets;
+		server->stats.rx.total_packets = client->udp_io.rx.total_packets;
 
-		ssp_segbuf_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
+		ssp_io_push_ref(&client->udp_io, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
 	}
 
-	ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
+	ssp_packet_t* packet = ssp_io_serialize(&client->udp_io);
 	if (packet)
 	{
 		packet->timestamp = server->current_time;
@@ -368,7 +386,7 @@ server_prepare_udp_client(server_t* server, client_t* client)
 		server_buffer_packet(server, packet, client);
 	}
 
-	while ((packet = ssp_segbuf_get_resend_packet(&client->udp_buf, server->current_time)))
+	while ((packet = ssp_io_find_expired_packet(&client->udp_io, server->current_time)))
 	{
 		if (!(server->send_stats && client->want_stats))
 		{
@@ -379,7 +397,7 @@ server_prepare_udp_client(server_t* server, client_t* client)
 		server_buffer_packet(server, packet, client);
 	}
 
-	ssp_parse_sliding_window(&server->netdef.ssp_ctx, &client->udp_buf, client);
+	ssp_io_process_window(&client->udp_io, client);
 }
 
 static inline void
@@ -563,8 +581,8 @@ server_cleanup_clients(server_t* server)
 	GHT_FOREACH(client_t* client, clients, {
 		if (client->player)
 		{
-			ssp_segbuf_add(&client->tcp_buf, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
-			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+			ssp_io_push_ref(&client->tcp_io, NET_TCP_SERVER_SHUTDOWN, 0, NULL);
+			ssp_tcp_send_io(&client->tcp_sock, &client->tcp_io);
 		}
 		server_close_client(server, client);
 	});
@@ -580,7 +598,7 @@ server_cleanup(server_t* server)
 	server_cleanup_clients(server);
 	ssp_tcp_sock_close(&server->tcp_sock);
 	signalfd_close(server);
-	ssp_segbuf_destroy(&server->segbuf);
+	ssp_io_deinit(&server->io);
 	free(server->disk_map);
 
 	if (server->timerfd > 0 && close(server->timerfd) == -1)

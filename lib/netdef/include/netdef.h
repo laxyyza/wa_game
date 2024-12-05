@@ -200,7 +200,7 @@ typedef struct
 typedef struct 
 {
 	coregame_t* coregame;
-	ssp_ctx_t ssp_ctx;
+	ssp_io_ctx_t ssp_ctx;
 } netdef_t;
 
 typedef struct 

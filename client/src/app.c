@@ -201,9 +201,6 @@ waapp_argv(waapp_t* app, i32 argc, char* const* argv, bool* fullscreen)
 			case 'h':
 				waapp_print_help(argv[0]);
 				return -1;
-			case 's':
-				app->net.def.ssp_ctx.debug = true;
-				break;
 			case 'b':
 				app->bot = true;
 				break;

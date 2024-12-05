@@ -14,11 +14,10 @@ netdef_init(netdef_t* netdef, coregame_t* coregame,
 			const ssp_segment_callback_t callbacks_override[NET_SEGTYPES_LEN])
 {
 	netdef->coregame = coregame;
-	ssp_ctx_init(&netdef->ssp_ctx);
-	ssp_set_magic(ssp_checksum32(VERSION, sizeof(VERSION)));
-	netdef->ssp_ctx.segment_type_str = (void*)netdef_segtypes_str;
+	const u32 magic = ssp_checksum32(VERSION, sizeof(VERSION)); 
+	ssp_io_ctx_init(&netdef->ssp_ctx, magic, 0);
 
-	ssp_segment_callback(&netdef->ssp_ctx, NET_DEBUG_MSG, tcp_debug_msg);
+	ssp_io_ctx_register_dispatch(&netdef->ssp_ctx, NET_DEBUG_MSG, tcp_debug_msg);
 
 	if (callbacks_override)
 	{
@@ -26,15 +25,14 @@ netdef_init(netdef_t* netdef, coregame_t* coregame,
 		{
 			const ssp_segment_callback_t* callback = callbacks_override + i;
 			if (*callback != NULL)
-				ssp_segment_callback(&netdef->ssp_ctx, i, *callback);
+				ssp_io_ctx_register_dispatch(&netdef->ssp_ctx, i, *callback);
 		}
 	}
 }
 
 void 
-netdef_destroy(netdef_t* netdef)
+netdef_destroy(UNUSED netdef_t* netdef)
 {
-	ssp_ctx_destroy(&netdef->ssp_ctx);
 }
 
 const char* 

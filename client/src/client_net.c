@@ -129,7 +129,7 @@ session_id(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 
 	app->net.session_id = sessionid->session_id;
 	app->net.player_id = sessionid->player_id;
-	app->net.udp.buf.session_id = sessionid->session_id;
+	app->net.udp.io.session_id = sessionid->session_id;
 
 	debug("Got Session ID: %u, player ID: %u\n",
 		sessionid->session_id, sessionid->player_id);
@@ -153,13 +153,13 @@ client_net_on_connect(waapp_t* app)
 	strncpy(connect.username, username, PLAYER_NAME_MAX);
 	net_tcp_bot_mode_t bot_mode;
 
-	ssp_segbuf_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
+	ssp_io_push_ref(&net->tcp.io, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
 	if (app->bot)
 	{
 		bot_mode.is_bot = app->bot;
-		ssp_segbuf_add(&net->tcp.buf, NET_TCP_BOT_MODE, sizeof(net_tcp_bot_mode_t), &bot_mode);
+		ssp_io_push_ref(&net->tcp.io, NET_TCP_BOT_MODE, sizeof(net_tcp_bot_mode_t), &bot_mode);
 	}
-	ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
+	ssp_tcp_send_io(&net->tcp.sock, &net->tcp.io);
 
 	client_net_udp_init(app);
 
@@ -319,7 +319,17 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 	if ((bytes_read = recv(fdev->fd, buf, BUFFER_SIZE, 0)) == -1)
 		perror("tcp_recv");
 	else
-		ssp_parse_buf(&app->net.def.ssp_ctx, &app->net.tcp.buf, buf, bytes_read, NULL, 0);
+	{
+		ssp_io_process_params_t params = {
+			.ctx = NULL,
+			.io = &app->net.tcp.io,
+			.buf = buf,
+			.size = bytes_read,
+			.peer_data = NULL,
+			.timestamp_s = 0,
+		};
+		ssp_io_process(&params);
+	}
 	free(buf);
 }
 
@@ -366,7 +376,16 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 	net->udp.in.count++;
 	net->def.ssp_ctx.current_time = app->timer.start_time_s;
 
-	if ((ret = ssp_parse_buf(&net->def.ssp_ctx, &net->udp.buf, buf, bytes_read, &addr, net->def.ssp_ctx.current_time)) == SSP_FAILED)
+	ssp_io_process_params_t params = {
+		.ctx = NULL,
+		.io = &net->udp.io,
+		.buf = buf, 
+		.size = bytes_read,
+		.peer_data = &addr,
+		.timestamp_s = net->def.ssp_ctx.current_time
+	};
+
+	if ((ret = ssp_io_process(&params)) == SSP_FAILED)
 		errorf("Invalid UDP Packet!\n");
 
 	if (ret != SSP_BUFFERED)
@@ -433,7 +452,7 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 
 	app->net.udp.port = info->port;
 
-	ssp_segbuf_init(&app->net.udp.buf, 10, info->ssp_flags);
+	ssp_io_init(&app->net.udp.io, &app->net.def.ssp_ctx, info->ssp_flags);
 
 	waapp_state_switch(app, &app->sm.states.game);
 }
@@ -467,9 +486,9 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 
 	app->game->player->core->stats.ping = player_ping->ms = net->udp.latency = rtt_ms;
 
-	ssp_segbuf_set_rtt(&net->udp.buf, player_ping->ms);
+	ssp_io_set_rtt(&net->udp.io, player_ping->ms);
 
-	ssp_segbuf_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
+	ssp_io_push_ref(&net->udp.io, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
 	if (app->game->ignore_auto_interp)
 		return;
 
@@ -584,7 +603,7 @@ static bool
 net_verify_session(u32 session_id, waapp_t* app, 
 				   UNUSED void* source_data, 
 				   UNUSED void** new_source, 
-				   UNUSED ssp_segbuf_t* segbuf)
+				   UNUSED ssp_io_t* io)
 {
 	return session_id == app->net.session_id;
 }
@@ -636,7 +655,7 @@ client_net_init(waapp_t* app)
 	waapp_wayland_add_fdevent(app);
 #endif
 
-	ssp_segbuf_init(&net->tcp.buf, 10, 0);
+	ssp_io_init(&net->tcp.io, &net->def.ssp_ctx, 0);
 
 	return ret;
 }
@@ -883,7 +902,7 @@ client_net_ping_server(waapp_t* app)
 	if (app->net.udp.port == 0)
 		return;
 
-	ssp_segbuf_hook_add(&app->net.udp.buf, NET_UDP_PING, sizeof(f64), NULL, (ssp_serialize_hook_t)client_net_ping_timestamp);
+	ssp_io_push_hook_ref(&app->net.udp.io, NET_UDP_PING, sizeof(f64), NULL, (ssp_copy_hook_t)client_net_ping_timestamp);
 }
 
 void 
@@ -923,11 +942,11 @@ client_net_try_udp_flush(waapp_t* app)
 	const f64 current_time = app->timer.start_time_s;
 
 	net->def.ssp_ctx.current_time = app->timer.start_time_s;
-	ssp_parse_sliding_window(&net->def.ssp_ctx, &net->udp.buf, NULL);
+	ssp_io_process_window(&net->udp.io, NULL);
 
 	if (elapsed_time >= net->udp.interval)
 	{
-		ssp_packet_t* packet = ssp_serialize_packet(&net->udp.buf);
+		ssp_packet_t* packet = ssp_io_serialize(&net->udp.io);
 
 		if (packet)
 		{
@@ -935,7 +954,7 @@ client_net_try_udp_flush(waapp_t* app)
 			client_udp_send(app, packet);
 		}
 
-		while ((packet = ssp_segbuf_get_resend_packet(&net->udp.buf, current_time)))
+		while ((packet = ssp_io_find_expired_packet(&net->udp.io, current_time)))
 			client_udp_send(app, packet);
 
 		mmframes_clear(&app->mmf);
@@ -963,7 +982,7 @@ client_net_cleanup(waapp_t* app)
 	array_del(&net->events);
 
 	ssp_tcp_sock_close(&app->net.tcp.sock);
-	ssp_segbuf_destroy(&app->net.tcp.buf);
+	ssp_io_deinit(&app->net.tcp.io);
 
 #ifdef __linux__
 	close(net->epfd);

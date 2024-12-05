@@ -69,7 +69,7 @@ typedef struct server
 	bool send_stats;
 	bool reset_stats;
 
-	ssp_segbuf_t segbuf;
+	ssp_io_t io;
 	array_t packet_tx_buf;
 	array_t tx_msgs;
 	u32		total_tx_size;
@@ -82,7 +82,7 @@ void server_close_client(server_t* server, client_t* client);
 
 void server_timerfd_timeout(server_t* server, event_t* event);
 void signalfd_read(server_t* server, event_t* event);
-bool server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_segbuf_t** segbuf);
+bool server_verify_session(u32 session_id, server_t* server, udp_addr_t* source_data, void** new_source, ssp_io_t** io);
 void server_read_udp_packet(server_t* server, event_t* event);
 void server_handle_new_connection(server_t* server, UNUSED event_t* event);
 void event_signalfd_close(server_t* server, UNUSED event_t* ev);

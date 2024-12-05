@@ -256,8 +256,8 @@ game_send_bot_mode(client_game_t* game)
 {
 	net_tcp_bot_mode_t mode = {.is_bot = game->bot};
 
-	ssp_segbuf_add(&game->net->tcp.buf, NET_TCP_BOT_MODE, sizeof(net_tcp_bot_mode_t), &mode);
-	ssp_tcp_send_segbuf(&game->net->tcp.sock, &game->net->tcp.buf);
+	ssp_io_push_ref(&game->net->tcp.io, NET_TCP_BOT_MODE, sizeof(net_tcp_bot_mode_t), &mode);
+	ssp_tcp_send_io(&game->net->tcp.sock, &game->net->tcp.io);
 }
 
 static void
@@ -345,22 +345,22 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 
 			nk_label(ctx, "TOTAL:", NK_TEXT_CENTERED);
 			snprintf(label, UI_LABEL_SIZE, "%u", 
-					game->net->udp.buf.in_total_packets);
+					game->net->udp.io.rx.total_packets);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_label(ctx, "DROPPED:", NK_TEXT_CENTERED);
 			snprintf(label, UI_LABEL_SIZE, "%u", 
-					game->net->udp.buf.in_dropped_packets);
+					game->net->udp.io.rx.dropped_packets);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_label(ctx, "LOST:", NK_TEXT_CENTERED);
 			snprintf(label, UI_LABEL_SIZE, "%u", 
-					game->net->udp.buf.sliding_window.lost_packets);
+					game->net->udp.io.rx.window.lost_packets);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_label(ctx, "BUFFERED:", NK_TEXT_CENTERED);
 			snprintf(label, UI_LABEL_SIZE, "%u", 
-					game->net->udp.buf.sliding_window.count);
+					game->net->udp.io.rx.window.count);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_group_end(ctx);
@@ -378,17 +378,17 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 
 			nk_label(ctx, "TOTAL:", NK_TEXT_CENTERED);
 			snprintf(label, UI_LABEL_SIZE, "%u", 
-					game->net->udp.buf.out_total_packets);
+					game->net->udp.io.tx.total_packets);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_label(ctx, "RTO:", NK_TEXT_CENTERED);
 			snprintf(label, UI_LABEL_SIZE, "%u", 
-					game->net->udp.buf.rto);
+					game->net->udp.io.tx.rto);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_label(ctx, "BUFFERED:", NK_TEXT_CENTERED);
 			snprintf(label, UI_LABEL_SIZE, "%u", 
-					game->net->udp.buf.important_packets.count);
+					game->net->udp.io.tx.pending.count);
 			nk_label(ctx, label, NK_TEXT_LEFT);
 
 			nk_group_end(ctx);
@@ -468,8 +468,8 @@ game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 			app->get_server_stats = !get_server_stats;
 
 			net_tcp_want_server_stats_t want_stats = {app->get_server_stats};
-			ssp_segbuf_add(&app->net.tcp.buf, NET_TCP_WANT_SERVER_STATS, sizeof(net_tcp_want_server_stats_t), &want_stats);
-			ssp_tcp_send_segbuf(&app->net.tcp.sock, &app->net.tcp.buf);
+			ssp_io_push_ref(&app->net.tcp.io, NET_TCP_WANT_SERVER_STATS, sizeof(net_tcp_want_server_stats_t), &want_stats);
+			ssp_tcp_send_io(&app->net.tcp.sock, &app->net.tcp.io);
 		}
 
 		if (app->get_server_stats)

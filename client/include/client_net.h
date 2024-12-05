@@ -62,7 +62,7 @@ typedef struct
 
 	udp_addr_t server;
 
-	ssp_segbuf_t buf;
+	ssp_io_t io;
 
 	hr_time_t inout_start_time;
 	hr_time_t send_start_time;
@@ -101,7 +101,7 @@ typedef struct
 
 	struct {
 		ssp_tcp_sock_t	sock;
-		ssp_segbuf_t	buf;
+		ssp_io_t		io;
 		fdevent_t*		fdev;
 	} tcp;
 

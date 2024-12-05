@@ -11,8 +11,8 @@ typedef struct
 	u32				session_id;
 	cg_player_t*	player;
 	ssp_tcp_sock_t	tcp_sock;
-	ssp_segbuf_t	tcp_buf;
-	ssp_segbuf_t	udp_buf;
+	ssp_io_t		tcp_io;
+	ssp_io_t		udp_io;
 	udp_addr_t		udp;
 	char*			og_username;
 	bool			udp_connected;

@@ -56,7 +56,7 @@ game_lock_cam(client_game_t* game)
 	ren_set_view(game->ren, &game->app->cam);
 
 	player->core->cursor = screen_to_world(game->ren, &game->app->mouse);
-	ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &player->core->cursor);
+	ssp_io_push_ref(&game->net->udp.io, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &player->core->cursor);
 }
 
 static void
@@ -80,7 +80,7 @@ game_handle_num_keys(client_game_t* game, const wa_event_key_t* ev)
 	{
 		u32* udp_gun_id = mmframes_alloc(&game->app->mmf, sizeof(u32));
 		*udp_gun_id = gun_id;
-		ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_GUN_ID, sizeof(u32), udp_gun_id);
+		ssp_io_push_ref_i(&game->net->udp.io, NET_UDP_PLAYER_GUN_ID, sizeof(u32), udp_gun_id);
 	}
 }
 
@@ -90,7 +90,7 @@ game_move_bots(client_game_t* game)
 	net_udp_move_bot_t* move_bot = mmframes_alloc(&game->app->mmf, sizeof(net_udp_move_bot_t));
 	move_bot->pos = game->player->core->cursor;
 
-	ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_MOVE_BOT, sizeof(net_udp_move_bot_t), move_bot);
+	ssp_io_push_ref_i(&game->net->udp.io, NET_UDP_MOVE_BOT, sizeof(net_udp_move_bot_t), move_bot);
 }
 
 static void
@@ -183,7 +183,7 @@ game_handle_pointer(client_game_t* game, UNUSED const wa_event_pointer_t* ev)
 	if (game->player)
 	{
 		game->player->core->cursor = screen_to_world(game->ren, &game->app->mouse);
-		ssp_segbuf_add(&game->net->udp.buf, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &game->player->core->cursor);
+		ssp_io_push_ref(&game->net->udp.io, NET_UDP_PLAYER_CURSOR, sizeof(vec2f_t), &game->player->core->cursor);
 	}
 }
 
@@ -284,8 +284,8 @@ game_update_logic(client_game_t* game)
 		coregame_set_player_input(player->core, player->input);
 		game->ignore_server_pos = true;
 
-		ssp_segbuf_hook_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), game, 
-						(ssp_serialize_hook_t)game_serialize_player_input);
+		ssp_io_push_hook_ref_i(&game->net->udp.io, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), game, 
+						(ssp_copy_hook_t)game_serialize_player_input);
 		game->prev_input = player->input;
 	}
 
@@ -326,8 +326,8 @@ game_send_chatmsg(client_game_t* game, const char* msg)
 	net_tcp_chat_msg_t* chatmsg = mmframes_alloc(&game->app->mmf, sizeof(net_tcp_chat_msg_t));
 	strncpy(chatmsg->msg, msg, CHAT_MSG_MAX - 1);
 
-	ssp_segbuf_add(&game->net->tcp.buf, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), chatmsg);
-	ssp_tcp_send_segbuf(&game->net->tcp.sock, &game->net->tcp.buf);
+	ssp_io_push_ref(&game->net->tcp.io, NET_TCP_CHAT_MSG, sizeof(net_tcp_chat_msg_t), chatmsg);
+	ssp_tcp_send_io(&game->net->tcp.sock, &game->net->tcp.io);
 }
 
 static void 
@@ -394,7 +394,7 @@ game_on_player_reload(cg_player_t* player, client_game_t* game)
 	if (player->id != game->player->core->id)
 		return;
 
-	ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_RELOAD, 0, NULL);
+	ssp_io_push_ref_i(&game->net->udp.io, NET_UDP_PLAYER_RELOAD, 0, NULL);
 }
 
 static inline void
@@ -578,7 +578,7 @@ game_cleanup(waapp_t* app, client_game_t* game)
 	array_del(&game->player_deaths);
 	array_del(&game->chat_msgs);
 	coregame_cleanup(&game->cg);
-	ssp_segbuf_destroy(&app->net.udp.buf);
+	ssp_io_deinit(&app->net.udp.io);
 	client_net_disconnect(app);
 	game->player = NULL;
 	app->game = NULL;
