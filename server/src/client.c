@@ -3,7 +3,9 @@
 #include <sys/random.h>
 
 #define COMPRESSION_THRESHOLD 1000
-#define COMPRESSION_LEVEL 5
+#define UDP_COMPRESSION_THRESHOLD 1400
+#define COMPRESSION_LEVEL 9
+#define UDP_COMPRESSION_LEVEL 2
 
 client_t* 
 accept_client(server_t* server)
@@ -27,8 +29,8 @@ accept_client(server_t* server)
 
 	ssp_segbuf_init(&client->udp_buf, 20, SSP_FLAGS);
 	client->udp_buf.compression.auto_do = true;
-	client->udp_buf.compression.threshold = COMPRESSION_THRESHOLD; // Only do compression over this.
-	client->udp_buf.compression.level = 1;
+	client->udp_buf.compression.threshold = UDP_COMPRESSION_THRESHOLD; // Only do compression over this.
+	client->udp_buf.compression.level = UDP_COMPRESSION_LEVEL;
 
 	getrandom(&client->session_id, sizeof(u32), 0);
 	client->udp_buf.session_id = client->session_id;
