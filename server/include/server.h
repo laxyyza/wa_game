@@ -72,7 +72,7 @@ typedef struct server
 	ssp_segbuf_t segbuf;
 	array_t packet_tx_buf;
 	array_t tx_msgs;
-	array_t tx_iov;
+	u32		total_tx_size;
 } server_t;
 
 i32 server_init(server_t* server, i32 argc, char* const* argv);

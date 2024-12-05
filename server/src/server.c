@@ -312,9 +312,11 @@ event_signalfd_close(server_t* server, UNUSED event_t* ev)
 static inline void 
 server_buffer_packet(server_t* server, const ssp_packet_t* packet, client_t* client)
 {
-	struct iovec* iov = array_add_into(&server->tx_iov);
+	struct iovec* iov = mmframes_alloc(&server->mmf, sizeof(struct iovec));
 	iov->iov_base = packet->buf;
 	iov->iov_len = packet->size;
+
+	server->total_tx_size += packet->size;
 
 	struct mmsghdr* msgvec = array_add_into(&server->tx_msgs);
 	msgvec->msg_hdr.msg_name = &client->udp.addr;
@@ -383,7 +385,7 @@ server_prepare_udp_client(server_t* server, client_t* client)
 static inline void
 server_sendmmsg(server_t* server)
 {
-	if (server->tx_msgs.count == 0)
+	if (server->packet_tx_buf.count == 0)
 		return;
 
 	struct mmsghdr* msgvec = (struct mmsghdr*)server->tx_msgs.buf;
@@ -402,7 +404,7 @@ server_sendmmsg(server_t* server)
 
 	array_clear(&server->packet_tx_buf, false);
 	array_clear(&server->tx_msgs, false);
-	array_clear(&server->tx_iov, false);
+	server->total_tx_size = 0;
 }
 
 static void 
@@ -574,8 +576,6 @@ void
 server_cleanup(server_t* server)
 {
 	array_del(&server->packet_tx_buf);
-	array_del(&server->tx_msgs);
-	array_del(&server->tx_iov);
 	server_close_all_events(server);
 	server_cleanup_clients(server);
 	ssp_tcp_sock_close(&server->tcp_sock);

@@ -347,12 +347,11 @@ server_init(server_t* server, i32 argc, char* const* argv)
 	if (server_init_timerfd(server) == -1)
 		goto err;
 	server_init_netdef(server);
-	mmframes_init(&server->mmf);
+	mmframes_init2(&server->mmf, MMF_DEFAULT_FRAME_SIZE * 4);
 	ssp_segbuf_init(&server->segbuf, 4, 0);
 
 	array_init(&server->packet_tx_buf, sizeof(const ssp_packet_t**), 10);
 	array_init(&server->tx_msgs, sizeof(struct mmsghdr), 10);
-	array_init(&server->tx_iov, sizeof(struct iovec), 10);
 
 	nano_timer_init(&server->timer);
 
