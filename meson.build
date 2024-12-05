@@ -3,7 +3,7 @@ project('wa_game', 'c',
         'werror=true',
         'warning_level=2',
         'default_library=static',
-        'c_std=c2x'
+        'c_std=c23'
     ],
     version: run_command('cat', join_paths(meson.project_source_root(), 'VERSION'), check: true).stdout().strip(),
 )

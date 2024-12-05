@@ -85,6 +85,15 @@ game_handle_num_keys(client_game_t* game, const wa_event_key_t* ev)
 }
 
 static void
+game_move_bots(client_game_t* game)
+{
+	net_udp_move_bot_t* move_bot = mmframes_alloc(&game->app->mmf, sizeof(net_udp_move_bot_t));
+	move_bot->pos = game->player->core->cursor;
+
+	ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_MOVE_BOT, sizeof(net_udp_move_bot_t), move_bot);
+}
+
+static void
 game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* ev)
 {
     wa_state_t* state = wa_window_get_state(window);
@@ -158,6 +167,10 @@ game_handle_key(client_game_t* game, wa_window_t* window, const wa_event_key_t* 
 		case WA_KEY_R:
 			if (ev->pressed)
 				coregame_player_reload(&game->cg, game->player->core);
+			break;
+		case WA_KEY_B:
+			if (ev->pressed && state->key_map[WA_KEY_LCTRL])
+				game_move_bots(game);
 			break;
 		default:
 			break;
@@ -239,6 +252,16 @@ on_player_free(cg_player_t* player)
 	free(player->user_data);
 }
 
+static void
+game_serialize_player_input(net_udp_player_input_t* out_input, client_game_t* game, UNUSED u16 size)
+{
+	nano_gettime(&game->app->timer.start_time);
+	game->app->timer.start_time_s = nano_time_s(&game->app->timer.start_time);
+	out_input->timestamp = (sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset) - ((game->net->udp.latency + game->net->udp.jitter) / 2);
+	out_input->timestamp += sec_to_ms(game->net->udp.interval);
+	out_input->flags = game->player->input;
+}
+
 static void 
 game_update_logic(client_game_t* game)
 {
@@ -246,9 +269,6 @@ game_update_logic(client_game_t* game)
 	if (player == NULL)
 		return;
 
-	game->server_time = (sec_to_ms(game->app->timer.start_time_s) + game->net->udp.time_offset_ms) - ((game->net->udp.latency + game->net->udp.jitter) / 2);
-	if (game->pings > 0)
-		game->cg.server_time = game->server_time;
 	coregame_update(&game->cg);
 	progress_bar_update(&game->health_bar);
 	player_update_guncharge(game->player, &game->guncharge_bar);
@@ -261,25 +281,11 @@ game_update_logic(client_game_t* game)
 	}
 	if (game->player->input != game->prev_input)
 	{
-		// coregame_set_player_input_t(&game->cg, player->core, player->input, game->cg.sbsm->present->timestamp);
 		coregame_set_player_input(player->core, player->input);
 		game->ignore_server_pos = true;
 
-		net_udp_player_input_t* input_out = mmframes_alloc(&game->app->mmf, sizeof(net_udp_player_input_t));
-		input_out->timestamp = game->server_time;
-		input_out->flags = player->input;
-		// printf("%u\tSending Input: ", game->net->udp.buf.seqc_sent + 1);
-		// if (input_out->flags & PLAYER_INPUT_LEFT)
-		// 	printf("LEFT ");
-		// if (input_out->flags & PLAYER_INPUT_RIGHT)
-		// 	printf("RIGHT ");
-		// if (input_out->flags & PLAYER_INPUT_UP)
-		// 	printf("UP ");
-		// if (input_out->flags & PLAYER_INPUT_DOWN)
-		// 	printf("DOWN ");
-		// printf("(%u)\n", input_out->flags);
-
-		ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), input_out);
+		ssp_segbuf_hook_add_i(&game->net->udp.buf, NET_UDP_PLAYER_INPUT, sizeof(net_udp_player_input_t), game, 
+						(ssp_serialize_hook_t)game_serialize_player_input);
 		game->prev_input = player->input;
 	}
 
@@ -388,10 +394,47 @@ game_on_player_reload(cg_player_t* player, client_game_t* game)
 	if (player->id != game->player->core->id)
 		return;
 
-	static u32 count = 0;
-	printf("player_reload: %u\n", count++);
-
 	ssp_segbuf_add_i(&game->net->udp.buf, NET_UDP_PLAYER_RELOAD, 0, NULL);
+}
+
+static inline void
+game_head_init(waapp_t* app, client_game_t* game)
+{
+	game->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
+	game->tank_bottom_tex->name = "Tank Bottom";
+	game_load_gun_textures(game);
+
+	const i32 layout[] = {
+		VERTLAYOUT_F32, 2, // vertex position
+		VERTLAYOUT_F32, 2, // position a
+		VERTLAYOUT_F32, 2, // position b
+		VERTLAYOUT_F32, 1, // laser thickness
+		VERTLAYOUT_END
+	};
+	const bro_param_t param = {
+		.draw_mode = DRAW_TRIANGLES,
+		.max_vb_count = 4096,
+		.vert_path = "client/src/shaders/laser_vert.glsl",
+		.frag_path = "client/src/shaders/laser_frag.glsl",
+		.shader = NULL,
+		.vertlayout = layout,
+		.vertex_size = sizeof(laser_vertex_t),
+		.draw_misc = ren_laser_draw_misc,
+		.draw_line = NULL, 
+		.draw_rect = NULL
+	};
+	game->laser_bro = ren_new_bro(game->ren, &param);
+
+	game_set_laser_thickness(game);
+
+	shader_t* shader = &game->laser_bro->shader;
+	shader_bind(shader);
+	shader_uniform1f(shader, "scale", game->ren->scale.x);
+
+	game->show_stats = true;
+	game->game_netdebug = true;
+	wa_state_t* state = wa_window_get_state(app->window);
+	nk_window_show(game->app->nk_ctx, state->window.title, game->show_stats);
 }
 
 void* 
@@ -412,10 +455,8 @@ game_init(waapp_t* app)
 	game->cg.on_bullet_create = (cg_bullet_create_callback_t)game_on_bullet_create;
 	game->cg.player_reload = (cg_player_reload_callback_t)game_on_player_reload;
 
-	game->tank_bottom_tex = texture_load("res/tank_bottom.png", TEXTURE_NEAREST);
-	game->tank_bottom_tex->name = "Tank Bottom";
-
-	game_load_gun_textures(game);
+	if (app->headless == false)
+		game_head_init(app, game);
 
 	game->lock_cam = true;
 
@@ -439,26 +480,6 @@ game_init(waapp_t* app)
 
 	array_init(&game->chat_msgs, sizeof(chatmsg_t), 10);
 
-	const i32 layout[] = {
-		VERTLAYOUT_F32, 2, // vertex position
-		VERTLAYOUT_F32, 2, // position a
-		VERTLAYOUT_F32, 2, // position b
-		VERTLAYOUT_F32, 1, // laser thickness
-		VERTLAYOUT_END
-	};
-	const bro_param_t param = {
-		.draw_mode = DRAW_TRIANGLES,
-		.max_vb_count = 4096,
-		.vert_path = "client/src/shaders/laser_vert.glsl",
-		.frag_path = "client/src/shaders/laser_frag.glsl",
-		.shader = NULL,
-		.vertlayout = layout,
-		.vertex_size = sizeof(laser_vertex_t),
-		.draw_misc = ren_laser_draw_misc,
-		.draw_line = NULL, 
-		.draw_rect = NULL
-	};
-	game->laser_bro = ren_new_bro(game->ren, &param);
 
 	game->small_laser.thickness = 25.0;
 	game->small_laser.len = 60.0;
@@ -466,24 +487,34 @@ game_init(waapp_t* app)
 	game->big_laser.thickness = 400.0;
 	game->big_laser.len = 250.0;
 
-	game_set_laser_thickness(game);
-
-	shader_t* shader = &game->laser_bro->shader;
-	shader_bind(shader);
-	shader_uniform1f(shader, "scale", game->ren->scale.x);
-
-	game->show_stats = true;
-	game->game_netdebug = true;
-	wa_state_t* state = wa_window_get_state(app->window);
-	nk_window_show(game->app->nk_ctx, state->window.title, game->show_stats);
+	game->bot = app->bot;
 
 	return game;
+}
+
+static inline void
+game_set_bot_movement(client_game_t* game)
+{
+	const f64 current_time = game->app->timer.start_time_s;
+	const f64 time_elapsed = current_time - game->last_bot_time;
+
+	if (time_elapsed > game->app->bot_interval)
+	{
+		u8 random_byte = rand();
+
+		game->player->input = random_byte & PLAYER_MOVE_INPUT;
+
+		game->last_bot_time = current_time;
+	}
 }
 
 void 
 game_update(waapp_t* app, client_game_t* game)
 {
 	nano_start_time(&app->timer);
+
+	if (game->bot)
+		game_set_bot_movement(game);
 
 	game_ui_update(game);
 	game_update_logic(game);

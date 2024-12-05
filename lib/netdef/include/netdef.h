@@ -11,37 +11,39 @@
 
 enum segtypes
 {
-	NET_TCP_CONNECT = 0,
-	NET_TCP_SESSION_ID = 1,
-	NET_TCP_NEW_PLAYER = 2,
-	NET_TCP_DELETE_PLAYER = 3,
-	NET_TCP_UDP_INFO = 4,
-	NET_TCP_SERVER_SHUTDOWN = 5,
-	NET_TCP_CG_MAP = 6,
-	NET_TCP_WANT_SERVER_STATS = 7,
-	NET_TCP_CHAT_MSG = 8,
-	NET_TCP_GUN_SPEC = 9,
+	NET_TCP_CONNECT,
+	NET_TCP_SESSION_ID,
+	NET_TCP_NEW_PLAYER,
+	NET_TCP_DELETE_PLAYER,
+	NET_TCP_UDP_INFO,
+	NET_TCP_SERVER_SHUTDOWN,
+	NET_TCP_CG_MAP,
+	NET_TCP_WANT_SERVER_STATS,
+	NET_TCP_CHAT_MSG,
+	NET_TCP_GUN_SPEC,
+	NET_TCP_BOT_MODE,
+	NET_TCP_USERNAME_CHANGE,
 
-	NET_UDP_PLAYER_MOVE = 10,
-	NET_UDP_PLAYER_CURSOR = 11,
-	NET_UDP_PLAYER_HEALTH = 12,
-	NET_UDP_PLAYER_STATS = 13,
-	NET_UDP_PLAYER_DIED = 14,
-	NET_UDP_PLAYER_PING = 15,
-	NET_UDP_PLAYER_GUN_ID = 16,
-	NET_UDP_PLAYER_INPUT = 17,
-	NET_UDP_PLAYER_RELOAD = 18,
-	NET_UDP_PLAYER_GUN_STATE = 19,
+	NET_UDP_PLAYER_MOVE,
+	NET_UDP_PLAYER_CURSOR,
+	NET_UDP_PLAYER_HEALTH,
+	NET_UDP_PLAYER_STATS,
+	NET_UDP_PLAYER_DIED,
+	NET_UDP_PLAYER_PING,
+	NET_UDP_PLAYER_GUN_ID,
+	NET_UDP_PLAYER_INPUT,
+	NET_UDP_PLAYER_RELOAD,
+	NET_UDP_PLAYER_GUN_STATE,
+	NET_UDP_MOVE_BOT,
+	NET_UDP_BULLET,
 
-	NET_UDP_BULLET = 20,
+	NET_UDP_PING,
+	NET_UDP_PONG,
 
-	NET_UDP_PING = 21,
-	NET_UDP_PONG = 22,
+	NET_UDP_SERVER_STATS,
+	NET_UDP_DO_RECONNECT,
 
-	NET_UDP_SERVER_STATS = 23,
-	NET_UDP_DO_RECONNECT = 24,
-
-	NET_DEBUG_MSG = 25,
+	NET_DEBUG_MSG,
 
 	NET_SEGTYPES_LEN
 };
@@ -54,7 +56,7 @@ typedef struct
 	u8 flags;
 	f64 timestamp;
 	u32 player_id;
-} _SSP_PACKED net_udp_player_input_t;
+} net_udp_player_input_t;
 
 typedef struct 
 {
@@ -87,6 +89,17 @@ typedef struct
 
 typedef struct 
 {
+	bool is_bot;
+} net_tcp_bot_mode_t;
+
+typedef struct 
+{
+	u32 player_id;
+	char username[PLAYER_NAME_MAX];
+} net_tcp_username_change_t;
+
+typedef struct 
+{
 	u32 player_id;
 	char msg[CHAT_MSG_MAX];
 } net_tcp_chat_msg_t;
@@ -103,7 +116,7 @@ typedef struct
 {
 	vec2f_t cursor_pos;
 	u32		player_id;
-} _SSP_PACKED net_udp_player_cursor_t;
+} net_udp_player_cursor_t;
 
 typedef struct 
 {
@@ -116,7 +129,7 @@ typedef struct
 	u32 player_id;
 	u16 kills;
 	u16 deaths;
-} _SSP_PACKED net_udp_player_stats_t;
+} net_udp_player_stats_t;
 
 typedef struct 
 {
@@ -126,7 +139,7 @@ typedef struct
 
 typedef struct 
 {
-	f64 t_client_ms;
+	f64 t_client_s;
 	f64 t_server_ms;
 } net_udp_pingpong_t;
 
@@ -147,21 +160,27 @@ typedef struct
 	u32 player_id;
 } net_udp_player_reload_t;
 
-typedef struct
+typedef struct 
 {
 	u32 player_id;
-	u8 gun_id;
-	u16 ammo;	// ammo count 0 means reloading.
+	u32 gun_id;
+	i32 ammo;
 	f32 bullet_timer;
 	f32 charge_timer;
 	f32 reload_timer;
-} _SSP_PACKED net_udp_player_gun_state_t;
+} net_udp_player_gun_state_t;
 
 typedef struct 
 {
-	u32		owner_id;
+	vec2f_t pos;
+} net_udp_move_bot_t;
+
+typedef struct 
+{
+	u32 owner_id;
 	vec2f_t pos;
 	vec2f_t dir;
+	u8		gun_id;
 } net_udp_bullet_t;
 
 typedef struct 
@@ -207,6 +226,20 @@ typedef struct
 	i64 tick_time;
 	i64 tick_time_avg;
 	i64 tick_time_highest;
+
+	struct {
+		u32 dropped;
+		u32 lost;
+		u32 total_packets;
+	} rx;
+
+	struct {
+		u32 rto;
+		u32 total_packets;
+	} tx;
+
+	u32 tcp_connections;
+	u32 players;
 } server_stats_t, udp_server_stats_t;
 
 void netdef_init(netdef_t* netdef, coregame_t* coregame, 

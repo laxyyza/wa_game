@@ -10,7 +10,7 @@ game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 
 	cg_player_t* cg_player = calloc(1, sizeof(cg_player_t));
 	cg_player->id = new_player->id;
-	cg_player->pos = new_player->pos;
+	cg_player->server_pos = cg_player->pos = new_player->pos;
 	cg_player->size = new_player->size;
 	cg_player->dir = new_player->dir;
 	cg_player->cursor = new_player->cursor;
@@ -43,6 +43,8 @@ game_new_player(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		game->guncharge_bar.fill.color = player->guncharge.fill.color;
 
 		game_update_ui_bars_pos(game);
+
+		game->cg.local_player = cg_player;
 	}
 
 	coregame_add_player_from(&app->game->cg, cg_player);
@@ -98,11 +100,10 @@ game_player_move(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 		// else
 		// 	player->ignore_count = 0;
 
+		player->server_pos = server_pos;
+
 		if (dist > app->game->cg.interp_threshold_dist)
-		{
 			player->interpolate = true;
-			player->server_pos = server_pos;
-		}
 		else
 			player->pos = server_pos;
 		
@@ -284,36 +285,62 @@ game_player_reload(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 }
 
 void 
-game_bullet(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
-{
-	client_game_t* game = app->game;
-	const net_udp_bullet_t* bullet_event = (const void*)segment->data;
-
-	cg_player_t* owner = ght_get(&game->cg.players, bullet_event->owner_id);
-	if (owner == NULL)
-		return;
-
-	cg_bullet_t* bullet = cg_add_bullet(&game->cg, owner->gun);
-	bullet->r.pos = bullet_event->pos;
-	bullet->dir = bullet_event->dir;
-	bullet->velocity.x = bullet->dir.x * owner->gun->spec->bullet_speed;
-	bullet->velocity.y = bullet->dir.y * owner->gun->spec->bullet_speed;
-}
-
-void 
 game_player_gun_state(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
 {
+	coregame_t* cg = &app->game->cg;
 	const net_udp_player_gun_state_t* gun_state = (const void*)segment->data;
-	cg_player_t* player = ght_get(&app->game->cg.players, gun_state->player_id);
+	cg_player_t* player = ght_get(&cg->players, gun_state->player_id);
 
 	if (player)
 	{
 		if (player->gun->spec->id != gun_state->gun_id)
-			coregame_player_change_gun_force(&app->game->cg, player, gun_state->gun_id);
+			coregame_player_change_gun_force(cg, player, gun_state->gun_id);
 
 		player->gun->ammo = gun_state->ammo;
-		player->gun->bullet_timer = gun_state->bullet_timer;
-		player->gun->charge_time = gun_state->charge_timer;
 		player->gun->reload_time = gun_state->reload_timer;
+
+		if (player->shoot == false)
+		{
+			player->gun->bullet_timer = gun_state->bullet_timer;
+			player->gun->charge_time = gun_state->charge_timer;
+		}
 	}
+}
+
+void 
+game_username_change(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	const net_tcp_username_change_t* change = (const void*)segment->data;
+	cg_player_t* player = ght_get(&app->game->cg.players, change->player_id);
+
+	if (player)
+	{
+		char chatmsg[UI_LABEL_SIZE];
+		snprintf(chatmsg, UI_LABEL_SIZE, "Player '%s' renamed to '%s'", player->username, change->username);
+
+		game_add_chatmsg(app->game, NULL, chatmsg);
+
+		strncpy(player->username, change->username, PLAYER_NAME_MAX);
+
+		if (player == app->game->player->core)
+			srand(time(NULL) * ssp_checksum32(app->game->player->core->username, PLAYER_NAME_MAX));
+	}
+}
+
+void 
+game_rewind_bullet(const ssp_segment_t* segment, waapp_t* app, UNUSED void* _)
+{
+	client_game_t* game = app->game;
+	const net_udp_bullet_t* bullet_in = (const void*)segment->data;
+
+	cg_player_t* player = ght_get(&game->cg.players, bullet_in->owner_id);
+	if (player == NULL)
+		return;
+
+	cg_bullet_t* new_bullet = cg_add_bullet(&game->cg, player->gun);
+	new_bullet->r.pos = bullet_in->pos;
+	new_bullet->dir = bullet_in->dir;
+
+	new_bullet->velocity.x = new_bullet->dir.x * player->gun->spec->bullet_speed;
+	new_bullet->velocity.y = new_bullet->dir.y * player->gun->spec->bullet_speed;
 }

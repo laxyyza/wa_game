@@ -136,6 +136,8 @@ typedef struct renderer
 
 	vec2f_t viewport;
 	vec2f_t cam;
+
+	bool headless;
 } ren_t;
 
 void ren_init(ren_t* ren);

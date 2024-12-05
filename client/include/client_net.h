@@ -14,14 +14,19 @@
 #define MAX_SOCKETS 8
 #endif
 
-#define RTT_HIGH 150
-#define RTT_MID  60
-#define RTT_MIDL 30
+#define RTT_HIGH 140
+#define RTT_MID  70
+#define RTT_MIDL 20
 
-#define INTERP_HIGH 0.005
-#define INTERP_MID  0.025
-#define INTERP_MIDL 0.1
-#define INTERP_LOW  0.2
+#define LOCAL_INTERP_HIGH 0.005
+#define LOCAL_INTERP_MID  0.01
+#define LOCAL_INTERP_MIDL 0.015
+#define LOCAL_INTERP_LOW  0.0175
+
+#define REMOTE_INTERP_HIGH 0.001
+#define REMOTE_INTERP_MID  0.002
+#define REMOTE_INTERP_MIDL 0.004
+#define REMOTE_INTERP_LOW  0.005
 
 typedef struct waapp waapp_t;
 typedef struct fdevent fdevent_t;
@@ -50,7 +55,7 @@ typedef struct
 
 	f64 tickrate;
 	f64 interval;
-	f64 time_offset_ms;
+	f64 time_offset;
 	f64 latency;
 	f64 prev_latency;
 	f64 jitter;

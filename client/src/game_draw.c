@@ -83,36 +83,25 @@ game_render_bullet_debug(client_game_t* game, const cg_bullet_t* bullet)
 	}
 }
 
-static void 
-game_render_bullet(client_game_t* game, cg_bullet_t* bullet)
-{
-	// if (bullet->collided)
-	// 	return;
-
-	const laser_bullet_t* bullet_data = bullet->data;
-	laser_draw_data_t draw_data = {0};
-
-	draw_data.v.pos_a = bullet->r.pos;
-	draw_data.laser_data = bullet_data;
-	draw_data.v.pos_b.x = draw_data.v.pos_a.x + bullet_data->len * -bullet->dir.x;
-	draw_data.v.pos_b.y = draw_data.v.pos_a.y + bullet_data->len * -bullet->dir.y;
-
-	game->laser_bro->draw_misc(game->ren, game->laser_bro, &draw_data);
-
-	if (game->game_debug)
-		game_render_bullet_debug(game, bullet);
-}
-
 static void
 game_render_bullets(client_game_t* game)
 {
 	ght_t* bullets = &game->cg.bullets;
-
-	GHT_FOREACH(cg_bullet_t* bullet, bullets, 
+	GHT_FOREACH(const cg_bullet_t* bullet, bullets, 
 	{
-		game_render_bullet(game, bullet);
-	});
+		const laser_bullet_t* bullet_data = bullet->data;
+		laser_draw_data_t draw_data;
+		draw_data.v.pos_a = bullet->r.pos;
+		draw_data.laser_data = bullet_data;
+		draw_data.v.pos_b.x = draw_data.v.pos_a.x + bullet_data->len * -bullet->dir.x;
+		draw_data.v.pos_b.y = draw_data.v.pos_a.y + bullet_data->len * -bullet->dir.y;
+		game->laser_bro->draw_misc(game->ren, game->laser_bro, &draw_data);
 
+		if (game->game_debug)
+			game_render_bullet_debug(game, bullet);
+
+		bullet = bullet->next;
+	});
 	bro_draw_batch(game->ren, game->laser_bro);
 }
 
@@ -308,6 +297,9 @@ game_draw(client_game_t* game)
 {
 	ren_t* ren = game->ren;
 	waapp_t* app = game->app;
+
+	if (app->headless)
+		return;
 
 	ren_bind_bro(ren, ren->default_bro);
 

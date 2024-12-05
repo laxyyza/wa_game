@@ -93,12 +93,6 @@ client_net_lasterr()
 #endif
 }
 
-static inline const char*
-last_errstr()
-{
-	return client_net_errstr(client_net_lasterr());
-}
-
 static void 
 client_net_fd_blocking(sock_t fd, bool block)
 {
@@ -157,8 +151,14 @@ client_net_on_connect(waapp_t* app)
 	net_tcp_connect_t connect;
 	memset(&connect, 9, sizeof(net_tcp_connect_t));
 	strncpy(connect.username, username, PLAYER_NAME_MAX);
+	net_tcp_bot_mode_t bot_mode;
 
 	ssp_segbuf_add(&net->tcp.buf, NET_TCP_CONNECT, sizeof(net_tcp_connect_t), &connect);
+	if (app->bot)
+	{
+		bot_mode.is_bot = app->bot;
+		ssp_segbuf_add(&net->tcp.buf, NET_TCP_BOT_MODE, sizeof(net_tcp_bot_mode_t), &bot_mode);
+	}
 	ssp_tcp_send_segbuf(&net->tcp.sock, &net->tcp.buf);
 
 	client_net_udp_init(app);
@@ -319,7 +319,7 @@ tcp_read(waapp_t* app, fdevent_t* fdev)
 	if ((bytes_read = recv(fdev->fd, buf, BUFFER_SIZE, 0)) == -1)
 		perror("tcp_recv");
 	else
-		ssp_parse_buf(&app->net.def.ssp_ctx, &app->net.tcp.buf, buf, bytes_read, NULL);
+		ssp_parse_buf(&app->net.def.ssp_ctx, &app->net.tcp.buf, buf, bytes_read, NULL, 0);
 	free(buf);
 }
 
@@ -366,7 +366,7 @@ udp_read(waapp_t* app, fdevent_t* fdev)
 	net->udp.in.count++;
 	net->def.ssp_ctx.current_time = app->timer.start_time_s;
 
-	if ((ret = ssp_parse_buf(&net->def.ssp_ctx, &net->udp.buf, buf, bytes_read, &addr)) == SSP_FAILED)
+	if ((ret = ssp_parse_buf(&net->def.ssp_ctx, &net->udp.buf, buf, bytes_read, &addr, net->def.ssp_ctx.current_time)) == SSP_FAILED)
 		errorf("Invalid UDP Packet!\n");
 
 	if (ret != SSP_BUFFERED)
@@ -428,7 +428,7 @@ udp_info(const ssp_segment_t* segment, waapp_t* app, UNUSED void* source_data)
 	net_tcp_udp_info_t* info = (net_tcp_udp_info_t*)segment->data;
 	info("UDP Server Port: %u\n", info->port);
 	app->net.udp.server.addr.sin_port = htons(info->port);
-	app->net.udp.time_offset_ms = info->time;
+	app->net.udp.time_offset = info->time;
 	client_net_set_tickrate(app, info->tickrate);
 
 	app->net.udp.port = info->port;
@@ -456,10 +456,11 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	hr_time_t current_time;
 	nano_gettime(&current_time);
 	const f64 current_time_ms = nano_time_ns(&current_time) / 1e6;
+	f64 t_client_ms = pong->t_client_s * 1000.0;
 
-	f64 rtt_ms = current_time_ms - pong->t_client_ms;
+	f64 rtt_ms = current_time_ms - t_client_ms;
 	const f64 one_way_latency = rtt_ms / 2;
-	net->udp.time_offset_ms = pong->t_server_ms + one_way_latency - current_time_ms;
+	net->udp.time_offset = pong->t_server_ms + one_way_latency - current_time_ms;
 
 	net->udp.jitter = fabs(rtt_ms - net->udp.prev_latency);
 	net->udp.prev_latency = rtt_ms;
@@ -469,19 +470,35 @@ udp_pong(const ssp_segment_t* segment, waapp_t* app, UNUSED void* data)
 	ssp_segbuf_set_rtt(&net->udp.buf, player_ping->ms);
 
 	ssp_segbuf_add(&net->udp.buf, NET_UDP_PLAYER_PING, sizeof(net_udp_player_ping_t), player_ping);
+	if (app->game->ignore_auto_interp)
+		return;
 
 	rtt_ms += net->udp.jitter;
 
-	if (rtt_ms >= RTT_HIGH)
-		app->game->cg.new_interp_factor = INTERP_HIGH;
-	else if (rtt_ms >= RTT_MID)
-		app->game->cg.new_interp_factor = INTERP_MID;
-	else if (rtt_ms >= RTT_MIDL)
-		app->game->cg.new_interp_factor = INTERP_MIDL;
-	else
-		app->game->cg.new_interp_factor = INTERP_LOW;
-
-	app->game->pings++;
+	if (rtt_ms > RTT_HIGH) // 140ms+
+	{
+		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_HIGH;
+		app->game->cg.target_local_interp_factor = LOCAL_INTERP_HIGH;
+		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
+	}
+	else if (rtt_ms > RTT_MID) // 70ms+
+	{
+		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_MID;
+		app->game->cg.target_local_interp_factor = LOCAL_INTERP_MID;
+		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
+	}
+	else if (rtt_ms > RTT_MIDL) // 20ms+
+	{
+		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_MIDL;
+		app->game->cg.target_local_interp_factor = LOCAL_INTERP_MIDL;
+		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
+	}
+	else	// < 20ms (0-20ms)
+	{
+		app->game->cg.target_remote_interp_factor = REMOTE_INTERP_LOW;
+		app->game->cg.target_local_interp_factor = LOCAL_INTERP_LOW;
+		app->game->cg.interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST_LOW;
+	}
 }
 
 static bool
@@ -536,6 +553,8 @@ client_net_async_connect(waapp_t* app, const char* addr)
 		else
 		{
 			error("async_connect: '%s' (%d)\n", client_net_errstr(err), err);
+			if (app->do_connect)
+				wa_window_stop(app->window);
 			return "Connect FAILED.";
 		}
 	}
@@ -600,8 +619,9 @@ client_net_init(waapp_t* app)
 	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segment_callback_t)game_player_gun_id;
 	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segment_callback_t)game_player_input;
 	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segment_callback_t)game_player_reload;
-	callbacks[NET_UDP_BULLET] = (ssp_segment_callback_t)game_bullet;
 	callbacks[NET_UDP_PLAYER_GUN_STATE] = (ssp_segment_callback_t)game_player_gun_state;
+	callbacks[NET_TCP_USERNAME_CHANGE] = (ssp_segment_callback_t)game_username_change;
+	callbacks[NET_UDP_BULLET] = (ssp_segment_callback_t)game_rewind_bullet;
 
 	netdef_init(&net->def, NULL, callbacks);
 	net->def.ssp_ctx.user_data = app;
@@ -662,6 +682,8 @@ handle_event(waapp_t* app, fdevent_t* fdev, u32 events)
 			fdev->err(app, fdev, err);
 		else
 			fdev->close(app, fdev);
+		if (app->do_connect)
+			wa_window_stop(app->window);
 		return;
 	}
 	if (events & EPOLLHUP)
@@ -852,23 +874,20 @@ client_udp_send(waapp_t* app, ssp_packet_t* packet)
 }
 
 static void
+client_net_ping_timestamp(f64* dst, UNUSED void* src, UNUSED u16 size)
+{
+	hr_time_t current_time;
+	nano_gettime(&current_time);
+	*dst = nano_time_s(&current_time);
+}
+
+static void
 client_net_ping_server(waapp_t* app)
 {
 	if (app->net.udp.port == 0)
 		return;
 
-	hr_time_t current_time;
-	ssp_packet_t* packet;
-
-	nano_gettime(&current_time);
-	net_udp_pingpong_t ping = {
-		.t_client_ms = nano_time_ns(&current_time) / 1e6,
-		.t_server_ms = 0
-	};
-
-	packet = ssp_insta_packet(&app->net.udp.buf, NET_UDP_PING, &ping, sizeof(net_udp_pingpong_t));
-	if (packet)
-		client_udp_send(app, packet);
+	ssp_segbuf_hook_add(&app->net.udp.buf, NET_UDP_PING, sizeof(f64), NULL, (ssp_serialize_hook_t)client_net_ping_timestamp);
 }
 
 void 

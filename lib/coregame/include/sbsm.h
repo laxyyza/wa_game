@@ -19,20 +19,26 @@ typedef struct
 {
 	u32		player_id;
 	vec2f_t pos;
+	vec2f_t velocity;
 	u8		input;
-	i32		ammo;
-	f32		bullet_timer;
-	f32		charge_timer;
-	f32		reload_timer;
+	bool	shooting;
+
+	i32 ammo;
+	f32 bullet_timer;
+	f32 charge_timer;
+	f32 reload_timer;
+	u32 gun_id;
+
+	u32		dirty_count;
 	bool	dirty;
-	bool	dirty_movement;
-	bool	dirty_fire;
+	bool	dirty_move;
+	bool	dirty_gun;
 } cg_player_snapshot_t;
 
 typedef struct 
 {
 	u32 bullet_id;
-	vec2f_t	pos;
+	vec2f_t pos;
 	bool collided;
 } cg_bullet_snapshot_t;
 
@@ -51,6 +57,7 @@ typedef struct
 	f64 interval_ms;
 	f64 time;
 	u32 size;
+	bool dirty;
 	
 	cg_game_snapshot_t* oldest_change;
 
@@ -66,10 +73,12 @@ typedef struct
 cg_sbsm_t* sbsm_create(u32 count, f64 interval_ms);
 cg_game_snapshot_t* sbsm_lookup(cg_sbsm_t* sbsm, f64 timestamp_ms);
 void sbsm_rollback(coregame_t* cg);
-void sbsm_add_ss(coregame_t* cg, cg_sbsm_t* sbsm);
+void sbsm_rotate(coregame_t* cg, cg_sbsm_t* sbsm);
 void sbsm_print(const cg_sbsm_t* sbsm);
-void sbsm_copy_player(cg_player_snapshot_t* pss, const cg_player_t* player);
 void sbsm_commit_player(cg_game_snapshot_t* ss, cg_player_t* player);
 void sbsm_commit_bullet(cg_game_snapshot_t* ss, cg_bullet_t* bullet);
+void sbsm_player_to_snapshot(cg_player_snapshot_t* pss, const cg_player_t* player);
+void sbsm_snapshot_to_player(coregame_t* cg, cg_player_t* player, const cg_player_snapshot_t* pss);
+void sbsm_snapshot_to_bullet(cg_bullet_t* bullet, const cg_bullet_snapshot_t* bss);
 
 #endif // _SBSM_H_

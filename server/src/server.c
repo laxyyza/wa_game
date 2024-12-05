@@ -97,7 +97,7 @@ read_client(server_t* server, event_t* event)
 		server_close_event(server, event);
 	else
 	{
-		ret = ssp_parse_buf(&server->netdef.ssp_ctx, &client->tcp_buf, buf, bytes_read, client);
+		ret = ssp_parse_buf(&server->netdef.ssp_ctx, &client->tcp_buf, buf, bytes_read, client, server->current_time);
 		if (ret == SSP_FAILED)
 		{
 			printf("Client (%s) sent invalid packet. Closing client.\n",
@@ -133,6 +133,8 @@ server_close_client(server_t* server, client_t* client)
 
 	ssp_segbuf_destroy(&client->udp_buf);
 	ssp_segbuf_destroy(&client->tcp_buf);
+	if (client->og_username)
+		free(client->og_username);
 	ght_del(&server->clients, client->session_id);
 
 	if (player_id)
@@ -143,6 +145,9 @@ static void
 event_close_client(server_t* server, event_t* event)
 {
 	server_close_client(server, event->data);
+
+	server->stats.tcp_connections = server->clients.count;
+	server->stats.players = server->game.players.count;
 }
 
 void
@@ -153,6 +158,8 @@ server_handle_new_connection(server_t* server, UNUSED event_t* event)
 		return;
 
 	server_add_event(server, client->tcp_sock.sockfd, client, read_client, event_close_client);
+	server->stats.tcp_connections = server->clients.count;
+	server->stats.players = server->game.players.count;
 }
 
 static void
@@ -168,9 +175,14 @@ server_read_udp_packet(server_t* server, event_t* event)
 	void* buf = calloc(1, RECV_BUFFER_SIZE);
 	i64 bytes_read;
 	i32 ret;
+	f64 timestamp_s;
+	hr_time_t current_time;
 	udp_addr_t info = {
-		.addr_len = sizeof(struct sockaddr_in)
+		.addr_len = sizeof(struct sockaddr_in),
 	};
+
+	nano_gettime(&current_time);
+	timestamp_s = nano_time_s(&current_time);
 
 	if ((bytes_read = recvfrom(event->fd, buf, RECV_BUFFER_SIZE, 0, &info.addr, &info.addr_len)) == -1)
 	{
@@ -184,7 +196,7 @@ server_read_udp_packet(server_t* server, event_t* event)
 	if ((server->stats.udp_pps_in_bytes += bytes_read) > server->stats.udp_pps_in_bytes_highest)
 		server->stats.udp_pps_in_bytes_highest = server->stats.udp_pps_in_bytes;
 
-	ret = ssp_parse_buf(&server->netdef.ssp_ctx, NULL, buf, bytes_read, &info);
+	ret = ssp_parse_buf(&server->netdef.ssp_ctx, NULL, buf, bytes_read, &info, timestamp_s);
 	if (ret == SSP_FAILED)
 		printf("Invalid UDP packet (%zu bytes) from %s:%u.\n", bytes_read, info.ipaddr, info.port);
 
@@ -297,36 +309,34 @@ event_signalfd_close(server_t* server, UNUSED event_t* ev)
 	signalfd_close(server);
 }
 
-static inline void
-server_add_bullet_events(server_t* server)
+static inline void 
+server_buffer_packet(server_t* server, const ssp_packet_t* packet, client_t* client)
 {
-	const u32* bullet_ids = (u32*)server->bullet_create_events.buf;
+	struct iovec* iov = mmframes_alloc(&server->mmf, sizeof(struct iovec));
+	iov->iov_base = packet->buf;
+	iov->iov_len = packet->size;
 
-	for (u32 i = 0; i < server->bullet_create_events.count; i++)
-	{
-		const u32 bullet_id = bullet_ids[i];
-		const cg_bullet_t* bullet = ght_get(&server->game.bullets, bullet_id);
-		if (bullet == NULL)
-			continue;
+	server->total_tx_size += packet->size;
 
-		net_udp_bullet_t* udp_bullet_out = mmframes_alloc(&server->mmf, sizeof(net_udp_bullet_t));
-		udp_bullet_out->owner_id = bullet->owner;
-		udp_bullet_out->pos = bullet->r.pos;
-		udp_bullet_out->dir = bullet->dir;
+	struct mmsghdr* msgvec = array_add_into(&server->tx_msgs);
+	msgvec->msg_hdr.msg_name = &client->udp.addr;
+	msgvec->msg_hdr.msg_namelen = client->udp.addr_len;
+	msgvec->msg_hdr.msg_iov = iov;
+	msgvec->msg_hdr.msg_iovlen = 1;
+	msgvec->msg_hdr.msg_control = NULL;
+	msgvec->msg_hdr.msg_controllen = 0;
+	msgvec->msg_hdr.msg_flags = 0;
+	msgvec->msg_len = 0;
 
-		server_add_data_all_udp_clients_i(server, NET_UDP_BULLET, udp_bullet_out, sizeof(net_udp_bullet_t), bullet->owner);
-	}
-
-	array_clear(&server->bullet_create_events, false);
+	array_add_voidp(&server->packet_tx_buf, (void*)packet);
 }
 
 static inline void
-server_flush_udp_client(server_t* server, client_t* client)
+server_prepare_udp_client(server_t* server, client_t* client)
 {
 	if (client->udp_connected == false)
 		return;
 
-	/* Add server stats to client buffer if they want stats. */
 	if (server->send_stats && client->want_stats)
 	{
 		server->stats.udp_pps_out++;
@@ -334,10 +344,16 @@ server_flush_udp_client(server_t* server, client_t* client)
 		if (server->stats.udp_pps_out_bytes > server->stats.udp_pps_out_bytes_highest)
 			server->stats.udp_pps_out_bytes_highest = server->stats.udp_pps_out_bytes;
 
+		server->stats.tx.rto = client->udp_buf.rto;
+		server->stats.tx.total_packets = client->udp_buf.out_total_packets;
+
+		server->stats.rx.lost = client->udp_buf.sliding_window.lost_packets;
+		server->stats.rx.dropped = client->udp_buf.in_dropped_packets;
+		server->stats.rx.total_packets = client->udp_buf.in_total_packets;
+
 		ssp_segbuf_add(&client->udp_buf, NET_UDP_SERVER_STATS, sizeof(server_stats_t), &server->stats);
 	}
 
-	/* Serialize the packet from events happended in a tick */
 	ssp_packet_t* packet = ssp_serialize_packet(&client->udp_buf);
 	if (packet)
 	{
@@ -349,10 +365,9 @@ server_flush_udp_client(server_t* server, client_t* client)
 			server->stats.udp_pps_out_bytes += packet->size;
 		}
 
-		client_send(server, client, packet);
+		server_buffer_packet(server, packet, client);
 	}
 
-	/* Get important packet(s) that needs retransmission. */
 	while ((packet = ssp_segbuf_get_resend_packet(&client->udp_buf, server->current_time)))
 	{
 		if (!(server->send_stats && client->want_stats))
@@ -361,11 +376,35 @@ server_flush_udp_client(server_t* server, client_t* client)
 			server->stats.udp_pps_out_bytes += packet->size;
 		}
 
-		client_send(server, client, packet);
+		server_buffer_packet(server, packet, client);
 	}
 
-	/* Process buffered packets if timeout expires */
 	ssp_parse_sliding_window(&server->netdef.ssp_ctx, &client->udp_buf, client);
+}
+
+static inline void
+server_sendmmsg(server_t* server)
+{
+	if (server->packet_tx_buf.count == 0)
+		return;
+
+	struct mmsghdr* msgvec = (struct mmsghdr*)server->tx_msgs.buf;
+
+	i64 ret = sendmmsg(server->udp_fd, msgvec, server->tx_msgs.count, 0);
+	if (ret == -1)
+	{
+		perror("sendmmsg");
+	}
+
+	for (u32 i = 0; i < server->packet_tx_buf.count; i++)
+	{
+		ssp_packet_t* packet = ((ssp_packet_t**)server->packet_tx_buf.buf)[i];
+		ssp_packet_free(packet);
+	}
+
+	array_clear(&server->packet_tx_buf, false);
+	array_clear(&server->tx_msgs, false);
+	server->total_tx_size = 0;
 }
 
 static void 
@@ -373,12 +412,12 @@ server_flush_udp_clients(server_t* server)
 {
 	ght_t* clients = &server->clients;
 
-	server_add_bullet_events(server);
-
 	GHT_FOREACH(client_t* client, clients, 
 	{
-		server_flush_udp_client(server, client);
+		server_prepare_udp_client(server, client);
 	});
+
+	server_sendmmsg(server);
 
 	if (server->send_stats)
 	{
@@ -475,6 +514,7 @@ server_poll(server_t* server)
 			nano_gettime(&current_time);
 			elapsed_time_ns = nano_time_diff_ns(&server->timer.end_time, &current_time);
 			timeout_time_ns -= elapsed_time_ns;
+			memcpy(&server->timer.end_time, &current_time, sizeof(hr_time_t));
 			if (timeout_time_ns > 0)
 				ns_to_timespec(&timeout, timeout_time_ns);
 			else
@@ -488,7 +528,7 @@ server_run(server_t* server)
 {
 	if (server->running)
 	{
-		printf("Server v%s (%s) is up & running!\n\t", VERSION, BUILD_TYPE);
+		printf("Server is up & running!\n\t");
 		printf("Tick rate: %.1f     (%fms interval).\n\t",
 				server->tickrate, server->interval * 1000.0);
 		printf("TCP port:  %u\n\t", server->port);
@@ -535,6 +575,7 @@ server_cleanup_clients(server_t* server)
 void 
 server_cleanup(server_t* server)
 {
+	array_del(&server->packet_tx_buf);
 	server_close_all_events(server);
 	server_cleanup_clients(server);
 	ssp_tcp_sock_close(&server->tcp_sock);
@@ -550,8 +591,6 @@ server_cleanup(server_t* server)
 
 	if (server->epfd > 0 && close(server->epfd) == -1)
 		perror("close epoll");
-
-	array_del(&server->bullet_create_events);
 
 	coregame_cleanup(&server->game);
 	array_del(&server->spawn_points);

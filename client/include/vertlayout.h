@@ -2,7 +2,6 @@
 #define _VERTEX_BUFFER_LAYOUT_H_
 
 #include "array.h"
-#include <stdbool.h>
 
 typedef struct 
 {

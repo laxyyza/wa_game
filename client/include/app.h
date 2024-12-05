@@ -2,7 +2,6 @@
 #define _WAAPP_H_
 
 #include <wa.h>
-#include <stdbool.h>
 #include "renderer.h"
 #include "vec.h"
 #include "util.h"
@@ -75,6 +74,11 @@ typedef struct waapp
 	const char* save_username;
 
 	array_t* tmp_gun_specs;
+	bool bot;
+	bool headless;
+	const char* do_connect;
+
+	f32 bot_interval;
 } waapp_t;
 
 i32 waapp_init(waapp_t* app, i32 argc, char* const* argv);

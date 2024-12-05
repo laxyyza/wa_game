@@ -37,28 +37,28 @@ typedef struct
     u16 y;
 } vec2u16_t;
 
-ALWAYS_INLINE inline vec2f_t
+ALWAYS_INLINE vec2f_t
 vec2f(f32 x, f32 y)
 {
     vec2f_t vec = {x, y};
     return vec;
 }
 
-ALWAYS_INLINE inline vec3f_t
+ALWAYS_INLINE vec3f_t
 vec3f(f32 x, f32 y, f32 z)
 {
     vec3f_t vec = {x, y, z};
     return vec;
 }
 
-ALWAYS_INLINE inline vec4f_t
+ALWAYS_INLINE vec4f_t
 vec4f(f32 x, f32 y, f32 z, f32 w)
 {
     vec4f_t vec = {x, y, z, w};
     return vec;
 }
 
-ALWAYS_INLINE inline vec4f_t
+ALWAYS_INLINE vec4f_t
 rgba(u32 color)
 {
     vec4f_t vec = {
@@ -70,7 +70,7 @@ rgba(u32 color)
     return vec;
 }
 
-ALWAYS_INLINE inline void
+ALWAYS_INLINE void
 vec2f_norm(vec2f_t* vec)
 {
 	const f32 manitude = sqrtf(vec->x * vec->x + vec->y * vec->y);

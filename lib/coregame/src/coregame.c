@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "cutils.h"
 
+#define BLEND_RATE 0.01
+
 #ifdef _WIN32
 #define isnanf(x) _isnanf(x)
 #endif // _WIN32
@@ -301,7 +303,7 @@ cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
 	const cg_player_t* player = gun->owner;
 
 	bullet->id = ++cg->bullet_id_seq;
-	bullet->owner = player->id;
+	bullet->owner_id = player->id;
 	bullet->r.pos = player->pos;
 	bullet->r.size = vec2f(10, 10);
 	bullet->r.pos.x += (player->size.x / 2) + (player->dir.x * PLAYER_SPEED * cg->delta);
@@ -314,10 +316,10 @@ cg_add_bullet(coregame_t* cg, cg_gun_t* gun)
 	bullet->dir.y = player->cursor.y - bullet->r.pos.y;
 	vec2f_norm(&bullet->dir);
 
+	ght_insert(&cg->bullets, bullet->id, bullet);
+
 	if (cg->on_bullet_create)
 		cg->on_bullet_create(bullet, cg->user_data);
-
-	ght_insert(&cg->bullets, bullet->id, bullet);
 
 	return bullet;
 }
@@ -353,7 +355,6 @@ static void
 cg_do_free_bullet(cg_bullet_t* bullet)
 {
 	array_del(&bullet->cells);
-
 	free(bullet);
 }
 
@@ -364,28 +365,35 @@ coregame_init(coregame_t* coregame, cg_runtime_map_t* map)
 	ght_init(&coregame->bullets, 100, (ght_free_t)cg_do_free_bullet);
 	coregame->time_scale = 1.0;
 
+	coregame->world_border = cg_rect(
+		vec2f(0, 0),
+		vec2f(10000, 10000)
+	);
 	coregame_get_delta_time(coregame);
 
 #ifdef CG_CLIENT
-	coregame->new_interp_factor = coregame->interp_factor = INTERPOLATE_FACTOR;
+	coregame->local_interp_factor = INTERPOLATE_FACTOR;
+	coregame->target_local_interp_factor = INTERPOLATE_FACTOR;
+	coregame->remote_interp_factor = INTERPOLATE_FACTOR;
+	coregame->target_remote_interp_factor = INTERPOLATE_FACTOR;
 	coregame->interp_threshold_dist = INTERPOLATE_THRESHOLD_DIST;
-#endif
+#endif // CG_CLIENT
 
 	if (map)
 		coregame->map = map;
 	
 	array_init(&coregame->gun_specs, sizeof(cg_gun_spec_t), 4);
-
 }
 
 #ifdef CG_SERVER
-void
+void 
 coregame_server_init(coregame_t* cg, cg_runtime_map_t* map, f32 tick_per_sec)
 {
 	coregame_init(cg, map);
+
 	cg->sbsm = sbsm_create(tick_per_sec / 4, 1000.0 / tick_per_sec);
 }
-#endif
+#endif // CG_SERVER
 
 f32 
 coregame_dist(const vec2f_t* a, const vec2f_t* b)
@@ -393,6 +401,7 @@ coregame_dist(const vec2f_t* a, const vec2f_t* b)
 	return sqrtf(powf(b->x - a->x, 2) + powf(b->y - a->y, 2));
 }
 
+#ifdef CG_CLIENT
 static inline void
 cg_blend_pos(vec2f_t* dst, const vec2f_t* a, const vec2f_t* b, f32 factor)
 {
@@ -400,12 +409,13 @@ cg_blend_pos(vec2f_t* dst, const vec2f_t* a, const vec2f_t* b, f32 factor)
 	dst->y = a->y * (1 - factor) + b->y * factor;
 }
 
-// static inline void
-// cg_interpolate_pos(vec2f_t* a, const vec2f_t* b, f32 factor)
-// {
-// 	a->x = a->x + (b->x - a->x) * factor;
-// 	a->y = a->y + (b->y - a->y) * factor;
-// }
+static inline void
+cg_interpolate_pos(vec2f_t* a, const vec2f_t* b, f32 factor)
+{
+	a->x = a->x + (b->x - a->x) * factor;
+	a->y = a->y + (b->y - a->y) * factor;
+}
+#endif
 
 static void
 cg_resolve_player_collision(cg_player_t* player, 
@@ -514,7 +524,10 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 	if (player->prev_dir.x != player->dir.x || player->prev_dir.y != player->dir.y ||
 		player->prev_pos.x != player->pos.x || player->prev_pos.y != player->pos.y)
 	{
+	#ifdef CG_SERVER
 		player->dirty = true;
+		coregame->sbsm->dirty = true;
+	#endif // CG_SERVER
 
 		if (coregame->player_changed)
 			coregame->player_changed(player, coregame->user_data);
@@ -522,39 +535,54 @@ coregame_update_player(coregame_t* coregame, cg_player_t* player)
 		player->prev_pos = player->pos;
 		player->prev_dir = player->dir;
 	}
-	// else if (coregame->client == false)
-	// 	coregame->player_changed(player, coregame->user_data);
 }
 
 #ifdef CG_CLIENT
 static void 
-coregame_interpolate_player(coregame_t* coregame, cg_player_t* player)
+coregame_interpolate_player(coregame_t* cg, cg_player_t* player)
 {
 	vec2f_t* client_pos = &player->pos;
 	const vec2f_t* server_pos = &player->server_pos;
-	f32 dist = coregame_dist(client_pos, server_pos);
+	const f32 dist = coregame_dist(client_pos, server_pos);
 
-	if (dist < coregame->interp_threshold_dist)
+	if (dist > player->size.x * 4)
+	{
+		player->bad_local_pos = true;
+	}
+	else if (dist < cg->interp_threshold_dist)
 	{
 		player->pos = player->server_pos;
 		player->interpolate = false;
+		player->bad_local_pos = false;
 		return;
 	}
 
 	vec2f_t new_pos;
-	const f32 interp = coregame->interp_factor;
-	cg_blend_pos(&new_pos, client_pos, server_pos, interp);
+	if (player->bad_local_pos)
+	{
+		cg_player_remove_self_from_cells(player);
+		cg_player_get_cells(cg->map, player);
+		cg_interpolate_pos(client_pos, server_pos, 0.1);
+	}
+	else
+	{
+		const f32 interp = (player == cg->local_player) ? cg->local_interp_factor : cg->remote_interp_factor;
+		cg_blend_pos(&new_pos, client_pos, server_pos, interp);
 
-	player->velocity.x = new_pos.x - client_pos->x;
-	player->velocity.y = new_pos.y - client_pos->y;
+		player->velocity.x = new_pos.x - client_pos->x;
+		player->velocity.y = new_pos.y - client_pos->y;
 
-	cg_player_remove_self_from_cells(player);
-	cg_player_get_cells(coregame->map, player);
-	cg_player_handle_collision(coregame, player);
+		cg_player_remove_self_from_cells(player);
+		cg_player_get_cells(cg->map, player);
+		cg_player_handle_collision(cg, player);
 
-	client_pos->x += player->velocity.x;
-	client_pos->y += player->velocity.y;
+		client_pos->x += player->velocity.x;
+		client_pos->y += player->velocity.y;
 
+		const f32 new_dist = coregame_dist(client_pos, server_pos);
+		if (new_dist >= dist)
+			player->bad_local_pos = true;
+	}
 	cg_player_add_into_cells(player);
 }
 #endif // CG_CLIENT
@@ -565,37 +593,35 @@ coregame_update_players(coregame_t* cg)
 	const ght_t* players = &cg->players;
 
 #ifdef CG_CLIENT
-	if (cg->new_interp_factor != cg->interp_factor)
-	{
-		f32 blend_rate = 0.01;
-		cg->interp_factor = cg->interp_factor * (1 - blend_rate) + cg->new_interp_factor * blend_rate;
-	}
-#endif
+	if (cg->target_local_interp_factor != cg->local_interp_factor)
+		cg->local_interp_factor = cg->local_interp_factor * (1 - BLEND_RATE) + cg->target_local_interp_factor * BLEND_RATE;
+	if (cg->target_remote_interp_factor != cg->remote_interp_factor)
+		cg->remote_interp_factor = cg->remote_interp_factor * (1 - BLEND_RATE) + cg->target_remote_interp_factor * BLEND_RATE;
+#endif // CG_CLIENT
 
 	GHT_FOREACH(cg_player_t* player, players, 
 	{
 		player->velocity.x = player->dir.x * PLAYER_SPEED;
 		player->velocity.y = player->dir.y * PLAYER_SPEED;
 
-		coregame_gun_update(cg, player->gun);
-
-		if (player->gun->dirty)
-		{
-			if (cg->player_gun_changed)
-				cg->player_gun_changed(player, cg->user_data);
-			player->dirty = true;
-			player->gun->dirty = false;
-		}
+		if (player->gun)
+			coregame_gun_update(cg, player->gun);
 
 		coregame_update_player(cg, player);
 	#ifdef CG_CLIENT
 		if (player->interpolate)
 			 coregame_interpolate_player(cg, player);
-	#endif	// CG_CLIENT
-
+	#endif // CG_CLIENT
+	
 	#ifdef CG_SERVER
+		if (player->gun_dirty)
+		{
+			 cg->player_gun_changed(player, cg->user_data);
+			 player->gun_dirty = false;
+		}
+
 		sbsm_commit_player(cg->sbsm->present, player);
-	#endif	// CG_SERVER
+	#endif // CG_SERVER
 	});
 }
 
@@ -621,6 +647,7 @@ cg_bullet_block_cell_collision_test(coregame_t* cg,
 								&contact_normal, 
 								&contact_time))
 	{
+		bullet->collided = true;
 		bullet->contact_point = contact_point;
 		*next_pos = contact_point;
 		return true;
@@ -642,7 +669,7 @@ cg_bullet_empty_cell_collision_test(coregame_t* cg,
 	for (u32 i = 0; i < data->contents.count; i++)
 	{
 		cg_player_t* target_player = ((cg_player_t**)data->contents.buf)[i];
-		if (target_player->id == bullet->owner)
+		if (target_player->id == bullet->owner_id)
 			continue;
 
 		const cg_rect_t target = {
@@ -658,7 +685,7 @@ cg_bullet_empty_cell_collision_test(coregame_t* cg,
 			cg_player_t* attacker_player;
 			if (cg->player_damaged)
 			{
-				attacker_player = ght_get(&cg->players, bullet->owner);
+				attacker_player = ght_get(&cg->players, bullet->owner_id);
 				if (attacker_player == NULL)
 					return true;
 
@@ -669,7 +696,7 @@ cg_bullet_empty_cell_collision_test(coregame_t* cg,
 				cg->player_damaged(target_player, attacker_player, cg->user_data);
 			}
 
-			bullet->target_id = target_player->id;
+			bullet->collided = true;
 			bullet->contact_point = contact_point;
 			*next_pos = contact_point;
 			return true;
@@ -688,10 +715,7 @@ cg_bullet_collision_test(coregame_t* cg, cg_bullet_t* bullet, vec2f_t* next_pos)
 		if (cell->type == CG_CELL_BLOCK)
 		{
 			if (cg_bullet_block_cell_collision_test(cg, bullet, cell, next_pos))
-			{
-				bullet->target_id = 0;
 				return true;
-			}
 		}
 		else
 		{
@@ -702,48 +726,50 @@ cg_bullet_collision_test(coregame_t* cg, cg_bullet_t* bullet, vec2f_t* next_pos)
 	return false;
 }
 
-void 
+void
 coregame_update_bullet(coregame_t* cg, cg_bullet_t* bullet)
 {
 	if (bullet->collided)
 	{
 	#ifdef CG_CLIENT
 		coregame_free_bullet(cg, bullet);
-	#endif
-		 // TODO: Deferred deletion. 
-		return;
+	#endif // CG_CLIENT
 	}
-
-	vec2f_t next_pos = vec2f(
-		bullet->r.pos.x + bullet->velocity.x * cg->delta,
-		bullet->r.pos.y + bullet->velocity.y * cg->delta
-	);
-	array_clear(&bullet->cells, false);
-	cg_get_cells_2points(cg->map, &bullet->cells, &bullet->r.pos, &next_pos);
-	if (cg_bullet_collision_test(cg, bullet, &next_pos))
+	else
 	{
-		bullet->collided = true;
-	}
-	bullet->r.pos = next_pos;
+		vec2f_t next_pos = vec2f(
+			bullet->r.pos.x + bullet->velocity.x * cg->delta,
+			bullet->r.pos.y + bullet->velocity.y * cg->delta
+		);
+		array_clear(&bullet->cells, false);
+		cg_get_cells_2points(cg->map, &bullet->cells, &bullet->r.pos, &next_pos);
+		if (cg_bullet_collision_test(cg, bullet, &next_pos))
+		{
+			bullet->collided = true;
+		}
+		bullet->r.pos = next_pos;
 
-	// if (bullet->r.pos.x < 0 || bullet->r.pos.y < 0 ||
-	// 	bullet->r.pos.x > cg->map->w * cg->map->grid_size ||
-	// 	bullet->r.pos.y > cg->map->h * cg->map->grid_size)
-	// {
-	// 	ght_del(bullets, bullet->id);
-	// }
+		if (bullet->r.pos.x < 0 || bullet->r.pos.y < 0 ||
+			bullet->r.pos.x > cg->map->w * cg->map->grid_size ||
+			bullet->r.pos.y > cg->map->h * cg->map->grid_size)
+		{
+			coregame_free_bullet(cg, bullet);
+		}
+
+	#ifdef CG_SERVER
+		sbsm_commit_bullet(cg->sbsm->present, bullet);
+	#endif // CG_SERVER
+	}
 }
 
 static void
 coregame_update_bullets(coregame_t* cg)
 {
 	ght_t* bullets = &cg->bullets;
-	GHT_FOREACH(cg_bullet_t* bullet, bullets,
+
+	GHT_FOREACH(cg_bullet_t* bullet, bullets, 
 	{
 		coregame_update_bullet(cg, bullet);
-	#ifdef CG_SERVER
-		sbsm_commit_bullet(cg->sbsm->present, bullet);
-	#endif
 	});
 }
 
@@ -758,11 +784,17 @@ coregame_update(coregame_t* cg)
 	if (cg->sbsm->oldest_change)
 		sbsm_rollback(cg);
 
-	sbsm_add_ss(cg, cg->sbsm);
+	sbsm_rotate(cg, cg->sbsm);
 #endif // CG_SERVER
 
 	coregame_update_players(cg);
 	coregame_update_bullets(cg);
+
+	// if (cg->sbsm->dirty)
+	// {
+	// 	sbsm_print(cg->sbsm);
+	// 	cg->sbsm->dirty = false;
+	// }
 }
 
 void 
@@ -809,7 +841,7 @@ coregame_free_player(coregame_t* cg, cg_player_t* player)
 		cg_game_snapshot_t* ss = cg->sbsm->snapshots + i;
 		ght_del(&ss->player_states, player->id);
 	}
-#endif
+#endif // CG_SERVER
 
 	ght_del(&cg->players, player->id);
 }
@@ -854,37 +886,33 @@ void
 coregame_set_player_input_t(coregame_t* cg, cg_player_t* player, u8 input, f64 timestamp)
 {
 	cg_game_snapshot_t* ss = sbsm_lookup(cg->sbsm, timestamp);
-	// if (ss->timestamp < player->last_input)
-	// 	return;
-	// else
-	// 	player->last_input = ss->timestamp;
-	//
+
+	if (player->last_input_timestamp > ss->timestamp)
+		return;
+	else
+		player->last_input_timestamp = ss->timestamp;
+
 	ss->dirty = true;
 	cg_player_snapshot_t* ps = ght_get(&ss->player_states, player->id);
 	if (ps == NULL)
 	{
 		ps = calloc(1, sizeof(cg_player_snapshot_t));
-		sbsm_copy_player(ps, player);
+		ps->player_id = player->id;
+		sbsm_player_to_snapshot(ps, player);
 
-		// TODO: Find oldest player snapshot.
+		/* TODO: Find the oldest changes */
+		// ps->prev = NULL;
 
 		ght_insert(&ss->player_states, player->id, ps);
 	}
-	else if (ps->input == input)		
+	else if (ps->input == input || ps->dirty_count > 1)
 		return;
 
-	if ((ps->input & PLAYER_MOVE_INPUT) == (input & PLAYER_MOVE_INPUT))
-		ps->dirty_movement = false;
-	else
-		ps->dirty_movement = true;
-
-	if ((ps->input & PLAYER_GUN_INPUT) == (input & PLAYER_GUN_INPUT))
-		ps->dirty_fire = false;
-	else
-		ps->dirty_fire = true;
-
+	ps->dirty_move = ((ps->input & PLAYER_MOVE_INPUT) != (input & PLAYER_MOVE_INPUT));
+	ps->dirty_gun = ((ps->input & PLAYER_GUN_INPUT) != (input & PLAYER_GUN_INPUT));
 	ps->input = input;
 	ps->dirty = true;
+	ps->dirty_count++;
 
 	if (cg->sbsm->oldest_change == NULL || ss->timestamp < cg->sbsm->oldest_change->timestamp)
 	{
@@ -914,14 +942,12 @@ coregame_get_player_input(const cg_player_t* player)
 }
 
 void 
-coregame_free_bullet(coregame_t* cg, cg_bullet_t* bullet)
+coregame_free_bullet(coregame_t* coregame, cg_bullet_t* bullet)
 {
-	if (cg->on_bullet_free)
-		cg->on_bullet_free(bullet);
+	if (coregame->bullet_free_callback)
+		coregame->bullet_free_callback(bullet, coregame->user_data);
 
-	// If bullet hit someone finalisze it. 
-
-	ght_del(&cg->bullets, bullet->id);
+	ght_del(&coregame->bullets, bullet->id);
 }
 
 void
@@ -931,11 +957,14 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 	{
 		gun->reload_time += cg->delta;
 
+	#ifdef CG_SERVER
+		gun->owner->dirty = true;
+	#endif
+
 		if (gun->reload_time >= gun->spec->reload_time)
 		{
 			gun->ammo = gun->spec->max_ammo;
 			gun->reload_time = 0;
-			gun->dirty = true;
 		}
 		else
 			return;
@@ -950,9 +979,16 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 		}
 		else
 			gun->bullet_timer += cg->delta;
+	
+	#ifdef CG_SERVER
+		gun->owner->dirty = true;
+	#endif
 	}
 	else
 	{
+	#ifdef CG_SERVER
+		const f32 bullet_timer = gun->bullet_timer;
+	#endif // CG_SERVER
 		if (gun->spec->initial_charge_time)
 		{
 			gun->charge_time = clampf(gun->charge_time - (cg->delta * 2), 0, gun->spec->initial_charge_time);
@@ -966,10 +1002,16 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 				gun->bullet_timer -= cg->delta;
 			gun->bullet_timer = clampf(gun->bullet_timer, 0, gun->spec->bullet_spawn_interval);
 		}
+	#ifdef CG_SERVER
+		if (bullet_timer != gun->bullet_timer)
+			gun->owner->dirty = true;
+	#endif	// CG_SERVER
 		return;
 	}
 
-	const i32 ammo = gun->ammo;
+#ifdef CG_SERVER
+	const i32 start_ammo = gun->ammo;
+#endif // CG_SERVER
 
 	while (gun->bullet_timer >= gun->spec->bullet_spawn_interval && gun->ammo > 0)
 	{
@@ -978,8 +1020,10 @@ coregame_gun_update(coregame_t* cg, cg_gun_t* gun)
 		gun->ammo--;
 	}
 
-	if (ammo != gun->ammo)
-		gun->dirty = true;
+#ifdef CG_SERVER
+	if (start_ammo != gun->ammo)
+		gun->owner->dirty = gun->owner->gun_dirty = true;
+#endif // CG_SERVER
 
 	if (gun->ammo <= 0 && cg->player_reload)
 		cg->player_reload(gun->owner, cg->user_data);

@@ -1,5 +1,12 @@
 #include "server_game.h"
 
+typedef struct 
+{
+	f64 t_client_s;
+	f64 t_server_ms;
+	f64 recv_s;
+} server_pong_t;
+
 void
 server_on_player_reload(cg_player_t* player, server_t* server)
 {
@@ -66,7 +73,7 @@ broadcast_delete_player(server_t* server, u32 id)
 }
 
 void
-server_on_player_changed(cg_player_t* player, server_t* server)
+on_player_changed(cg_player_t* player, server_t* server)
 {
 	ght_t* clients = &server->clients;
 	net_udp_player_move_t* move = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
@@ -83,27 +90,53 @@ server_on_player_changed(cg_player_t* player, server_t* server)
 void
 server_on_player_gun_changed(cg_player_t* player, server_t* server)
 {
+	ght_t* clients = &server->clients;
 	net_udp_player_gun_state_t* gun_state_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_gun_state_t));
+	const cg_gun_t* gun = player->gun;
 
 	gun_state_out->player_id = player->id;
-	gun_state_out->gun_id = player->gun->spec->id;
-	gun_state_out->ammo = player->gun->ammo;
-	gun_state_out->bullet_timer = player->gun->bullet_timer;
-	gun_state_out->charge_timer = player->gun->charge_time;
-	gun_state_out->reload_timer = player->gun->reload_time;
+	gun_state_out->gun_id = gun->spec->id;
+	gun_state_out->ammo = gun->ammo;
+	gun_state_out->bullet_timer = gun->bullet_timer;
+	gun_state_out->charge_timer = gun->charge_time;
+	gun_state_out->reload_timer = gun->reload_time;
 
-	server_add_data_all_udp_clients_i(server, NET_UDP_PLAYER_GUN_STATE, gun_state_out, sizeof(net_udp_player_gun_state_t), 0);
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		ssp_segbuf_add_i(&client->udp_buf, NET_UDP_PLAYER_GUN_STATE, sizeof(net_udp_player_gun_state_t), gun_state_out);
+	});
 }
 
-void 
+static void 
+serialize_bullet(net_udp_bullet_t* out_bullet, cg_bullet_t* bullet, UNUSED u16 size)
+{
+	out_bullet->owner_id = bullet->owner_id;
+	out_bullet->pos = bullet->r.pos;
+	out_bullet->dir = bullet->dir;
+	out_bullet->gun_id = bullet->gun_id;
+}
+
+static inline void
+server_send_rewind_bullet(client_t* client, cg_bullet_t* bullet)
+{
+	if (client->player == NULL || client->player->id == bullet->owner_id)
+		return;
+
+	ssp_segbuf_hook_add_i(&client->udp_buf, NET_UDP_BULLET, sizeof(net_udp_bullet_t), bullet, 
+					   (ssp_serialize_hook_t)serialize_bullet);
+}
+
+void
 server_on_bullet_create(cg_bullet_t* bullet, server_t* server)
 {
-	/* Only send bullet creation events if the bullet is created in rollback resimulation */
 	if (server->game.rewinding == false)
 		return;
 
-	/* Add bullet ID in bullet_create_events to be added into to segbuf after finalized */
-	array_add_i32(&server->bullet_create_events, bullet->id);
+	ght_t* clients = &server->clients;
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		server_send_rewind_bullet(client, bullet);
+	});
 }
 
 void
@@ -192,6 +225,9 @@ client_tcp_connect(const ssp_segment_t* segment, server_t* server, client_t* cli
 		ssp_segbuf_add(&client->tcp_buf, NET_TCP_GUN_SPEC, sizeof(cg_gun_spec_t), gun_specs + i);
 
 	broadcast_new_player(server, client);
+
+	server->stats.tcp_connections = server->clients.count;
+	server->stats.players = server->game.players.count;
 }
 
 void 
@@ -212,19 +248,29 @@ player_cursor(const ssp_segment_t* segment, server_t* server, client_t* source_c
 	});
 }
 
+static void
+udp_ping_set_client_time(net_udp_pingpong_t* dst, const server_pong_t* src, UNUSED u16 size)
+{
+	hr_time_t current_time;
+	nano_gettime(&current_time);
+	f64 time_elapsed = nano_time_s(&current_time) - src->recv_s;
+
+	dst->t_client_s = src->t_client_s + time_elapsed;
+	dst->t_server_ms = src->t_server_ms;
+}
+
 void 
 udp_ping(const ssp_segment_t* segment, server_t* server, client_t* source_client)
 {
 	const net_udp_pingpong_t* in_ping = (const net_udp_pingpong_t*)segment->data;
-	net_udp_pingpong_t out_ping = {
-		.t_client_ms = in_ping->t_client_ms,
-	};
+	server_pong_t* out_pong = mmframes_alloc(&server->mmf, sizeof(server_pong_t));
 
-	out_ping.t_server_ms = server->game.sbsm->present->timestamp;
+	out_pong->t_client_s = in_ping->t_client_s;
+	out_pong->t_server_ms = server->game.sbsm->present->timestamp;
+	out_pong->recv_s = segment->packet->timestamp;
 
-	// insta send to client. No buffering. 
-	ssp_packet_t* packet = ssp_insta_packet(&source_client->udp_buf, NET_UDP_PONG, &out_ping, sizeof(net_udp_pingpong_t));
-	client_send(server, source_client, packet);
+	ssp_segbuf_hook_add(&source_client->udp_buf, NET_UDP_PONG, sizeof(net_udp_pingpong_t), out_pong, 
+					 (ssp_serialize_hook_t)udp_ping_set_client_time);
 }
 
 void 
@@ -332,4 +378,66 @@ player_reload(UNUSED const ssp_segment_t* segment, server_t* server, client_t* s
 	source_client->player->gun->ammo = 0;
 
 	server_on_player_reload(source_client->player, server);
+}
+
+void 
+bot_mode(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	const net_tcp_bot_mode_t* mode = (const void*)segment->data;
+	if (mode->is_bot == source_client->bot)
+		return;
+
+	source_client->bot = mode->is_bot;
+
+	if (mode->is_bot)
+	{
+		source_client->og_username = strndup(source_client->player->username, PLAYER_NAME_MAX);
+
+		snprintf(source_client->player->username, PLAYER_NAME_MAX, "Bot_%s_%u", source_client->og_username, source_client->player->id);
+	}
+	else
+	{
+		strncpy(source_client->player->username, source_client->og_username, PLAYER_NAME_MAX - 1);
+		free(source_client->og_username);
+		source_client->og_username = NULL;
+	}
+
+	net_tcp_username_change_t username_out = {0};
+	username_out.player_id = source_client->player->id;
+	strncpy(username_out.username, source_client->player->username, PLAYER_NAME_MAX);
+
+	ght_t* clients = &server->clients;
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		if (client->player)
+		{
+			ssp_segbuf_add(&client->tcp_buf, NET_TCP_USERNAME_CHANGE, sizeof(net_tcp_username_change_t), &username_out);
+			ssp_tcp_send_segbuf(&client->tcp_sock, &client->tcp_buf);
+		}
+	});
+}
+
+void 
+move_bot(const ssp_segment_t* segment, server_t* server, client_t* source_client)
+{
+	if (source_client->bot)
+		return;
+
+	const net_udp_move_bot_t* move_bot = (const void*)segment->data;
+
+	ght_t* clients = &server->clients;
+	GHT_FOREACH(client_t* client, clients, 
+	{
+		if (client->player && client->bot)
+		{
+			client->player->pos = move_bot->pos;
+
+			net_udp_player_move_t* move_out = mmframes_alloc(&server->mmf, sizeof(net_udp_player_move_t));
+			move_out->player_id = client->player->id;
+			move_out->pos = client->player->pos;
+			move_out->absolute = true;
+
+			server_add_data_all_udp_clients_i(server, NET_UDP_PLAYER_MOVE, move_out, sizeof(net_udp_player_move_t), 0);
+		}
+	});
 }

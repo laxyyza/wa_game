@@ -9,6 +9,8 @@ server_init_tcp(server_t* server)
 
 	ret = ssp_tcp_server(&server->tcp_sock, SSP_IPv4, server->port);
 
+	server->tcp_sock.send_flags = MSG_NOSIGNAL;
+
 	return ret;
 }
 
@@ -217,6 +219,8 @@ server_init_netdef(server_t* server)
 	callbacks[NET_UDP_PLAYER_GUN_ID] = (ssp_segment_callback_t)player_gun_id;
 	callbacks[NET_UDP_PLAYER_INPUT] = (ssp_segment_callback_t)player_input;
 	callbacks[NET_UDP_PLAYER_RELOAD] = (ssp_segment_callback_t)player_reload;
+	callbacks[NET_TCP_BOT_MODE] = (ssp_segment_callback_t)bot_mode;
+	callbacks[NET_UDP_MOVE_BOT] = (ssp_segment_callback_t)move_bot;
 
 	netdef_init(&server->netdef, NULL, callbacks);
 	server->netdef.ssp_ctx.user_data = server;
@@ -279,11 +283,11 @@ server_init_coregame(server_t* server)
 
 	coregame_server_init(&server->game, map, server->tickrate);
 	server->game.user_data = server;
-	server->game.player_changed = (cg_player_changed_callback_t)server_on_player_changed;
+	server->game.player_changed = (cg_player_changed_callback_t)on_player_changed;
 	server->game.player_damaged = (cg_player_damaged_callback_t)on_player_damaged;
 	server->game.player_reload = (cg_player_reload_callback_t)server_on_player_reload;
-	server->game.on_bullet_create = (cg_bullet_create_callback_t)server_on_bullet_create;
 	server->game.player_gun_changed = (cg_player_changed_callback_t)server_on_player_gun_changed;
+	server->game.on_bullet_create = (cg_bullet_create_callback_t)server_on_bullet_create;
 
 	array_init(&server->spawn_points, sizeof(cg_runtime_cell_t**), 10);
 	cg_runtime_cell_t* cell;
@@ -299,8 +303,6 @@ server_init_coregame(server_t* server)
 	}
 
 	server_init_coregame_gun_specs(server);
-
-	array_init(&server->bullet_create_events, sizeof(u32), 20);
 
 	return 0;
 }
@@ -347,8 +349,11 @@ server_init(server_t* server, i32 argc, char* const* argv)
 	if (server_init_timerfd(server) == -1)
 		goto err;
 	server_init_netdef(server);
-	mmframes_init(&server->mmf);
+	mmframes_init2(&server->mmf, MMF_DEFAULT_FRAME_SIZE * 4);
 	ssp_segbuf_init(&server->segbuf, 4, 0);
+
+	array_init(&server->packet_tx_buf, sizeof(const ssp_packet_t**), 10);
+	array_init(&server->tx_msgs, sizeof(struct mmsghdr), 10);
 
 	nano_timer_init(&server->timer);
 
