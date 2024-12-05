@@ -90,7 +90,6 @@ typedef struct cg_player
 #ifdef CG_SERVER
 	bool	dirty;
 	bool	gun_dirty;
-	bool	dirty_history;
 	f64		last_input_timestamp;
 #endif
 

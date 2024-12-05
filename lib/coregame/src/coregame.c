@@ -621,7 +621,6 @@ coregame_update_players(coregame_t* cg)
 		}
 
 		sbsm_commit_player(cg->sbsm->present, player);
-		player->dirty_history = false;
 	#endif // CG_SERVER
 	});
 }

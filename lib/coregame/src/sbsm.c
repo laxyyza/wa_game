@@ -132,17 +132,9 @@ sbsm_rewind_player(coregame_t* cg, cg_game_snapshot_t* gss, cg_player_t* player)
 {
 	cg_player_snapshot_t* pss = ght_get(&gss->player_states, player->id);
 
-	if (player->dirty_history == false)
-	{
-		if (pss)
-			sbsm_snapshot_to_player(cg, player, pss);
-		return;
-	}
-
 	if (pss && pss->dirty)
 	{
 		coregame_set_player_input(player, pss->input);
-		player->dirty_history = true;
 		pss->dirty = false;
 	}
 
@@ -213,8 +205,6 @@ sbsm_rollback_player(coregame_t* cg, cg_player_snapshot_t* pss)
 	if (player)
 	{
 		sbsm_snapshot_to_player(cg, player, pss);
-		if (pss->dirty)
-			player->dirty_history = true;
 		coregame_set_player_input(player, pss->input);
 		pss->dirty = false;
 	}
