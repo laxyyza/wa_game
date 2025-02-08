@@ -263,6 +263,9 @@ game_send_bot_mode(client_game_t* game)
 static void
 game_ui_stats_window(client_game_t* game, struct nk_context* ctx)
 {
+	if (game->show_stats == false)
+		return;
+
     wa_state_t* state = wa_window_get_state(game->app->window);
 	waapp_t* app = game->app;
 	char* label = game->ui_label;

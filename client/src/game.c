@@ -431,8 +431,8 @@ game_head_init(waapp_t* app, client_game_t* game)
 	shader_bind(shader);
 	shader_uniform1f(shader, "scale", game->ren->scale.x);
 
-	game->show_stats = true;
-	game->game_netdebug = true;
+	game->show_stats = false;
+	game->game_netdebug = false;
 	wa_state_t* state = wa_window_get_state(app->window);
 	nk_window_show(game->app->nk_ctx, state->window.title, game->show_stats);
 }
